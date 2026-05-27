@@ -14,7 +14,7 @@
 <body class="h-full" style="background:var(--bg);color:var(--text)">
 
   <!-- Botón de idioma -->
-  <div id="langBtnWrap" style="position:fixed;top:18px;right:18px;z-index:999">
+  <div id="langBtnWrap" style="position:fixed;top:18px;right:18px;z-index:999;display:none">
     <button id="langBtn" onclick="toggleLangDropdown()" style="display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:24px;background:linear-gradient(135deg,#0f2340,#1e3a5f);border:1.5px solid rgba(59,130,246,.5);color:#93c5fd;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:all .2s;letter-spacing:.3px">
       <span style="font-size:16px">🇨🇴</span>
       <span id="langBtnLabel">ES</span>
@@ -31,7 +31,7 @@
   </div>
 
   <!-- AUTH -->
-  <div id="authWrap" style="display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px">
+  <div id="authWrap" style="display:none;justify-content:center;align-items:center;min-height:100vh;padding:20px">
 
     <!-- LOGIN -->
     <div id="screen-login" class="auth-screen auth-active">

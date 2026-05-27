@@ -532,7 +532,7 @@ if(window.elementSdk){
 // PASSWORD_RECOVERY se maneja dentro de initApp
 
 // ---- AUTO LOGIN — verifica sesión activa al cargar ----
-(async function initApp() {
+document.addEventListener('DOMContentLoaded', async function initApp() {
   // Mostrar pantalla de carga
   const loader = document.createElement('div');
   loader.id = 'appLoader';
@@ -597,9 +597,17 @@ if(window.elementSdk){
     const { data: { session } } = await sb.auth.getSession();
     if (session && !isLoggedOut) {
       await enterApp(session);
+    } else {
+      // No hay sesión — mostrar login
+      document.getElementById('authWrap').style.display = 'flex';
+      const lbw = document.getElementById('langBtnWrap');
+      if (lbw) lbw.style.display = 'block';
     }
   } catch(e) {
     console.error('Error verificando sesión:', e);
+    document.getElementById('authWrap').style.display = 'flex';
+    const lbw = document.getElementById('langBtnWrap');
+    if (lbw) lbw.style.display = 'block';
   } finally {
     hideLoader();
   }
@@ -616,4 +624,4 @@ if(window.elementSdk){
       showScreen('nueva');
     }
   });
-})();
+});
