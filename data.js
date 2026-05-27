@@ -1,0 +1,262 @@
+// ============================================================
+// data.js — CleanClass v2.0
+// Base de datos centralizada + roles + grados
+// ============================================================
+
+// ---- CONEXIÓN SUPABASE ----
+const SUPABASE_URL = 'https://etschfdwbvxsbdmcsrai.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_kjviJYqxK-Xt0sld4Qf8pg_jtnaiNCN';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ---- FUNCIONES PARA LEER DATOS DESDE SUPABASE ----
+async function loadStudents() {
+  const { data, error } = await sb.from('students').select('*');
+  if (!error && data) D.students = data;
+}
+
+async function loadTeachers() {
+  const { data, error } = await sb.from('teachers').select('*');
+  if (!error && data) D.teachers = data;
+}
+
+async function loadCleanGroups() {
+  const { data, error } = await sb.from('clean_groups').select('*');
+  if (!error && data) D.cleanGroups = data;
+}
+
+async function loadEvidence() {
+  const { data, error } = await sb.from('evidence').select('*');
+  if (!error && data) D.evidence = data;
+}
+
+async function loadIncidents() {
+  const { data, error } = await sb.from('incidents').select('*');
+  if (!error && data) D.incidents = data;
+}
+
+async function loadAllData() {
+  await Promise.all([
+    loadStudents(),
+    loadTeachers(),
+    loadCleanGroups(),
+    loadEvidence(),
+    loadIncidents(),
+    loadRooms()
+  ]);
+  console.log('✅ Datos cargados desde Supabase');
+}
+
+// ---- FUNCIONES PARA GUARDAR DATOS EN SUPABASE ----
+// Guarda en Supabase: insert si es nuevo, update si ya existe
+async function sbSave(table, payload, loadFn) {
+  const localId = payload.id;
+  const isNew = !localId || localId >= 100;
+  const clean = {...payload};
+  delete clean.id;
+
+  let error;
+  if (isNew) {
+    ({ error } = await sb.from(table).insert(clean));
+  } else {
+    ({ error } = await sb.from(table).update(clean).eq('id', localId));
+  }
+
+  if (error) {
+    console.error('❌ ' + table + ' save error:', error.message, error.details, error.hint);
+    showDbError(table, error.message);
+    return;
+  }
+  await loadFn();
+}
+
+async function saveStudent(student)   { await sbSave('students',    student,  loadStudents);    }
+async function saveTeacher(teacher)   { await sbSave('teachers',    teacher,  loadTeachers);    }
+async function saveCleanGroup(group)  { await sbSave('clean_groups',group,    loadCleanGroups); }
+async function saveEvidence(evidence) { await sbSave('evidence',    evidence, loadEvidence);    }
+async function saveIncident(incident) { await sbSave('incidents',   incident, loadIncidents);   }
+
+// Muestra un toast de error de base de datos al usuario
+function showDbError(entidad, msg) {
+  const n = document.createElement('div');
+  n.style.cssText = 'position:fixed;top:20px;right:20px;background:#7f1d1d;color:#fecaca;padding:16px 20px;border-radius:10px;z-index:9999;font-size:13px;font-weight:600;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.4);border:1px solid #991b1b';
+  n.innerHTML = `<strong>⚠ Error al guardar ${entidad}</strong><br><span style="font-weight:400;font-size:12px">${msg}</span><br><span style="font-weight:400;font-size:11px;opacity:.8">Revisa la consola (F12) y las políticas RLS en Supabase.</span>`;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 6000);
+}
+
+async function deleteStudent(id) {
+  const { error } = await sb.from('students').delete().eq('id', id);
+  if (!error) await loadStudents();
+}
+
+async function deleteTeacher(id) {
+  const { error } = await sb.from('teachers').delete().eq('id', id);
+  if (!error) await loadTeachers();
+}
+
+async function deleteCleanGroup(id) {
+  const { error } = await sb.from('clean_groups').delete().eq('id', id);
+  if (!error) await loadCleanGroups();
+}
+
+async function deleteIncident(id) {
+  const { error } = await sb.from('incidents').delete().eq('id', id);
+  if (!error) await loadIncidents();
+}
+
+const D={
+  // Solo el admin hardcodeado para acceso inicial
+  users:[
+    {id:1, name:'Admin Sistema', email:'admin@cleanclass.edu', password:'Admin2024!', role:'admin', grade:null, department:'Dirección Académica', phone:'+57 300 123 4567', avatar:'👨‍💼'}
+  ],
+
+  // Estudiantes — se cargan desde Supabase
+  students:[],
+
+  // Docentes — se cargan desde Supabase
+  teachers:[],
+
+  rooms:[
+    {id:1,name:'Salón 101',capacity:35,grade:'10°1'},
+    {id:2,name:'Salón 202',capacity:30,grade:'11°1'},
+    {id:3,name:'Salón 103',capacity:40,grade:'9°1'}
+  ],
+
+  cleanGroups:[],
+
+  // ---- EVIDENCIAS con booleano de cumplimiento ----
+  evidence:[],
+
+  incidents:[],
+  nid:100
+};
+
+function nid(){return ++D.nid;}
+
+// ---- SESIÓN ACTIVA ----
+let currentSession = null;
+
+function getCurrentGrade(){
+  if(!currentSession) return null;
+  return currentSession.grade;
+}
+function isAdmin()   { return currentSession && currentSession.role === 'admin';   }
+function isTeacher() { return currentSession && currentSession.role === 'teacher'; }
+function isStudent() { return currentSession && currentSession.role === 'student'; }
+
+function filterByGrade(arr, gradeKey='grade'){
+  if(isAdmin()) return arr;
+  const g = getCurrentGrade();
+  if(!g) return arr;
+  return arr.filter(item => item[gradeKey] === g);
+}
+
+// ---- HELPERS CENTRALIZADOS ----
+// Devuelve lista de nombres de estudiantes para un grado dado
+function getStudentNamesByGrade(grade){
+  return D.students
+    .filter(s => !grade || s.grade === grade)
+    .map(s => s.name);
+}
+
+// Computa cumplimiento booleano de una evidencia
+function isCompliant(ev){
+  return ev.status === 'Completado';
+}
+
+// Calcula score de cumplimiento de un grupo (0-100)
+function groupComplianceScore(groupName){
+  const evs = D.evidence.filter(e => e.group === groupName);
+  if(!evs.length) return 0;
+  return Math.round((evs.filter(e=>isCompliant(e)).length / evs.length) * 100);
+}
+
+// Ranking de grupos por cumplimiento
+function getRankedGroups(filterGrade){
+  const groups = filterGrade
+    ? D.cleanGroups.filter(g => g.grade === filterGrade)
+    : D.cleanGroups;
+  return groups
+    .map(g => ({
+      ...g,
+      score: groupComplianceScore(g.name),
+      total: D.evidence.filter(e=>e.group===g.name).length,
+      completed: D.evidence.filter(e=>e.group===g.name&&isCompliant(e)).length
+    }))
+    .sort((a,b) => b.score - a.score);
+}
+
+// Sin datos demo — todo se carga desde Supabase
+D.nid = 400;
+
+// ---- FUNCIONES PARA IMÁGENES (STORAGE) ----
+
+// Sube una foto y devuelve la URL pública
+async function uploadEvidenceImage(file, evidenceId) {
+  const ext = file.name.split('.').pop();
+  const fileName = `evidencia_${evidenceId}_${Date.now()}.${ext}`;
+
+  const { error } = await sb.storage
+    .from('evidencias')
+    .upload(fileName, file, { upsert: true });
+
+  if (error) {
+    console.error('Error subiendo imagen:', error.message);
+    return null;
+  }
+
+  const { data } = sb.storage
+    .from('evidencias')
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
+
+// Elimina una foto del storage
+async function deleteEvidenceImage(imageUrl) {
+  if (!imageUrl) return;
+  const fileName = imageUrl.split('/evidencias/').pop();
+  await sb.storage.from('evidencias').remove([fileName]);
+}
+
+// Sube foto y guarda la evidencia en la base de datos
+async function saveEvidenceWithImage(evidenceData, imageFile) {
+  let imageUrl = evidenceData.image || null;
+
+  if (imageFile) {
+    imageUrl = await uploadEvidenceImage(imageFile, evidenceData.id || Date.now());
+    if (!imageUrl) {
+      console.error('No se pudo subir la imagen');
+      showDbError('imagen', 'No se pudo subir la foto. Verifica el bucket "evidencias" en Supabase Storage.');
+      return false;
+    }
+  }
+
+  const payload = {...evidenceData, image: imageUrl};
+  if (payload.id && payload.id >= 100) delete payload.id;
+
+  const { error } = await sb.from('evidence').upsert(payload);
+
+  if (error) {
+    console.error('❌ saveEvidenceWithImage error:', error.message, error.details, error.hint);
+    showDbError('evidencia', error.message);
+    return false;
+  }
+  await loadEvidence();
+  return true;
+}
+
+// ---- FUNCIONES PARA SALONES ----
+async function loadRooms() {
+  const { data, error } = await sb.from('rooms').select('*');
+  if (!error && data) D.rooms = data;
+}
+
+async function saveRoom(room) {
+  await sbSave('rooms', room, loadRooms);
+}
+
+async function deleteRoom(id) {
+  const { error } = await sb.from('rooms').delete().eq('id', id);
+  if (!error) await loadRooms();
+}

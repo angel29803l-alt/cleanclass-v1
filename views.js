@@ -1,0 +1,2242 @@
+// ============================================================
+// views.js — CleanClass  (roles: admin / teacher / student)
+// ============================================================
+
+function render(){
+  buildNav();
+  const m=document.getElementById('main');
+  if(!m)return;
+  const map={
+    adminPanel:rAdminPanel,
+    dash:rDash,
+    rooms:rRooms,
+    clean:rClean,
+    evidence:rEvidence,
+    validation:rValidation,
+    myvalidations:rMyValidations,
+    incidents:rIncidents,
+    reportIncident:rReportIncident,
+    reports:rReports,
+    settings:rSettings,
+    analytics:rAnalytics,
+    users:rUsers
+  };
+  const fn=map[cur]||rDash;
+  const html=typeof fn==='function'?fn():'';
+  m.innerHTML='<div class="fade-in">'+html+'</div>';
+  lucide.createIcons();
+  bindEvents();
+  if(typeof initCharts==="function") setTimeout(initCharts,80);
+}
+
+/* ============================================================
+   ADMIN PANEL — pantalla exclusiva del administrador
+   Tabs: Resumen | Estudiantes | Docentes | Salones | Supervisión
+   ============================================================ */
+let adminTab='overview';
+function setAdminTab(tab){adminTab=tab;render();}
+
+function rAdminPanel(){
+  if(typeof window.adminGradeFilter==='undefined') window.adminGradeFilter=null;
+  const allGrades=[...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].sort();
+
+  const fStudents = window.adminGradeFilter ? D.students.filter(s=>s.grade===window.adminGradeFilter) : D.students;
+  const fRooms    = window.adminGradeFilter ? D.rooms.filter(r=>r.grade===window.adminGradeFilter)    : D.rooms;
+  const fTeachers = window.adminGradeFilter ? D.teachers.filter(t=>t.grade===window.adminGradeFilter) : D.teachers;
+  const fEvidence = window.adminGradeFilter
+    ? D.evidence.filter(e=>{ const g=D.cleanGroups.find(cg=>cg.name===e.group); return g&&g.grade===window.adminGradeFilter; })
+    : D.evidence;
+  const fIncidents = window.adminGradeFilter ? D.incidents.filter(i=>i.grade===window.adminGradeFilter) : D.incidents;
+  const completionRate = fEvidence.length>0 ? Math.round((fEvidence.filter(e=>e.status==='Completado').length/fEvidence.length)*100) : 0;
+
+  const tabBtn=(key,label,icon)=>`<button onclick="setAdminTab('${key}')"
+    style="display:flex;align-items:center;gap:8px;padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+    background:${adminTab===key?'var(--accent)':'rgba(6,182,212,.08)'};color:${adminTab===key?'#fff':'var(--textm)'}">
+    <i data-lucide="${icon}" style="width:15px;height:15px"></i>${label}
+  </button>`;
+
+  // ── Encabezado del panel ──
+  let html=`
+  <div style="background:linear-gradient(135deg,rgba(6,182,212,.18),rgba(37,99,235,.12));border:1px solid rgba(6,182,212,.3);border-radius:16px;padding:24px;margin-bottom:24px">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#06b6d4,#2563eb);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(6,182,212,.4)">
+            <i data-lucide="shield" style="width:24px;height:24px;color:#fff"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold">Panel de Administración</h1>
+            <p style="color:var(--accent);font-size:13px;font-weight:600">CleanClass · Control total del sistema</p>
+          </div>
+        </div>
+        <p style="color:var(--textm);font-size:13px">Bienvenido, <strong style="color:var(--text)">${currentSession?.name||'Administrador'}</strong></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select class="inp" style="width:auto;padding:8px 32px 8px 12px;font-size:13px" onchange="window.adminGradeFilter=this.value||null;adminTab='overview';render()">
+          <option value="">Todos los grados</option>
+          ${allGrades.map(g=>`<option value="${g}" ${window.adminGradeFilter===g?'selected':''}>${g}</option>`).join('')}
+        </select>
+        <button onclick="showEmailModal()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:20px">${currentSession?.avatar||'👤'}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs rápidos -->
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+    ${[
+      {icon:'users',     label:'Estudiantes', val:fStudents.length,  color:'#2563eb'},
+      {icon:'book-open', label:'Docentes',    val:fTeachers.length,  color:'#7c3aed'},
+      {icon:'door-open', label:'Salones',     val:fRooms.length,     color:'#059669'},
+      {icon:'sparkles',  label:'Grupos Aseo', val:D.cleanGroups.length, color:'#ea580c'},
+      {icon:'trending-up',label:'Cumplimiento',val:completionRate+'%',color:'#06b6d4'}
+    ].map(s=>`
+      <div class="card" style="background:var(--surface);text-align:center;padding:16px">
+        <div style="width:40px;height:40px;border-radius:12px;background:${s.color}18;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">
+          <i data-lucide="${s.icon}" style="width:20px;height:20px;color:${s.color}"></i>
+        </div>
+        <p class="text-2xl font-bold">${s.val}</p>
+        <p style="color:var(--textm);font-size:12px">${s.label}</p>
+      </div>`).join('')}
+  </div>
+
+  <!-- Tabs de navegación interna -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+    ${tabBtn('overview',  'Resumen',     'layout-dashboard')}
+    ${tabBtn('students',  'Estudiantes', 'users')}
+    ${tabBtn('teachers',  'Docentes',    'book-open')}
+    ${tabBtn('rooms',     'Salones',     'door-open')}
+    ${tabBtn('supervision','Supervisión','eye')}
+  </div>`;
+
+  // ── TAB: RESUMEN ──
+  if(adminTab==='overview'){
+    const openInc=fIncidents.filter(i=>i.status==='Abierto').length;
+    const pendEv=fEvidence.filter(e=>e.status==='Pendiente').length;
+    html+=`
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Actividad reciente de evidencias -->
+      <div class="card" style="background:var(--surface)">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg">Evidencias Recientes</h3>
+          <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${fEvidence.length} total</span>
+        </div>
+        ${fEvidence.length>0?`
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Fecha</th><th>Grupo</th><th>Estudiante</th><th>Estado</th></tr></thead>
+            <tbody>
+              ${[...fEvidence].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6).map(e=>`
+              <tr>
+                <td style="font-size:12px">${e.date}</td>
+                <td style="font-size:12px">${e.group}</td>
+                <td style="font-size:12px">${e.student}</td>
+                <td><span class="badge" style="font-size:10px;background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">Sin evidencias registradas</p>`}
+      </div>
+
+      <!-- Estado del sistema -->
+      <div class="card" style="background:var(--surface)">
+        <h3 class="font-bold text-lg mb-4">Estado del Sistema</h3>
+        <div class="flex flex-col gap-3">
+          <div style="padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border-left:4px solid #ef4444;display:flex;justify-content:space-between;align-items:center">
+            <div><p style="font-size:12px;color:var(--textm)">Incidentes abiertos</p><p class="font-bold text-lg" style="color:#ef4444">${openInc}</p></div>
+            <i data-lucide="alert-circle" style="width:28px;height:28px;color:#ef4444;opacity:.7"></i>
+          </div>
+          <div style="padding:14px;background:rgba(245,158,11,.08);border-radius:10px;border-left:4px solid #f59e0b;display:flex;justify-content:space-between;align-items:center">
+            <div><p style="font-size:12px;color:var(--textm)">Evidencias pendientes</p><p class="font-bold text-lg" style="color:#f59e0b">${pendEv}</p></div>
+            <i data-lucide="clock" style="width:28px;height:28px;color:#f59e0b;opacity:.7"></i>
+          </div>
+          <div style="padding:14px;background:rgba(16,185,129,.08);border-radius:10px;border-left:4px solid #10b981;display:flex;justify-content:space-between;align-items:center">
+            <div><p style="font-size:12px;color:var(--textm)">Tasa de cumplimiento</p><p class="font-bold text-lg" style="color:#10b981">${completionRate}%</p></div>
+            <i data-lucide="trending-up" style="width:28px;height:28px;color:#10b981;opacity:.7"></i>
+          </div>
+          <div style="padding:14px;background:rgba(6,182,212,.08);border-radius:10px;border-left:4px solid var(--accent);display:flex;justify-content:space-between;align-items:center">
+            <div><p style="font-size:12px;color:var(--textm)">Grupos de aseo activos</p><p class="font-bold text-lg" style="color:var(--accent)">${D.cleanGroups.length}</p></div>
+            <i data-lucide="sparkles" style="width:28px;height:28px;color:var(--accent);opacity:.7"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Incidentes recientes -->
+      <div class="card lg:col-span-2" style="background:var(--surface)">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg">Incidentes Recientes</h3>
+          <div class="flex gap-2">
+            <span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444">${openInc} abiertos</span>
+            <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981">${fIncidents.filter(i=>i.status==='Resuelto').length} resueltos</span>
+          </div>
+        </div>
+        ${fIncidents.length>0?`
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Tipo</th><th>Grado</th><th>Prioridad</th><th>Estado</th><th>Reportado por</th><th>Fecha</th></tr></thead>
+            <tbody>
+              ${[...fIncidents].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8).map(i=>{
+                const pc={Alta:'#dc2626',Media:'#f59e0b',Baja:'#10b981'};
+                const sc={Abierto:'#ef4444','En Proceso':'#f59e0b',Resuelto:'#10b981'};
+                return `<tr>
+                  <td style="font-size:12px;font-weight:600">${i.type}</td>
+                  <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:10px">${i.grade||'—'}</span></td>
+                  <td><span class="badge" style="background:${pc[i.priority]||'#888'}20;color:${pc[i.priority]||'#888'};font-size:10px">${i.priority}</span></td>
+                  <td><span class="badge" style="background:${sc[i.status]||'#888'}20;color:${sc[i.status]||'#888'};font-size:10px">${i.status}</span></td>
+                  <td style="font-size:12px;color:var(--textm)">${i.reporter}</td>
+                  <td style="font-size:12px;color:var(--textm)">${i.date}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">Sin incidentes registrados</p>`}
+      </div>
+    </div>`;
+  }
+
+  // ── TAB: ESTUDIANTES ──
+  if(adminTab==='students'){
+    html+=`
+    <div class="card" style="background:var(--surface)">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 class="font-bold text-xl">Gestión de Estudiantes</h3>
+        <button class="btn btn-p flex items-center gap-1" onclick="openAdminModal('student')">
+          <i data-lucide="user-plus" style="width:15px;height:15px"></i>Agregar Estudiante
+        </button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th>Nombre</th><th>Grado</th><th>Email</th><th style="width:100px">Acciones</th>
+          </tr></thead>
+          <tbody>
+            ${fStudents.length>0?fStudents.map(s=>`
+            <tr>
+              <td>
+                <div class="flex items-center gap-2">
+                  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${s.name.charAt(0)}</div>
+                  <span class="font-medium">${s.name}</span>
+                </div>
+              </td>
+              <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${s.grade}</span></td>
+              <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
+              <td>
+                <div class="flex gap-1">
+                  <button class="btn btn-s" style="padding:5px" onclick="openAdminModal('student',${s.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                  <button class="btn btn-d" style="padding:5px" onclick="delAdmin('students',${s.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                </div>
+              </td>
+            </tr>`).join(''):`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--textm)">Sin estudiantes registrados</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // ── TAB: DOCENTES ──
+  if(adminTab==='teachers'){
+    html+=`
+    <div class="card" style="background:var(--surface)">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 class="font-bold text-xl">Gestión de Docentes</h3>
+        <button class="btn btn-p flex items-center gap-1" onclick="openAdminModal('teacher')">
+          <i data-lucide="user-plus" style="width:15px;height:15px"></i>Agregar Docente
+        </button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Nombre</th><th>Materia</th><th>Grado Asignado</th><th>Email</th><th style="width:100px">Acciones</th></tr></thead>
+          <tbody>
+            ${fTeachers.length>0?fTeachers.map(tc=>`
+            <tr>
+              <td>
+                <div class="flex items-center gap-2">
+                  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${tc.name.charAt(0)}</div>
+                  <span class="font-medium">${tc.name}</span>
+                </div>
+              </td>
+              <td style="font-size:13px">${tc.subject||'—'}</td>
+              <td><span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${tc.grade||'—'}</span></td>
+              <td style="font-size:12px;color:var(--textm)">${tc.email||'—'}</td>
+              <td>
+                <div class="flex gap-1">
+                  <button class="btn btn-s" style="padding:5px" onclick="openAdminModal('teacher',${tc.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                  <button class="btn btn-d" style="padding:5px" onclick="delAdmin('teachers',${tc.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                </div>
+              </td>
+            </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--textm)">Sin docentes registrados</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // ── TAB: SALONES ──
+  if(adminTab==='rooms'){
+    html+=`
+    <div class="card" style="background:var(--surface)">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 class="font-bold text-xl">Gestión de Salones</h3>
+        <button class="btn btn-p flex items-center gap-1" onclick="openModal('add','rooms')">
+          <i data-lucide="plus" style="width:15px;height:15px"></i>Agregar Salón
+        </button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Nombre del Salón</th><th>Capacidad</th><th>Grado</th><th style="width:100px">Acciones</th></tr></thead>
+          <tbody>
+            ${fRooms.length>0?fRooms.map(r=>`
+            <tr>
+              <td>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="door-open" style="width:16px;height:16px;color:#059669"></i>
+                  <span class="font-medium">${r.name}</span>
+                </div>
+              </td>
+              <td>${r.capacity} estudiantes</td>
+              <td><span class="badge" style="background:rgba(5,150,105,.15);color:#059669">${r.grade}</span></td>
+              <td>
+                <div class="flex gap-1">
+                  <button class="btn btn-s" style="padding:5px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                  <button class="btn btn-d" style="padding:5px" onclick="del('rooms',${r.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                </div>
+              </td>
+            </tr>`).join(''):`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--textm)">Sin salones registrados</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // ── TAB: SUPERVISIÓN (evidencias + incidentes completos) ──
+  if(adminTab==='supervision'){
+    html+=`
+    <div class="flex flex-col gap-6">
+      <!-- Supervisión de Evidencias -->
+      <div class="card" style="background:var(--surface)">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-xl">Supervisión de Evidencias</h3>
+          <div class="flex gap-2">
+            <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981">${fEvidence.filter(e=>e.status==='Completado').length} aprobadas</span>
+            <span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444">${fEvidence.filter(e=>e.status==='Rechazado').length} rechazadas</span>
+            <span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b">${fEvidence.filter(e=>e.status==='Pendiente').length} pendientes</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Fecha</th><th>Grupo</th><th>Estudiante</th><th>Estado</th><th>Revisado por</th><th>Observación</th></tr></thead>
+            <tbody>
+              ${fEvidence.length>0?[...fEvidence].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=>`
+              <tr>
+                <td style="font-size:12px"><strong>${e.date}</strong></td>
+                <td style="font-size:12px">${e.group}</td>
+                <td style="font-size:12px">${e.student}</td>
+                <td><span class="badge" style="font-size:10px;background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span></td>
+                <td style="font-size:12px;color:var(--textm)">${e.reviewed_by||'—'}</td>
+                <td style="font-size:12px;color:var(--textm)">${e.observation?e.observation.substring(0,35)+'...':'—'}</td>
+              </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--textm)">Sin evidencias</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Supervisión de Incidentes -->
+      <div class="card" style="background:var(--surface)">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-xl">Supervisión de Incidentes</h3>
+          <div class="flex gap-2">
+            <span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444">${fIncidents.filter(i=>i.status==='Abierto').length} abiertos</span>
+            <span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b">${fIncidents.filter(i=>i.status==='En Proceso').length} en proceso</span>
+            <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981">${fIncidents.filter(i=>i.status==='Resuelto').length} resueltos</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Tipo</th><th>Grado</th><th>Descripción</th><th>Prioridad</th><th>Estado</th><th>Reportado por</th><th>Fecha</th><th>Acciones</th></tr></thead>
+            <tbody>
+              ${fIncidents.length>0?[...fIncidents].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(i=>{
+                const pc={Alta:'#dc2626',Media:'#f59e0b',Baja:'#10b981'};
+                const sc={Abierto:'#ef4444','En Proceso':'#f59e0b',Resuelto:'#10b981'};
+                return `<tr>
+                  <td style="font-size:12px;font-weight:600">${i.type}</td>
+                  <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:10px">${i.grade||'—'}</span></td>
+                  <td style="font-size:12px;max-width:160px">${i.description.substring(0,40)}${i.description.length>40?'...':''}</td>
+                  <td><span class="badge" style="background:${pc[i.priority]||'#888'}20;color:${pc[i.priority]||'#888'};font-size:10px">${i.priority}</span></td>
+                  <td><span class="badge" style="background:${sc[i.status]||'#888'}20;color:${sc[i.status]||'#888'};font-size:10px">${i.status}</span></td>
+                  <td style="font-size:12px;color:var(--textm)">${i.reporter}</td>
+                  <td style="font-size:12px;color:var(--textm)">${i.date}</td>
+                  <td>
+                    <div class="flex gap-1">
+                      <button class="btn btn-s" style="padding:4px" onclick="openModal('edit','incidents',${i.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                      <button class="btn btn-d" style="padding:4px" onclick="del('incidents',${i.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                    </div>
+                  </td>
+                </tr>`;
+              }).join(''):`<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--textm)">Sin incidentes</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return html;
+}
+
+/* ============================================================
+   DASHBOARD — docentes y estudiantes
+   ============================================================ */
+let calendarOffset=0;
+function rDash(){
+  const myGrade=getCurrentGrade();
+  const myGroups=D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
+  const stats=[
+    {icon:'users',     label:t('students'),   val:filterByGrade(D.students).length,  color:'#2563eb'},
+    {icon:'door-open', label:t('rooms'),      val:filterByGrade(D.rooms).length,     color:'#059669'},
+    {icon:'sparkles',  label:t('cleanGroups'),val:myGroups.length,                   color:'#ea580c'},
+    {icon:'camera',    label:t('evidence'),   val:D.evidence.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return !myGrade||!g||g.grade===myGrade;}).length, color:'#7c3aed'}
+  ];
+
+  const now=new Date();
+  const year=new Date(now.getFullYear(),now.getMonth()+calendarOffset,1).getFullYear();
+  const month=new Date(now.getFullYear(),now.getMonth()+calendarOffset,1).getMonth();
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const monthNames=[...t('monthNames')];
+  const dayNames=[...t('dayNames')];
+  const EPOCH=new Date(1970,0,5);
+  const base=new Date(now.getFullYear(),now.getMonth(),1);
+  const view=new Date(year,month,1);
+  const daysDiff=Math.round((view-base)/(864e5));
+  const globalWeekAtStart=Math.floor(daysDiff/7);
+  const byDay={};
+  myGroups.filter(g=>g.frequency==='daily').forEach(g=>{if(!byDay[g.day])byDay[g.day]=[];byDay[g.day].push(g);});
+  const weekly=myGroups.filter(g=>g.frequency==='weekly');
+
+  let calDays='';
+  for(let i=0;i<firstDay;i++)calDays+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dow=new Date(year,month,d).getDay();
+    const dname=dayNames[dow];
+    const isWD=[1,2,3,4,5].includes(dow);
+    const isToday=d===now.getDate()&&month===now.getMonth()&&year===now.getFullYear();
+    let group=null;
+    if(isWD){
+      if(assignmentMode==='daily'){
+        const cands=byDay[dname]||[];
+        if(cands.length>0){
+          const dd=Math.round((new Date(year,month,d)-EPOCH)/(864e5));
+          const idx=((Math.floor(dd/7)%cands.length)+cands.length)%cands.length;
+          group=cands[idx];
+        }
+      }else if(weekly.length>0){
+        const gw=globalWeekAtStart+Math.floor((d-1+firstDay)/7);
+        group=weekly[((gw%weekly.length)+weekly.length)%weekly.length];
+      }
+    }
+    const bg=group?(group.color||'#06b6d4')+'28':'transparent';
+    const brd=group?'2px solid '+(group.color||'#06b6d4'):isToday?'2px solid var(--accent)':'1px solid transparent';
+    const col=group?(group.color||'#06b6d4'):isToday?'var(--accent)':'inherit';
+    calDays+=`<div ${group?`title="${group.name}"`:''}style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;border-radius:6px;background:${bg};border:${brd};min-height:36px">
+      <span style="font-size:12px;font-weight:${group||isToday?'700':'400'};color:${col}">${d}</span>
+      ${group?`<div style="width:7px;height:7px;border-radius:50%;background:${group.color||'#06b6d4'};margin-top:3px"></div>`:''}
+    </div>`;
+  }
+
+  const avatarInner=D._profileImage?`<img src="${D._profileImage}" style="width:100%;height:100%;object-fit:cover">`:`<i data-lucide="mail" style="width:40px;height:40px;color:#fff"></i>`;
+  const emailBtn=`<button id="emailBtn" style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(37,99,235,.2);border:none;cursor:pointer;transition:transform .2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="showEmailModal()">${avatarInner}</button>`;
+
+  return `<div class="flex items-center justify-between mb-6">
+    <div><h1 class="text-3xl font-bold">CleanClass</h1>${myGrade?`<p style="color:var(--accent);font-size:13px;font-weight:600">Grado ${myGrade}</p>`:''}</div>
+    ${emailBtn}
+  </div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    ${stats.map(s=>`<div class="card" style="background:var(--surface)">
+      <div style="width:36px;height:36px;border-radius:10px;background:${s.color}15;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <i data-lucide="${s.icon}" style="width:18px;height:18px;color:${s.color}"></i>
+      </div>
+      <p class="text-2xl font-bold">${s.val}</p>
+      <p style="color:var(--textm);font-size:13px">${s.label}</p>
+    </div>`).join('')}
+  </div>
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="card" style="background:var(--surface)">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold">${monthNames[month]} ${year}</h3>
+        <div class="flex gap-1">
+          <button class="btn btn-s" style="padding:5px 8px" onclick="calendarOffset--;render()"><i data-lucide="chevron-left" style="width:15px;height:15px"></i></button>
+          ${calendarOffset!==0?`<button class="btn btn-s" style="padding:5px 8px;font-size:11px" onclick="calendarOffset=0;render()">Hoy</button>`:''}
+          <button class="btn btn-s" style="padding:5px 8px" onclick="calendarOffset++;render()"><i data-lucide="chevron-right" style="width:15px;height:15px"></i></button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
+        ${[t('sun'),t('mon'),t('tue'),t('wed'),t('thu'),t('fri'),t('sat')].map(d=>`<div style="text-align:center;font-size:12px;font-weight:600;color:var(--textm);padding:4px">${d}</div>`).join('')}
+        ${calDays}
+      </div>
+    </div>
+    <div class="card" style="background:var(--surface)">
+      <h3 class="font-bold mb-3">${t('upcomingTurns')}</h3>
+      ${myGroups.length>0?myGroups.map(g=>{
+        const label=g.frequency==='daily'?g.day+' '+t('eachWeek'):t('weeklyRotation')+' '+(myGroups.filter(x=>x.frequency==='weekly').indexOf(g)+1);
+        return `<div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border)">
+          <div><span class="font-medium text-sm">${g.name}</span><span class="badge" style="background:${g.color||'#06b6d4'}20;color:${g.color||'#06b6d4'};margin-left:6px">${label}</span></div>
+          <span style="color:var(--textm);font-size:13px">${g.members.length} ${t('members')}</span>
+        </div>`;
+      }).join(''):`<p style="color:var(--textm);font-size:13px;padding:10px 0">${t('noTurns')}</p>`}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   SALONES
+   ============================================================ */
+// ============================================================
+// rAnalytics — Gráficos (Pie/Bar/Line) + Ranking + Tabla BIEN/MAL
+// ============================================================
+// ============================================================
+// ANALYTICS — optimizado, sin charts cuando no hay datos
+// ============================================================
+let analyticsTab = 'charts';
+let rankingFilter = 'school';
+const _charts = {};
+function destroyChart(id){ if(_charts[id]){_charts[id].destroy();delete _charts[id];} }
+
+function complianceBadge(ev){
+  if(ev.status==='Pendiente') return `<span class="badge-pendiente">⏳ Pendiente</span>`;
+  if(ev.compliant||ev.status==='Completado') return `<span class="badge-bien">✅ BIEN</span>`;
+  return `<span class="badge-mal">❌ MAL</span>`;
+}
+
+window.initCharts = function(){
+  if(!document.getElementById('chartPie')) return;
+  const myGrade = getCurrentGrade();
+  const myEv = D.evidence.filter(e=>{ const g=D.cleanGroups.find(cg=>cg.name===e.group); return !myGrade||!g||g.grade===myGrade; });
+  if(!myEv.length) return; // sin datos, no inicializar
+
+  const completed = myEv.filter(e=>e.compliant||e.status==='Completado').length;
+  const rejected  = myEv.filter(e=>e.status==='Rechazado').length;
+  const pending   = myEv.filter(e=>e.status==='Pendiente').length;
+
+  const cfg = { color:'#cbd5e1', borderColor:'rgba(6,182,212,.12)', font:{family:'DM Sans',size:12} };
+  Chart.defaults.color=cfg.color; Chart.defaults.borderColor=cfg.borderColor; Chart.defaults.font=cfg.font;
+
+  const pieEl=document.getElementById('chartPie');
+  if(pieEl){ destroyChart('pie');
+    _charts['pie']=new Chart(pieEl,{type:'doughnut',
+      data:{labels:['✅ BIEN','❌ MAL','⏳ Pendiente'],
+        datasets:[{data:[completed,rejected,pending],
+          backgroundColor:['rgba(16,185,129,.85)','rgba(239,68,68,.85)','rgba(245,158,11,.85)'],
+          borderColor:['#064e3b','#7f1d1d','#78350f'],borderWidth:2,hoverOffset:8}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+        animation:{duration:500},
+        plugins:{legend:{position:'bottom',labels:{padding:14,boxWidth:12,font:{size:12}}},
+          tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed/myEv.length*100)}%)`}}}}});
+  }
+
+  const barEl=document.getElementById('chartBar');
+  if(barEl){ destroyChart('bar');
+    const grades=[...new Set(D.cleanGroups.map(g=>g.grade))].filter(Boolean).sort();
+    const vals=grades.map(grade=>{ const evs=D.evidence.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade;}); return evs.length?Math.round((evs.filter(e=>e.compliant||e.status==='Completado').length/evs.length)*100):0; });
+    _charts['bar']=new Chart(barEl,{type:'bar',
+      data:{labels:grades.length?grades:['Sin grupos'],
+        datasets:[{label:'%',data:grades.length?vals:[0],
+          backgroundColor:vals.map(v=>v>=70?'rgba(16,185,129,.75)':v>=40?'rgba(245,158,11,.75)':'rgba(239,68,68,.75)'),
+          borderColor:vals.map(v=>v>=70?'#10b981':v>=40?'#f59e0b':'#ef4444'),
+          borderWidth:2,borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},
+        plugins:{legend:{display:false}},
+        scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'rgba(6,182,212,.07)'}},x:{grid:{display:false}}}}});
+  }
+
+  const lineEl=document.getElementById('chartLine');
+  if(lineEl){ destroyChart('line');
+    const now=new Date(); const weeks=[],weekData=[];
+    for(let w=7;w>=0;w--){
+      const d=new Date(now); d.setDate(d.getDate()-w*7);
+      const wStart=new Date(d); wStart.setDate(wStart.getDate()-7);
+      weeks.push(`S${8-w}`);
+      weekData.push(myEv.filter(e=>{const ed=new Date(e.date);return (e.compliant||e.status==='Completado')&&ed>=wStart&&ed<=d;}).length);
+    }
+    _charts['line']=new Chart(lineEl,{type:'line',
+      data:{labels:weeks,datasets:[{label:'Completadas',data:weekData,borderColor:'#06b6d4',
+        backgroundColor:'rgba(6,182,212,.1)',borderWidth:2,pointBackgroundColor:'#06b6d4',
+        pointRadius:4,fill:true,tension:.4}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},
+        plugins:{legend:{display:false}},
+        scales:{y:{min:0,ticks:{stepSize:1},grid:{color:'rgba(6,182,212,.07)'}},x:{grid:{display:false}}}}});
+  }
+};
+
+function rAnalytics(){
+  const myGrade   = getCurrentGrade();
+  const allGrades = [...new Set(D.cleanGroups.map(g=>g.grade))].filter(Boolean).sort();
+  const myEv = D.evidence.filter(e=>{ const g=D.cleanGroups.find(cg=>cg.name===e.group); return !myGrade||!g||g.grade===myGrade; });
+  const completed = myEv.filter(e=>e.compliant||e.status==='Completado').length;
+  const rejected  = myEv.filter(e=>e.status==='Rechazado').length;
+  const pending   = myEv.filter(e=>e.status==='Pendiente').length;
+  const compRate  = myEv.length?Math.round((completed/myEv.length)*100):0;
+  const hasData   = myEv.length > 0;
+
+  const rankGrade = rankingFilter==='school'?null:rankingFilter;
+  const ranked    = getRankedGroups(rankGrade);
+  const medals    = ['🥇','🥈','🥉'];
+
+  const emptyState = (icon,msg,sub='')=>`
+    <div style="text-align:center;padding:50px 20px;border:2px dashed rgba(6,182,212,.2);border-radius:12px;background:rgba(6,182,212,.03)">
+      <i data-lucide="${icon}" style="width:44px;height:44px;color:rgba(6,182,212,.35);margin:0 auto 14px;display:block"></i>
+      <p style="font-weight:600;color:var(--textm)">${msg}</p>
+      ${sub?`<p style="font-size:12px;color:var(--textm);margin-top:6px;opacity:.7">${sub}</p>`:''}
+    </div>`;
+
+  return `
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#06b6d4,#2563eb);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="bar-chart-2" style="width:22px;height:22px;color:#fff"></i>
+        </div>
+        Analíticas y Gráficos
+      </h1>
+      <p style="color:var(--textm);font-size:13px;margin-top:4px">${myGrade?'Grado '+myGrade:'Todo el colegio'}</p>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    ${[
+      {icon:'check-circle',label:'BIEN',        val:completed,    color:'#10b981',bg:'rgba(16,185,129,.1)', sub:'Aprobadas'},
+      {icon:'x-circle',    label:'MAL',         val:rejected,     color:'#ef4444',bg:'rgba(239,68,68,.1)',  sub:'Rechazadas'},
+      {icon:'clock',       label:'Pendientes',  val:pending,      color:'#f59e0b',bg:'rgba(245,158,11,.1)', sub:'Sin revisar'},
+      {icon:'trending-up', label:'Cumplimiento',val:compRate+'%', color:compRate>=70?'#10b981':compRate>=40?'#f59e0b':'#ef4444',
+       bg:compRate>=70?'rgba(16,185,129,.1)':compRate>=40?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)',sub:'Tasa general'}
+    ].map((s,i)=>`
+    <div class="kpi-card slide-up" style="animation-delay:${i*0.06}s">
+      <div style="width:40px;height:40px;border-radius:12px;background:${s.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <i data-lucide="${s.icon}" style="width:20px;height:20px;color:${s.color}"></i>
+      </div>
+      <p style="font-size:26px;font-weight:800;color:${s.color};line-height:1">${s.val}</p>
+      <p style="font-weight:700;font-size:13px;margin:4px 0 2px">${s.label}</p>
+      <p style="color:var(--textm);font-size:11px">${s.sub}</p>
+    </div>`).join('')}
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:10px">
+    ${[{key:'charts',icon:'pie-chart',label:'Gráficos'},{key:'ranking',icon:'award',label:'Tabla de Puntuación'},{key:'table',icon:'clipboard-list',label:'Registro BIEN / MAL'}].map(tab=>`
+    <button onclick="analyticsTab='${tab.key}';render()"
+      style="display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;
+      background:${analyticsTab===tab.key?'var(--accent)':'rgba(6,182,212,.07)'};color:${analyticsTab===tab.key?'#fff':'var(--textm)'}">
+      <i data-lucide="${tab.icon}" style="width:14px;height:14px"></i>${tab.label}
+    </button>`).join('')}
+  </div>
+
+  <!-- GRÁFICOS -->
+  ${analyticsTab==='charts'?(!hasData?emptyState('bar-chart-2','Aún no hay evidencias registradas','Los gráficos aparecerán cuando el docente apruebe o rechace evidencias'):`
+  <div class="grid gap-5 lg:grid-cols-2">
+    <div class="chart-wrap slide-up">
+      <h3 class="font-bold mb-1">Rendimiento General</h3>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:14px">BIEN / MAL / Pendiente</p>
+      <div style="height:220px;position:relative"><canvas id="chartPie"></canvas></div>
+    </div>
+    <div class="chart-wrap slide-up" style="animation-delay:.08s">
+      <h3 class="font-bold mb-1">Comparativa por Salón</h3>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:14px">% de cumplimiento por grado</p>
+      <div style="height:220px;position:relative"><canvas id="chartBar"></canvas></div>
+    </div>
+    <div class="chart-wrap lg:col-span-2 slide-up" style="animation-delay:.16s">
+      <h3 class="font-bold mb-1">Tendencia — Últimas 8 Semanas</h3>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:14px">Limpiezas completadas por semana</p>
+      <div style="height:200px;position:relative"><canvas id="chartLine"></canvas></div>
+    </div>
+  </div>`):''}
+
+  <!-- RANKING -->
+  ${analyticsTab==='ranking'?`
+  <div class="slide-up">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:18px;padding:12px 16px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.18);border-radius:10px">
+      <i data-lucide="filter" style="width:14px;height:14px;color:var(--accent)"></i>
+      <span style="font-size:13px;font-weight:600;color:var(--accent)">Filtrar:</span>
+      <button onclick="rankingFilter='school';render()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${rankingFilter==='school'?'var(--accent)':'rgba(6,182,212,.1)'};color:${rankingFilter==='school'?'#fff':'var(--textm)'}">🏫 Todo el Colegio</button>
+      ${allGrades.map(g=>`<button onclick="rankingFilter='${g}';render()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${rankingFilter===g?'#f59e0b':'rgba(245,158,11,.1)'};color:${rankingFilter===g?'#fff':'#f59e0b'}">🏆 ${g}</button>`).join('')}
+    </div>
+    ${ranked.length===0?emptyState('award','No hay grupos con evidencias aún','Crea grupos de aseo y sube evidencias para ver el ranking'):
+    `<div class="grid gap-4 sm:grid-cols-3 mb-5">
+      ${ranked.slice(0,3).map((g,i)=>{
+        const cs=['rgba(251,191,36,.12)','rgba(148,163,184,.1)','rgba(180,83,9,.1)'];
+        const bs=['rgba(251,191,36,.3)','rgba(148,163,184,.25)','rgba(180,83,9,.25)'];
+        const bc=g.score>=70?'#10b981':g.score>=40?'#f59e0b':'#ef4444';
+        return `<div class="card pop-in" style="background:${cs[i]};border:2px solid ${bs[i]};text-align:center;animation-delay:${i*0.07}s">
+          <div style="font-size:34px;margin-bottom:6px">${medals[i]}</div>
+          <div style="width:10px;height:10px;border-radius:50%;background:${g.color||'#06b6d4'};margin:0 auto 8px"></div>
+          <p style="font-weight:700;font-size:15px;margin-bottom:3px">${g.name}</p>
+          <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px;margin-bottom:10px;display:inline-block">${g.grade}</span>
+          <p style="font-size:30px;font-weight:800;color:${bc};line-height:1;margin-bottom:6px">${g.score}%</p>
+          <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${g.score}%;background:${bc}"></div></div>
+          <p style="font-size:11px;color:var(--textm);margin-top:6px">${g.completed}/${g.total} limpiezas</p>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="card" style="background:var(--surface);padding:0;overflow:hidden">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border)"><h3 class="font-bold">Clasificación Completa</h3></div>
+      <div style="overflow-x:auto"><table class="tbl" style="margin:0">
+        <thead><tr style="background:rgba(6,182,212,.04)">
+          <th style="width:48px;text-align:center">Pos.</th><th>Grupo</th><th>Grado</th>
+          <th style="text-align:center">✅</th><th style="text-align:center">❌</th><th>Puntuación</th><th style="text-align:center">Estado</th>
+        </tr></thead>
+        <tbody>${ranked.map((g,i)=>{
+          const bc=g.score>=70?'#10b981':g.score>=40?'#f59e0b':'#ef4444';
+          return `<tr class="${g.score>=70?'compliant-row':g.total>0&&g.score<40?'non-compliant-row':''}">
+            <td style="text-align:center;font-size:${i<3?'18':'13'}px">${i<3?medals[i]:`<span style="color:var(--textm);font-weight:700">#${i+1}</span>`}</td>
+            <td><div style="display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:50%;background:${g.color||'#06b6d4'}"></div><span style="font-weight:600">${g.name}</span></div></td>
+            <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px">${g.grade||'—'}</span></td>
+            <td style="text-align:center"><span class="badge-bien">${g.completed}</span></td>
+            <td style="text-align:center"><span class="badge-mal">${g.total-g.completed}</span></td>
+            <td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" style="width:${g.score}%;background:${bc}"></div></div>
+              <span style="font-weight:700;color:${bc};font-size:13px">${g.score}%</span>
+            </div></td>
+            <td style="text-align:center">${g.score>=70?`<span class="badge-bien">BIEN</span>`:g.total===0?`<span style="font-size:11px;color:var(--textm)">—</span>`:`<span class="badge-mal">MAL</span>`}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>`}
+  </div>`:''}
+
+  <!-- TABLA BIEN/MAL -->
+  ${analyticsTab==='table'?(!hasData?emptyState('clipboard-list','Sin evidencias para mostrar','El registro aparecerá cuando se suban y revisen evidencias'):`
+  <div class="card slide-up" style="background:var(--surface);padding:0;overflow:hidden">
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <h3 class="font-bold flex items-center gap-2"><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--accent)"></i>Registro de Cumplimiento</h3>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="badge-bien">${completed} BIEN</span>
+        <span class="badge-mal">${rejected} MAL</span>
+        <span class="badge-pendiente">${pending} Pendiente</span>
+        ${isStudent()?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(6,182,212,.1);border-radius:8px;font-size:11px;color:var(--accent);font-weight:600"><i data-lucide="eye" style="width:11px;height:11px"></i> Solo lectura</span>`:''}
+      </div>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl" style="margin:0">
+      <thead><tr style="background:rgba(6,182,212,.04)">
+        <th>Fecha</th><th>Grupo</th><th>Estudiante</th>
+        <th style="text-align:center">Aseo</th><th style="text-align:center">Resultado</th>
+        <th>Revisado por</th><th>Observación</th>
+      </tr></thead>
+      <tbody>${[...myEv].sort((a,b)=>new Date(b.date)-new Date(a.date)).map((e,i)=>{
+        const bien=e.compliant||e.status==='Completado'; const mal=e.status==='Rechazado';
+        return `<tr class="${bien?'compliant-row':mal?'non-compliant-row':''}" style="animation-delay:${i*0.02}s">
+          <td style="font-size:12px;white-space:nowrap"><strong>${e.date}</strong>${e.time?`<br><span style="color:var(--textm)">${e.time}</span>`:''}  </td>
+          <td style="font-size:13px">${e.group}</td>
+          <td style="font-size:12px">${e.student}</td>
+          <td style="text-align:center;font-size:22px">${bien?'✅':mal?'❌':'⏳'}</td>
+          <td style="text-align:center">${complianceBadge(e)}</td>
+          <td style="font-size:12px;color:var(--textm)">${e.reviewed_by||'—'}</td>
+          <td style="font-size:12px;color:var(--textm);max-width:160px">${e.observation||'—'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </div>`):''}`;
+}
+
+// ============================================================
+// MÓDULO DE USUARIOS — solo lectura, sin botones de agregar
+// ============================================================
+let usersTab = 'students';
+let usersGradeFilter = null;
+let usersSearch = '';
+
+function rUsers(){
+  const allGrades  = [...new Set(D.rooms.map(r=>r.grade))].sort();
+  const myGrade    = getCurrentGrade();
+  const gradeScope = isAdmin()?( usersGradeFilter||null):myGrade;
+
+  const filteredStudents = D.students
+    .filter(s=>!gradeScope||s.grade===gradeScope)
+    .filter(s=>!usersSearch||s.name.toLowerCase().includes(usersSearch.toLowerCase())||(s.email||'').toLowerCase().includes(usersSearch.toLowerCase()));
+
+  const filteredTeachers = D.teachers
+    .filter(t=>!gradeScope||t.grade===gradeScope)
+    .filter(t=>!usersSearch||t.name.toLowerCase().includes(usersSearch.toLowerCase())||(t.email||'').toLowerCase().includes(usersSearch.toLowerCase()));
+
+  const gradeDistrib = allGrades.map(g=>({
+    grade:g, students:D.students.filter(s=>s.grade===g).length, teachers:D.teachers.filter(t=>t.grade===g).length
+  }));
+
+  return `
+  <div style="background:linear-gradient(135deg,rgba(37,99,235,.16),rgba(124,58,237,.08));border:1px solid rgba(37,99,235,.25);border-radius:16px;padding:20px;margin-bottom:20px">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold flex items-center gap-3">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i data-lucide="users" style="width:21px;height:21px;color:#fff"></i>
+          </div>
+          Módulo de Usuarios
+        </h1>
+        <p style="color:var(--textm);font-size:13px;margin-top:4px">${isAdmin()?'Todos los grados':'Grado '+myGrade}</p>
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <div style="position:relative">
+          <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--textm);pointer-events:none"></i>
+          <input type="text" placeholder="Buscar..." value="${usersSearch}"
+            oninput="usersSearch=this.value;render()"
+            class="inp" style="padding:8px 12px 8px 32px;width:170px;font-size:13px">
+        </div>
+        ${isAdmin()?`<select class="inp" style="width:auto;padding:8px 32px 8px 12px;font-size:13px" onchange="usersGradeFilter=this.value||null;render()">
+          <option value="">Todos los grados</option>
+          ${allGrades.map(g=>`<option value="${g}" ${usersGradeFilter===g?'selected':''}>${g}</option>`).join('')}
+        </select>`:''}
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    ${[
+      {icon:'users',    label:'Estudiantes', val:D.students.filter(s=>!gradeScope||s.grade===gradeScope).length, color:'#2563eb'},
+      {icon:'book-open',label:'Docentes',    val:D.teachers.filter(t=>!gradeScope||t.grade===gradeScope).length, color:'#7c3aed'},
+      {icon:'door-open',label:'Salones',     val:D.rooms.filter(r=>!gradeScope||r.grade===gradeScope).length,    color:'#059669'},
+      {icon:'sparkles', label:'Grupos Aseo', val:D.cleanGroups.filter(g=>!gradeScope||g.grade===gradeScope).length, color:'#f59e0b'}
+    ].map((s,i)=>`
+    <div class="kpi-card slide-up" style="animation-delay:${i*0.07}s">
+      <div style="width:38px;height:38px;border-radius:10px;background:${s.color}18;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <i data-lucide="${s.icon}" style="width:19px;height:19px;color:${s.color}"></i>
+      </div>
+      <p style="font-size:24px;font-weight:800;color:${s.color};line-height:1">${s.val}</p>
+      <p style="font-size:13px;font-weight:600;margin:4px 0 2px">${s.label}</p>
+    </div>`).join('')}
+  </div>
+
+  <!-- Distribución por grado (admin) -->
+  ${isAdmin()?`
+  <div class="card mb-5 slide-up" style="background:var(--surface)">
+    <h3 class="font-bold mb-3 flex items-center gap-2">
+      <i data-lucide="layout-grid" style="width:15px;height:15px;color:var(--accent)"></i>
+      Distribución por Grado
+      ${usersGradeFilter?`<button class="btn btn-s" style="font-size:11px;padding:3px 10px" onclick="usersGradeFilter=null;render()">✕ Quitar filtro</button>`:''}
+    </h3>
+    <div class="grid gap-3 sm:grid-cols-3">
+      ${gradeDistrib.map(g=>`
+      <div onclick="usersGradeFilter='${g.grade}';render()" style="padding:12px;border-radius:10px;cursor:pointer;transition:all .2s;
+        background:${usersGradeFilter===g.grade?'rgba(6,182,212,.12)':'rgba(6,182,212,.04)'};
+        border:2px solid ${usersGradeFilter===g.grade?'var(--accent)':'rgba(6,182,212,.12)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span class="badge" style="background:rgba(6,182,212,.18);color:var(--accent)">${g.grade}</span>
+          <i data-lucide="chevron-right" style="width:13px;height:13px;color:var(--textm)"></i>
+        </div>
+        <div style="display:flex;gap:16px">
+          <div><p style="font-size:20px;font-weight:700;color:#2563eb">${g.students}</p><p style="font-size:11px;color:var(--textm)">Estudiantes</p></div>
+          <div><p style="font-size:20px;font-weight:700;color:#7c3aed">${g.teachers}</p><p style="font-size:11px;color:var(--textm)">Docentes</p></div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`:''}
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:10px;flex-wrap:wrap">
+    ${[
+      {key:'students',label:`Estudiantes (${filteredStudents.length})`,color:'#2563eb'},
+      {key:'teachers',label:`Docentes (${filteredTeachers.length})`,color:'#7c3aed'},
+      {key:'cards',   label:'Vista Tarjetas',color:'#059669'}
+    ].map(tab=>`
+    <button onclick="usersTab='${tab.key}';render()"
+      style="padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;
+      background:${usersTab===tab.key?tab.color:'transparent'};color:${usersTab===tab.key?'#fff':'var(--textm)'}">
+      ${tab.label}
+    </button>`).join('')}
+  </div>
+
+  <!-- TABLA ESTUDIANTES -->
+  ${usersTab==='students'?`
+  <div class="card slide-up" style="background:var(--surface);padding:0;overflow:hidden">
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <h3 class="font-bold">Estudiantes</h3>
+      <span class="badge" style="background:rgba(37,99,235,.15);color:#2563eb">${filteredStudents.length} registros</span>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl" style="margin:0">
+      <thead><tr style="background:rgba(37,99,235,.04)">
+        <th style="width:36px">#</th><th>Nombre</th><th>Grado</th><th>Email</th><th>Grupo Aseo</th><th style="text-align:center">Cumplimiento</th>
+      </tr></thead>
+      <tbody>${filteredStudents.length>0?filteredStudents.map((s,i)=>{
+        const group=D.cleanGroups.find(g=>g.members&&g.members.includes(s.name));
+        const evs=D.evidence.filter(e=>e.student===s.name);
+        const comp=evs.length?Math.round((evs.filter(e=>e.compliant||e.status==='Completado').length/evs.length)*100):null;
+        const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
+        return `<tr>
+          <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
+          <td><div style="display:flex;align-items:center;gap:9px">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${s.name.charAt(0)}</div>
+            <span style="font-weight:600;font-size:13px">${s.name}</span>
+          </div></td>
+          <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${s.grade}</span></td>
+          <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
+          <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
+          <td style="text-align:center">${comp!==null?`<div style="display:flex;align-items:center;gap:7px;justify-content:center">
+            <div style="width:50px;height:5px;border-radius:3px;background:rgba(6,182,212,.1);overflow:hidden"><div style="width:${comp}%;height:100%;background:${cc}"></div></div>
+            <span style="font-size:12px;font-weight:700;color:${cc}">${comp}%</span>
+          </div>`:`<span style="font-size:11px;color:var(--textm)">—</span>`}</td>
+        </tr>`;
+      }).join(''):`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--textm)">Sin estudiantes</td></tr>`}
+      </tbody>
+    </table></div>
+  </div>`:''}
+
+  <!-- TABLA DOCENTES -->
+  ${usersTab==='teachers'?`
+  <div class="card slide-up" style="background:var(--surface);padding:0;overflow:hidden">
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <h3 class="font-bold">Docentes</h3>
+      <span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${filteredTeachers.length} registros</span>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl" style="margin:0">
+      <thead><tr style="background:rgba(124,58,237,.04)">
+        <th style="width:36px">#</th><th>Nombre</th><th>Materia</th><th>Grado</th><th>Email</th><th>Departamento</th>
+      </tr></thead>
+      <tbody>${filteredTeachers.length>0?filteredTeachers.map((tc,i)=>`
+      <tr>
+        <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
+        <td><div style="display:flex;align-items:center;gap:9px">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${tc.name.replace('Prof. ','').charAt(0)}</div>
+          <span style="font-weight:600;font-size:13px">${tc.name}</span>
+        </div></td>
+        <td style="font-size:13px">${tc.subject||'—'}</td>
+        <td><span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${tc.grade||'—'}</span></td>
+        <td style="font-size:12px;color:var(--textm)">${tc.email||'—'}</td>
+        <td style="font-size:12px;color:var(--textm)">${tc.department||'—'}</td>
+      </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--textm)">Sin docentes</td></tr>`}
+      </tbody>
+    </table></div>
+  </div>`:''}
+
+  <!-- TARJETAS -->
+  ${usersTab==='cards'?`
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    ${filteredStudents.map((s,i)=>{
+      const group=D.cleanGroups.find(g=>g.members&&g.members.includes(s.name));
+      const evs=D.evidence.filter(e=>e.student===s.name);
+      const comp=evs.length?Math.round((evs.filter(e=>e.compliant||e.status==='Completado').length/evs.length)*100):null;
+      const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
+      return `<div class="card pop-in" style="background:var(--surface);text-align:center;animation-delay:${i*0.04}s">
+        <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:700;margin:0 auto 10px">${s.name.charAt(0)}</div>
+        <p style="font-weight:700;margin-bottom:3px">${s.name}</p>
+        <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px;display:inline-block;margin-bottom:9px">${s.grade}</span>
+        ${group?`<div style="background:${group.color||'#06b6d4'}15;border:1px solid ${group.color||'#06b6d4'}25;border-radius:7px;padding:5px 8px;margin-bottom:8px"><p style="font-size:11px;color:${group.color||'var(--accent)'};font-weight:600">${group.name}</p></div>`:`<p style="font-size:11px;color:var(--textm);margin-bottom:8px;font-style:italic">Sin grupo</p>`}
+        ${comp!==null?`<div><div class="progress-bar-track"><div class="progress-bar-fill" style="width:${comp}%;background:${cc}"></div></div><p style="font-size:12px;font-weight:700;color:${cc};margin-top:4px">${comp}%</p></div>`:''}
+      </div>`;
+    }).join('')}
+    ${filteredStudents.length===0?`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--textm)">Sin estudiantes</div>`:''}
+  </div>`:''}`;
+}
+
+// ============================================================
+// EVIDENCIAS — cámara directa con sello de fecha/hora/día
+// ============================================================
+function rEvidence(){
+  const myGrade   = getCurrentGrade();
+  const myGroups  = D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
+  const myEvidence= isStudent()
+    ? D.evidence.filter(e=>e.student===currentSession.name)
+    : D.evidence.filter(e=>{ const g=D.cleanGroups.find(cg=>cg.name===e.group); return !myGrade||!g||g.grade===myGrade; });
+  const completed = myEvidence.filter(e=>e.compliant||e.status==='Completado').length;
+  const pending   = myEvidence.filter(e=>e.status==='Pendiente').length;
+  const rejected  = myEvidence.filter(e=>e.status==='Rechazado').length;
+  const total     = myEvidence.length;
+  const rate      = total?Math.round((completed/total)*100):0;
+
+  return `
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Evidencias de Aseo</h1>
+      <p style="color:var(--textm);font-size:13px">Toma la foto de la limpieza directamente desde la app</p>
+    </div>
+    ${myGroups.length>0?`<button class="btn btn-p flex items-center gap-2" onclick="openCameraModal()">
+      <i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto
+    </button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">El docente debe crear grupos primero</span>`}
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    ${[
+      {icon:'check-circle',label:'BIEN',       val:completed,color:'#10b981',bg:'rgba(16,185,129,.1)'},
+      {icon:'x-circle',    label:'MAL',        val:rejected, color:'#ef4444',bg:'rgba(239,68,68,.1)'},
+      {icon:'clock',       label:'Pendientes', val:pending,  color:'#f59e0b',bg:'rgba(245,158,11,.1)'},
+      {icon:'trending-up', label:'Cumplimiento',val:rate+'%',color:rate>=70?'#10b981':rate>=40?'#f59e0b':'#ef4444',bg:'rgba(6,182,212,.1)'}
+    ].map((s,i)=>`
+    <div class="kpi-card slide-up" style="animation-delay:${i*0.07}s">
+      <div style="width:38px;height:38px;border-radius:10px;background:${s.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <i data-lucide="${s.icon}" style="width:19px;height:19px;color:${s.color}"></i>
+      </div>
+      <p style="font-size:24px;font-weight:800;color:${s.color};line-height:1">${s.val}</p>
+      <p style="font-size:13px;color:var(--textm);margin-top:4px">${s.label}</p>
+    </div>`).join('')}
+  </div>
+
+  <h3 class="font-bold text-lg mb-4">Evidencias Recientes</h3>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    ${myEvidence.length>0?[...myEvidence].sort((a,b)=>new Date(b.date)-new Date(a.date)).map((e,i)=>`
+    <div class="card pop-in" style="background:var(--surface);animation-delay:${i*0.05}s">
+      <div style="width:100%;height:160px;border-radius:10px;overflow:hidden;margin-bottom:12px;background:rgba(6,182,212,.08);position:relative">
+        ${e.image?`<img src="${e.image}" style="width:100%;height:100%;object-fit:cover">`:`<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:8px"><i data-lucide="image" style="width:36px;height:36px;color:rgba(6,182,212,.4)"></i><p style="font-size:11px;color:var(--textm)">Sin imagen</p></div>`}
+        ${e.image?`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.75));padding:8px 10px">
+          <p style="font-size:10px;color:#fff;font-weight:600">${e.date}${e.time?' · '+e.time:''}</p>
+        </div>`:''}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <h4 style="font-weight:700;font-size:13px">${e.group}</h4>
+        ${complianceBadge(e)}
+      </div>
+      <p style="font-size:12px;color:var(--textm)">${e.student}</p>
+      <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.date}${e.time?' · '+e.time:''}</p>
+      ${e.reviewed_by&&e.observation?`<div style="margin-top:8px;padding:8px;background:rgba(6,182,212,.07);border-radius:7px;border-left:3px solid var(--accent)">
+        <p style="font-size:11px;color:var(--accent);font-weight:600">${e.reviewed_by}:</p>
+        <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.observation}</p>
+      </div>`:''}
+    </div>`).join(''):`
+    <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
+      <i data-lucide="camera" style="width:44px;height:44px;opacity:.35;margin:0 auto 14px;display:block"></i>
+      <p class="font-medium">Sin evidencias aún</p>
+      <p style="font-size:13px;margin-top:4px">Toma la primera foto de limpieza</p>
+    </div>`}
+  </div>
+
+  <!-- MODAL CÁMARA (se crea por JS) -->
+  <div id="cameraModalWrap"></div>`;
+}
+
+// ---- CÁMARA MODAL con sello fecha/hora/día ----
+function openCameraModal(){
+  const myGrade = getCurrentGrade();
+  const myGroups= D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
+  const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const now     = new Date();
+  const stamp   = `${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+
+  const html=`<div class="modal-bg" onclick="if(event.target===this)closeCameraModal()">
+    <div class="modal fade-in" style="max-width:500px;max-height:92vh;overflow-y:auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg flex items-center gap-2">
+          <i data-lucide="camera" style="width:18px;height:18px;color:var(--accent)"></i>
+          Subir Evidencia de Aseo
+        </h2>
+        <button onclick="closeCameraModal()" class="btn btn-s" style="padding:5px">
+          <i data-lucide="x" style="width:17px;height:17px"></i>
+        </button>
+      </div>
+
+      <!-- Selector de grupo -->
+      <div class="flex flex-col gap-3 mb-4">
+        <div>
+          <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Grupo de Aseo</label>
+          <select id="camGroup" class="inp">
+            <option value="">Selecciona tu grupo</option>
+            ${myGroups.map(g=>`<option value="${g.name}">${g.name} — ${g.grade}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Tu Nombre</label>
+          <input id="camStudent" class="inp" type="text" value="${currentSession?.name||''}" placeholder="Nombre completo">
+        </div>
+      </div>
+
+      <!-- Área de cámara/preview -->
+      <div style="position:relative;border-radius:12px;overflow:hidden;background:#000;margin-bottom:14px">
+        <video id="camVideo" autoplay playsinline style="width:100%;display:block;max-height:300px;object-fit:cover"></video>
+        <canvas id="camCanvas" style="display:none;width:100%;max-height:300px;object-fit:cover"></canvas>
+        <img id="camPreview" style="display:none;width:100%;max-height:300px;object-fit:cover;border-radius:12px">
+
+        <!-- Sello de fecha/hora superpuesto -->
+        <div id="camStamp" style="position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.7);color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;backdrop-filter:blur(4px)">
+          ${stamp}
+        </div>
+      </div>
+
+      <!-- Botones -->
+      <div id="camBtns" class="flex gap-3">
+        <button id="btnCapture" class="btn btn-p flex-1 flex items-center justify-center gap-2" onclick="capturePhoto()">
+          <i data-lucide="aperture" style="width:16px;height:16px"></i>Capturar
+        </button>
+        <label class="btn btn-s flex-1 flex items-center justify-center gap-2" style="cursor:pointer">
+          <i data-lucide="upload" style="width:16px;height:16px"></i>Subir Foto
+          <input type="file" id="camFileInput" accept="image/*" capture="environment" style="display:none" onchange="loadFromFile(this)">
+        </label>
+      </div>
+      <div id="camRetakeBtns" style="display:none" class="flex gap-3">
+        <button class="btn btn-s flex-1" onclick="retakePhoto()">
+          <i data-lucide="rotate-ccw" style="width:15px;height:15px;display:inline;margin-right:5px"></i>Retomar
+        </button>
+        <button class="btn btn-p flex-1" onclick="saveEvidence()">
+          <i data-lucide="check" style="width:15px;height:15px;display:inline;margin-right:5px"></i>Guardar Evidencia
+        </button>
+      </div>
+
+      <p id="camError" style="color:#ef4444;font-size:12px;text-align:center;margin-top:10px;display:none"></p>
+    </div>
+  </div>`;
+
+  const wrap=document.getElementById('cameraModalWrap');
+  wrap.innerHTML=html;
+  lucide.createIcons();
+  startCamera();
+}
+
+let _camStream=null;
+let _capturedDataUrl=null;
+let _capturedStamp=null;
+
+function startCamera(){
+  const video=document.getElementById('camVideo');
+  if(!video) return;
+  const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const now=new Date();
+  _capturedStamp=`${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
+    .then(stream=>{
+      _camStream=stream;
+      video.srcObject=stream;
+    })
+    .catch(()=>{
+      // Si no hay cámara disponible (desktop), mostrar solo la opción de subir
+      video.style.display='none';
+      const btnCap=document.getElementById('btnCapture');
+      if(btnCap) btnCap.style.display='none';
+      const err=document.getElementById('camError');
+      if(err){err.textContent='Cámara no disponible — usa el botón "Subir Foto"';err.style.display='block';}
+    });
+}
+
+function capturePhoto(){
+  const video  = document.getElementById('camVideo');
+  const canvas = document.getElementById('camCanvas');
+  const preview= document.getElementById('camPreview');
+  if(!video||!canvas) return;
+
+  const now=new Date();
+  const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  _capturedStamp=`${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+
+  // Dibujar frame del video en el canvas con sello
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+  // Dibujar sello de fecha/hora/día
+  const stamp=_capturedStamp;
+  ctx.fillStyle='rgba(0,0,0,.65)';
+  ctx.fillRect(10,canvas.height-38,ctx.measureText(stamp).width+20,28);
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 14px DM Sans, sans-serif';
+  ctx.fillText(stamp,20,canvas.height-18);
+
+  _capturedDataUrl=canvas.toDataURL('image/jpeg',0.85);
+
+  // Mostrar preview
+  preview.src=_capturedDataUrl;
+  preview.style.display='block';
+  video.style.display='none';
+  document.getElementById('camBtns').style.display='none';
+  document.getElementById('camRetakeBtns').style.display='flex';
+  if(_camStream) _camStream.getTracks().forEach(t=>t.stop());
+}
+
+function loadFromFile(input){
+  const file=input.files[0];
+  if(!file) return;
+  const now=new Date();
+  const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  _capturedStamp=`${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    // Dibujar imagen + sello en canvas
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.getElementById('camCanvas');
+      canvas.width=img.width; canvas.height=img.height;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const stamp=_capturedStamp;
+      ctx.fillStyle='rgba(0,0,0,.65)';
+      ctx.fillRect(10,canvas.height-38,ctx.measureText(stamp).width+20,28);
+      ctx.fillStyle='#ffffff';
+      ctx.font='bold 14px DM Sans, sans-serif';
+      ctx.fillText(stamp,20,canvas.height-18);
+      _capturedDataUrl=canvas.toDataURL('image/jpeg',0.85);
+
+      const preview=document.getElementById('camPreview');
+      preview.src=_capturedDataUrl;
+      preview.style.display='block';
+      document.getElementById('camVideo').style.display='none';
+      document.getElementById('camBtns').style.display='none';
+      document.getElementById('camRetakeBtns').style.display='flex';
+      if(_camStream) _camStream.getTracks().forEach(t=>t.stop());
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function retakePhoto(){
+  _capturedDataUrl=null;
+  document.getElementById('camPreview').style.display='none';
+  document.getElementById('camVideo').style.display='block';
+  document.getElementById('camBtns').style.display='flex';
+  document.getElementById('camRetakeBtns').style.display='none';
+  startCamera();
+}
+
+function saveEvidence(){
+  const group  = document.getElementById('camGroup')?.value;
+  const student= document.getElementById('camStudent')?.value?.trim();
+  const err    = document.getElementById('camError');
+
+  if(!group){if(err){err.textContent='Selecciona un grupo';err.style.display='block';}return;}
+  if(!student){if(err){err.textContent='Ingresa tu nombre';err.style.display='block';}return;}
+  if(!_capturedDataUrl){if(err){err.textContent='Toma o sube una foto primero';err.style.display='block';}return;}
+
+  const now=new Date();
+  const ev={
+    id:nid(),
+    group, student,
+    date: now.toISOString().split('T')[0],
+    time: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    day:  ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][now.getDay()],
+    status:'Pendiente',
+    compliant:false,
+    image:_capturedDataUrl,
+    stamp:_capturedStamp,
+    reviewed_by:null, observation:null, reviewed_at:null
+  };
+  D.evidence.push(ev);
+  closeCameraModal();
+  render();
+}
+
+function closeCameraModal(){
+  if(_camStream) _camStream.getTracks().forEach(t=>t.stop());
+  _camStream=null; _capturedDataUrl=null;
+  const wrap=document.getElementById('cameraModalWrap');
+  if(wrap) wrap.innerHTML='';
+}
+
+function rRooms(){
+  const rows=filterByGrade(D.rooms);
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div><h1 class="text-2xl font-bold">${t('rooms')}</h1></div>
+    ${isAdmin()?`<button class="btn btn-p flex items-center gap-1" onclick="openModal('add','rooms')"><i data-lucide="plus" style="width:15px;height:15px"></i>${t('add')}</button>`:''}
+  </div>
+  <div class="card overflow-x-auto" style="background:var(--surface);padding:0">
+    <table class="tbl">
+      <thead><tr><th>Salón</th><th>Capacidad</th><th>Grado</th>${isAdmin()?`<th style="width:100px">${t('actions')}</th>`:''}</tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.name}</td><td>${r.capacity}</td><td>${r.grade}</td>
+        ${isAdmin()?`<td><div class="flex gap-1">
+          <button class="btn btn-s" style="padding:5px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
+          <button class="btn btn-d" style="padding:5px" onclick="del('rooms',${r.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+        </div></td>`:''}
+      </tr>`).join('')}</tbody>
+    </table>
+    ${rows.length===0?`<p class="text-center py-8" style="color:var(--textm)">${t('noRecords')}</p>`:''}
+  </div>`;
+}
+
+/* ============================================================
+   TURNOS DE ASEO
+   ============================================================ */
+function rClean(){
+  const myGrade=getCurrentGrade();
+  const canCreate=isTeacher();
+  const allGroups=(isTeacher()?D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade):D.cleanGroups).filter(g=>g.frequency===assignmentMode);
+  const days=['Lunes','Martes','Miércoles','Jueves','Viernes'];
+  const byDay={};
+  allGroups.filter(g=>g.frequency==='daily').forEach(g=>{if(!byDay[g.day])byDay[g.day]=[];byDay[g.day].push(g);});
+  const weekly=allGroups.filter(g=>g.frequency==='weekly');
+
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div><h1 class="text-2xl font-bold">${isStudent()?'Mis Turnos de Aseo':t('cleanTitle')}${myGrade?' — '+myGrade:''}</h1>
+    <p style="color:var(--textm)" class="text-sm">${assignmentMode==='daily'?t('manageDaily'):t('manageWeekly')}</p></div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn ${assignmentMode==='daily'?'btn-p':'btn-s'} flex items-center gap-1" onclick="changeAssignmentMode('daily')" style="font-size:12px"><i data-lucide="calendar" style="width:14px;height:14px"></i>${t('dailyMode')}</button>
+      <button class="btn ${assignmentMode==='weekly'?'btn-p':'btn-s'} flex items-center gap-1" onclick="changeAssignmentMode('weekly')" style="font-size:12px"><i data-lucide="repeat" style="width:14px;height:14px"></i>${t('weeklyMode')}</button>
+      ${canCreate?`<button class="btn btn-p flex items-center gap-1" onclick="openModal('add','cleanGroups')"><i data-lucide="plus" style="width:15px;height:15px"></i>${t('newGroup')}</button>`:''}
+    </div>
+  </div>
+  <div class="grid gap-6">
+    ${allGroups.length>0?`<div>
+      <h3 class="font-bold text-lg mb-3">${assignmentMode==='daily'?t('dailyGroups'):t('weeklyGroups')}</h3>
+      ${assignmentMode==='daily'?`
+      <div class="card" style="background:var(--surface)">
+        <div class="grid grid-cols-5 gap-2">
+          ${days.map(d=>{
+            const gfd=byDay[d]||[];
+            const hg=gfd.length>0;
+            const bg=hg?gfd[0].color:'rgba(6,182,212,.08)';
+            const brd=hg?gfd[0].color:'rgba(6,182,212,.2)';
+            return `<div style="border-radius:10px;padding:12px;background:${bg}20;border:2px solid ${brd};min-height:140px">
+              <p class="font-semibold text-sm mb-3" style="color:${hg?bg:'var(--accent)'}">${d}</p>
+              <div class="flex flex-col gap-2">
+                ${gfd.map(g=>`<div style="background:${g.color||'#06b6d4'};padding:10px;border-radius:8px">
+                  <p class="text-xs font-bold text-white">${g.name}</p>
+                  <p style="font-size:10px;color:rgba(255,255,255,.8);margin-top:2px">${g.members.length} est.</p>
+                  ${canCreate?`<div class="flex gap-1 mt-2">
+                    <button class="btn" style="flex:1;background:rgba(255,255,255,.2);color:#fff;border:none;padding:4px;font-size:10px;border-radius:4px" onclick="openModal('edit','cleanGroups',${g.id})">${t('edit')}</button>
+                    <button class="btn" style="background:rgba(255,0,0,.3);color:#fff;border:none;padding:4px;font-size:10px;border-radius:4px" onclick="del('cleanGroups',${g.id})">✕</button>
+                  </div>`:''}
+                </div>`).join('')}
+                ${gfd.length===0?`<p style="font-size:11px;color:var(--textm)">${t('noGroup')}</p>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`:`
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        ${weekly.map(g=>`<div class="card" style="background:var(--surface);border-left:4px solid ${g.color||'#06b6d4'}">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <div style="width:12px;height:12px;border-radius:50%;background:${g.color||'#06b6d4'}"></div>
+              <h4 class="font-bold">${g.name}</h4>
+            </div>
+            ${canCreate?`<div class="flex gap-1">
+              <button class="btn btn-s" style="padding:5px" onclick="openModal('edit','cleanGroups',${g.id})"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
+              <button class="btn btn-d" style="padding:5px" onclick="del('cleanGroups',${g.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+            </div>`:''}
+          </div>
+          <p class="badge mb-3" style="background:${g.color||'#06b6d4'}20;color:${g.color||'#06b6d4'}">Lun – Vie (Toda la semana)</p>
+          <p style="font-size:11px;color:var(--textm);margin-bottom:8px">Miembros: ${g.members.length}</p>
+          <div class="flex flex-wrap gap-1">
+            ${g.members.map(m=>`<span class="badge" style="background:${g.color||'#06b6d4'}20;color:${g.color||'#06b6d4'};font-size:11px">${m}</span>`).join('')}
+          </div>
+        </div>`).join('')}
+      </div>`}
+    </div>`:''}
+    ${allGroups.length===0?`<div style="text-align:center;padding:60px 20px;background:rgba(6,182,212,.05);border:2px dashed rgba(6,182,212,.2);border-radius:12px">
+      <i data-lucide="calendar" style="width:48px;height:48px;color:rgba(6,182,212,.4);margin:0 auto 16px;display:block"></i>
+      <h3 class="font-bold text-lg" style="margin-bottom:8px">${t('noGroupsCreated')}</h3>
+      <p style="color:var(--textm);margin-bottom:16px">${canCreate?'Crea el primer grupo de aseo para tu grado.':'El docente aún no ha creado grupos de aseo para tu grado.'}</p>
+      ${canCreate?`<button class="btn btn-p flex items-center justify-center gap-2 mx-auto" onclick="openModal('add','cleanGroups')"><i data-lucide="plus" style="width:16px;height:16px"></i>${t('createFirstGroup')}</button>`:''}
+    </div>`:''}
+    ${allGroups.length>0?`<div class="grid gap-3 sm:grid-cols-3">
+      <div class="card" style="background:var(--surface)"><p style="font-size:12px;color:var(--textm)">Total de Grupos</p><p class="text-2xl font-bold" style="color:var(--accent)">${allGroups.length}</p></div>
+      <div class="card" style="background:var(--surface)"><p style="font-size:12px;color:var(--textm)">Estudiantes Asignados</p><p class="text-2xl font-bold" style="color:#3b82f6">${allGroups.reduce((a,g)=>a+g.members.length,0)}</p></div>
+      <div class="card" style="background:var(--surface)"><p style="font-size:12px;color:var(--textm)">Promedio por Grupo</p><p class="text-2xl font-bold" style="color:#22c55e">${allGroups.length?Math.round(allGroups.reduce((a,g)=>a+g.members.length,0)/allGroups.length):0}</p></div>
+    </div>`:''}
+  </div>`;
+}
+
+/* ============================================================
+   EVIDENCIAS — estudiantes suben, docentes ven todas las de su grado
+   ============================================================ */
+function rValidation(){
+  const myGrade=getCurrentGrade();
+  const pending=D.evidence.filter(e=>{
+    if(e.status!=='Pendiente')return false;
+    const g=D.cleanGroups.find(cg=>cg.name===e.group);
+    return !myGrade||!g||g.grade===myGrade;
+  });
+  const reviewed=D.evidence.filter(e=>{
+    if(e.status!=='Completado'&&e.status!=='Rechazado')return false;
+    const g=D.cleanGroups.find(cg=>cg.name===e.group);
+    return !myGrade||!g||g.grade===myGrade;
+  });
+
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div><h1 class="text-2xl font-bold">${t('validation')}${myGrade?' — '+myGrade:''}</h1>
+    <p style="color:var(--textm)" class="text-sm">Revisión y aprobación de evidencias de aseo</p></div>
+  </div>
+  <div class="card mb-6" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.05));border:1px solid rgba(6,182,212,.3);padding:16px">
+    <div class="flex items-center gap-3">
+      <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--accent)"></i>
+      <div><p style="font-size:12px;color:var(--textm)">Acceso Docente</p><p class="font-semibold">${currentSession?.name}</p></div>
+    </div>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-3 mb-6">
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#f59e0b">${pending.length}</p><p style="color:var(--textm);font-size:13px">Por Revisar</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#10b981">${D.evidence.filter(e=>e.status==='Completado'&&e.reviewed_by).length}</p><p style="color:var(--textm);font-size:13px">Aprobadas</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#ef4444">${D.evidence.filter(e=>e.status==='Rechazado').length}</p><p style="color:var(--textm);font-size:13px">Rechazadas</p></div>
+  </div>
+  <div class="flex gap-2 mb-6 border-b" style="border-color:var(--border)">
+    <button class="tab active" onclick="switchValidationTab('pending')">Pendientes (${pending.length})</button>
+    <button class="tab" onclick="switchValidationTab('reviewed')">Revisadas (${reviewed.length})</button>
+  </div>
+  <div id="validationPending" class="validation-tab">
+    ${pending.length>0?`<div class="grid gap-4">
+      ${pending.map(e=>{
+        const group=D.cleanGroups.find(g=>g.name===e.group);
+        return `<div class="card" style="background:var(--surface);border-left:4px solid #f59e0b">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <div class="flex items-start justify-between mb-3">
+                <div><h3 class="font-bold text-lg">${e.group}</h3><p style="color:var(--textm);font-size:13px">${e.date}</p></div>
+                <span class="badge" style="background:#fef3c7;color:#92400e">${e.status}</span>
+              </div>
+              <div style="width:100%;height:160px;border-radius:8px;overflow:hidden;margin-bottom:12px;background:rgba(6,182,212,.1)">
+                ${e.image?`<img src="${e.image}" style="width:100%;height:100%;object-fit:cover">`:`<div style="display:flex;align-items:center;justify-content:center;height:100%"><i data-lucide="image" style="width:40px;height:40px;color:rgba(6,182,212,.4)"></i></div>`}
+              </div>
+              <div style="background:rgba(6,182,212,.08);padding:10px;border-radius:6px">
+                <p style="font-size:11px;color:var(--textm)"><strong>Estudiante:</strong> ${e.student}</p>
+                ${group?`<p style="font-size:11px;color:var(--textm);margin-top:4px"><strong>Miembros:</strong> ${group.members.join(', ')}</p>`:''}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Decisión</label>
+                <div class="flex gap-2">
+                  <button class="btn flex-1 validation-btn" data-action="approve" data-id="${e.id}" style="background:rgba(16,185,129,.1);color:#10b981;border:2px solid rgba(16,185,129,.3);padding:12px;border-radius:8px;font-weight:600">
+                    <i data-lucide="check-circle" style="width:16px;height:16px;margin-right:6px;display:inline"></i>Aprobar
+                  </button>
+                  <button class="btn flex-1 validation-btn" data-action="reject" data-id="${e.id}" style="background:rgba(239,68,68,.1);color:#ef4444;border:2px solid rgba(239,68,68,.3);padding:12px;border-radius:8px;font-weight:600">
+                    <i data-lucide="x-circle" style="width:16px;height:16px;margin-right:6px;display:inline"></i>Rechazar
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Observaciones</label>
+                <textarea id="obs-${e.id}" class="inp" style="resize:vertical;min-height:100px;padding:10px" placeholder="Anota observaciones de la limpieza..."></textarea>
+              </div>
+              <div>
+                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Calidad</label>
+                <div class="flex gap-2 flex-wrap">
+                  ${['Excelente','Buena','Regular','Deficiente'].map(q=>`<button class="quality-btn" data-quality="${q}" data-id="${e.id}" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--textm);font-size:12px;cursor:pointer">${q}</button>`).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:`<div style="text-align:center;padding:40px;background:rgba(16,185,129,.05);border-radius:8px;border:1px solid rgba(16,185,129,.2)">
+      <i data-lucide="check-circle" style="width:40px;height:40px;color:#10b981;margin:0 auto 12px;display:block"></i>
+      <p class="font-medium">¡Todo al día!</p>
+      <p style="color:var(--textm);font-size:13px">No hay evidencias pendientes de revisar</p>
+    </div>`}
+  </div>
+  <div id="validationReviewed" class="validation-tab" style="display:none">
+    ${reviewed.length>0?`<table class="tbl">
+      <thead><tr><th>Fecha</th><th>Grupo</th><th>Estado</th><th>Revisado por</th><th>Observaciones</th><th>Ver</th></tr></thead>
+      <tbody>${reviewed.map(e=>`<tr>
+        <td><strong>${e.date}</strong></td><td>${e.group}</td>
+        <td><span class="badge" style="background:${e.status==='Completado'?'#d1fae5;color:#059669':'#fee2e2;color:#dc2626'}">${e.status}</span></td>
+        <td style="font-size:12px;color:var(--textm)">${e.reviewed_by||'—'}</td>
+        <td style="font-size:12px;color:var(--textm)">${e.observation?e.observation.substring(0,40)+'...':'—'}</td>
+        <td><button class="btn btn-s" style="padding:5px" onclick="viewReviewDetail(${e.id})"><i data-lucide="eye" style="width:14px;height:14px"></i></button></td>
+      </tr>`).join('')}</tbody>
+    </table>`:`<p style="text-align:center;padding:40px;color:var(--textm)">Sin evidencias revisadas aún</p>`}
+  </div>`;
+}
+
+/* ============================================================
+   MIS VALIDACIONES — solo estudiantes (solo lectura)
+   ============================================================ */
+function rMyValidations(){
+  const mine=D.evidence.filter(e=>e.student===currentSession?.name);
+  const reviewed=mine.filter(e=>e.status!=='Pendiente');
+  return `<div class="mb-6">
+    <h1 class="text-2xl font-bold">Mis Validaciones</h1>
+    <p style="color:var(--textm)" class="text-sm">Aquí ves lo que el docente respondió sobre tus evidencias</p>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-3 mb-6">
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold">${mine.length}</p><p style="color:var(--textm);font-size:13px">Total subidas</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#10b981">${mine.filter(e=>e.status==='Completado').length}</p><p style="color:var(--textm);font-size:13px">Aprobadas</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#f59e0b">${mine.filter(e=>e.status==='Pendiente').length}</p><p style="color:var(--textm);font-size:13px">Pendientes</p></div>
+  </div>
+  ${mine.length>0?`<div class="grid gap-4">
+    ${mine.map(e=>`<div class="card" style="background:var(--surface);border-left:4px solid ${e.status==='Completado'?'#10b981':e.status==='Rechazado'?'#ef4444':'#f59e0b'}">
+      <div class="flex items-start justify-between mb-3">
+        <div><h3 class="font-bold">${e.group}</h3><p style="font-size:12px;color:var(--textm)">${e.date}</p></div>
+        <span class="badge" style="background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span>
+      </div>
+      ${e.reviewed_by?`<div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px">
+        <p style="font-size:12px;color:var(--textm);margin-bottom:4px"><strong>Revisado por:</strong> ${e.reviewed_by}</p>
+        ${e.observation?`<p style="font-size:12px;color:var(--text)"><strong>Observación:</strong> ${e.observation}</p>`:''}
+        ${e.reviewed_at?`<p style="font-size:11px;color:var(--textm);margin-top:4px">Fecha: ${new Date(e.reviewed_at).toLocaleDateString('es-CO')}</p>`:''}
+      </div>`:`<p style="font-size:13px;color:var(--textm);font-style:italic">Pendiente de revisión del docente</p>`}
+    </div>`).join('')}
+  </div>`:`<div style="text-align:center;padding:40px;color:var(--textm)">
+    <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 12px;opacity:.5;display:block"></i>
+    <p>Aún no has subido evidencias</p>
+  </div>`}`;
+}
+
+/* ============================================================
+   INCIDENTES — docentes ven y gestionan los de su grado
+   ============================================================ */
+function rIncidents(){
+  const myGrade=getCurrentGrade();
+  const mine=D.incidents.filter(i=>!myGrade||!i.grade||i.grade===myGrade);
+  const statuses=['Abierto','En Proceso','Resuelto'];
+  const pc={Alta:'#dc2626',Media:'#f59e0b',Baja:'#10b981'};
+  const sc={Abierto:'#ef4444','En Proceso':'#f59e0b',Resuelto:'#10b981'};
+
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Incidentes del Grado${myGrade?' — '+myGrade:''}</h1>
+      <p style="color:var(--textm)" class="text-sm">Incidentes reportados por estudiantes y seguimiento</p>
+    </div>
+  </div>
+  <!-- Banner informativo del docente -->
+  <div class="card mb-6" style="background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.04));border:1px solid rgba(239,68,68,.25);padding:16px">
+    <div class="flex items-center gap-3">
+      <i data-lucide="alert-circle" style="width:20px;height:20px;color:#ef4444"></i>
+      <div><p style="font-size:12px;color:var(--textm)">Director de Grado</p><p class="font-semibold">${currentSession?.name} · Grado ${myGrade||'—'}</p></div>
+    </div>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-3 mb-6">
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#ef4444">${mine.filter(i=>i.status==='Abierto').length}</p><p style="color:var(--textm);font-size:13px">Abiertos</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#f59e0b">${mine.filter(i=>i.status==='En Proceso').length}</p><p style="color:var(--textm);font-size:13px">En Proceso</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#10b981">${mine.filter(i=>i.status==='Resuelto').length}</p><p style="color:var(--textm);font-size:13px">Resueltos</p></div>
+  </div>
+  <!-- Kanban por estado -->
+  <div class="grid gap-6 lg:grid-cols-3 mb-6">
+    ${statuses.map(status=>{
+      const list=mine.filter(i=>i.status===status);
+      const color=sc[status];
+      return `<div>
+        <h3 class="font-bold text-lg mb-3 flex items-center gap-2" style="color:${color}">
+          <div style="width:10px;height:10px;border-radius:50%;background:${color}"></div>
+          ${status} (${list.length})
+        </h3>
+        <div class="flex flex-col gap-3">
+          ${list.length>0?list.map(inc=>`<div class="card" style="background:var(--surface);border-left:4px solid ${color}">
+            <div class="flex items-start justify-between mb-2">
+              <h4 class="font-bold text-sm">${inc.type}</h4>
+              <div class="flex gap-1">
+                <button class="btn btn-s" style="padding:4px" onclick="openModal('edit','incidents',${inc.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                <button class="btn btn-d" style="padding:4px" onclick="del('incidents',${inc.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+              </div>
+            </div>
+            <span class="badge" style="background:${pc[inc.priority]||'#888'}20;color:${pc[inc.priority]||'#888'};font-size:10px;margin-bottom:8px;display:inline-block">${inc.priority}</span>
+            <p style="font-size:12px;color:var(--textm);margin-bottom:6px;line-height:1.4">${inc.description}</p>
+            <div style="background:rgba(6,182,212,.06);padding:8px;border-radius:6px">
+              <p style="font-size:11px;color:var(--textm)">📍 ${inc.location}</p>
+              <p style="font-size:11px;color:var(--textm);margin-top:2px">👤 ${inc.reporter}</p>
+              <p style="font-size:11px;color:var(--textm);margin-top:2px">📅 ${inc.date}</p>
+            </div>
+            <button class="btn btn-p w-full flex items-center justify-center gap-1 mt-3" style="padding:8px;font-size:12px" onclick="openIncidentDetail(${inc.id})">
+              <i data-lucide="eye" style="width:13px;height:13px"></i>Ver Detalles
+            </button>
+          </div>`).join(''):`<div style="text-align:center;padding:20px;color:var(--textm);border:2px dashed var(--border);border-radius:8px"><p style="font-size:12px">Sin incidentes</p></div>`}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  <!-- Tabla completa -->
+  ${mine.length>0?`<div class="card" style="background:var(--surface);padding:0;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border)"><h3 class="font-bold">Historial Completo</h3></div>
+    <div style="overflow-x:auto">
+      <table class="tbl" style="margin-bottom:0">
+        <thead><tr><th>Tipo</th><th>Prioridad</th><th>Estado</th><th>Ubicación</th><th>Reportado por</th><th>Fecha</th><th style="width:90px">Acciones</th></tr></thead>
+        <tbody>${mine.map(i=>`<tr>
+          <td style="font-size:12px;font-weight:600">${i.type}</td>
+          <td><span class="badge" style="background:${pc[i.priority]||'#888'}15;color:${pc[i.priority]||'#888'};font-size:10px">${i.priority}</span></td>
+          <td><span class="badge" style="background:${sc[i.status]||'#888'}15;color:${sc[i.status]||'#888'};font-size:10px">${i.status}</span></td>
+          <td style="font-size:12px">${i.location}</td>
+          <td style="font-size:12px;color:var(--textm)">${i.reporter}</td>
+          <td style="font-size:12px;color:var(--textm)">${i.date}</td>
+          <td><div class="flex gap-1">
+            <button class="btn btn-s" style="padding:4px" onclick="openModal('edit','incidents',${i.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-d" style="padding:4px" onclick="del('incidents',${i.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+          </div></td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </div>`:''}`
+}
+
+/* ============================================================
+   REPORTAR INCIDENTE — solo estudiantes
+   ============================================================ */
+function rReportIncident(){
+  const myIncidents=D.incidents.filter(i=>i.reporter===currentSession?.name);
+  const pc={Alta:'#dc2626',Media:'#f59e0b',Baja:'#10b981'};
+  const sc={Abierto:'#ef4444','En Proceso':'#f59e0b',Resuelto:'#10b981'};
+
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Reportar Incidente</h1>
+      <p style="color:var(--textm)" class="text-sm">Reporta cualquier problema o daño en el salón al docente</p>
+    </div>
+    <button class="btn btn-p flex items-center gap-1" onclick="openModal('add','incidents')">
+      <i data-lucide="plus" style="width:15px;height:15px"></i>Nuevo Reporte
+    </button>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-3 mb-6">
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold">${myIncidents.length}</p><p style="color:var(--textm);font-size:13px">Mis Reportes</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#ef4444">${myIncidents.filter(i=>i.status==='Abierto').length}</p><p style="color:var(--textm);font-size:13px">Abiertos</p></div>
+    <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#10b981">${myIncidents.filter(i=>i.status==='Resuelto').length}</p><p style="color:var(--textm);font-size:13px">Resueltos</p></div>
+  </div>
+  <h3 class="font-bold text-lg mb-4">Mis Reportes Anteriores</h3>
+  ${myIncidents.length>0?`<div class="grid gap-3 sm:grid-cols-2">
+    ${myIncidents.map(i=>`<div class="card" style="background:var(--surface);border-left:4px solid ${sc[i.status]||'#888'}">
+      <div class="flex items-start justify-between mb-2">
+        <h4 class="font-bold text-sm">${i.type}</h4>
+        <span class="badge" style="background:${sc[i.status]||'#888'}15;color:${sc[i.status]||'#888'};font-size:10px">${i.status}</span>
+      </div>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:6px">${i.description}</p>
+      <p style="font-size:11px;color:var(--textm)">📍 ${i.location} · 📅 ${i.date}</p>
+      <span class="badge" style="background:${pc[i.priority]||'#888'}15;color:${pc[i.priority]||'#888'};font-size:10px;margin-top:6px;display:inline-block">${i.priority}</span>
+      ${i.notes?`<div style="background:rgba(59,130,246,.08);padding:8px;border-radius:6px;margin-top:8px;border-left:2px solid #3b82f6">
+        <p style="font-size:11px;font-weight:600;color:#3b82f6">Respuesta del docente:</p>
+        <p style="font-size:12px;color:var(--text);margin-top:2px">${i.notes}</p>
+      </div>`:''}
+    </div>`).join('')}
+  </div>`:`<div style="text-align:center;padding:40px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
+    <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 12px;opacity:.5;display:block"></i>
+    <p>Aún no has reportado ningún incidente</p>
+    <button class="btn btn-p flex items-center gap-2 mx-auto mt-4" onclick="openModal('add','incidents')">
+      <i data-lucide="plus" style="width:15px;height:15px"></i>Crear primer reporte
+    </button>
+  </div>`}`;
+
+
+}
+
+/* ============================================================
+   REPORTES — solo docentes
+   ============================================================ */
+function rReports(){
+  const myGrade=getCurrentGrade();
+  const myEv=D.evidence.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return !myGrade||!g||g.grade===myGrade;});
+  const myStudents=filterByGrade(D.students);
+  const completed=myEv.filter(e=>e.status==='Completado').length;
+  const total=myEv.length;
+  const rate=total>0?Math.round((completed/total)*100):0;
+  const sStats={};
+  myStudents.forEach(s=>{sStats[s.id]={name:s.name,grade:s.grade,total:0,completed:0,pending:0};});
+  myEv.forEach(e=>{const st=myStudents.find(s=>s.name===e.student);if(st&&sStats[st.id]){sStats[st.id].total++;if(e.status==='Completado')sStats[st.id].completed++;else if(e.status==='Pendiente')sStats[st.id].pending++;}});
+  const sArr=Object.values(sStats).filter(s=>s.name).sort((a,b)=>b.completed-a.completed);
+  const history=[...myEv].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,20);
+
+  return `<div class="mb-6">
+    <h1 class="text-2xl font-bold">Reportes${myGrade?' — '+myGrade:''}</h1>
+    <p style="color:var(--textm)" class="text-sm">Análisis y métricas del sistema</p>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+    ${[
+      {icon:'users',val:myStudents.length,label:'Estudiantes',color:'#2563eb'},
+      {icon:'check-circle',val:completed,label:'Completadas',color:'#10b981'},
+      {icon:'trending-up',val:rate+'%',label:'Cumplimiento',color:'#d97706'},
+      {icon:'clock',val:total-completed,label:'Pendientes',color:'#ef4444'}
+    ].map(s=>`<div class="card" style="background:var(--surface)">
+      <div style="width:36px;height:36px;border-radius:10px;background:${s.color}18;display:flex;align-items:center;justify-content:center;margin-bottom:10px"><i data-lucide="${s.icon}" style="width:18px;height:18px;color:${s.color}"></i></div>
+      <p class="text-2xl font-bold" style="color:${s.color}">${s.val}</p><p style="color:var(--textm);font-size:13px">${s.label}</p>
+    </div>`).join('')}
+  </div>
+  <div class="flex gap-2 mb-6 border-b overflow-x-auto" style="border-color:var(--border)">
+    <button class="tab active" onclick="switchReportTab('students')"><i data-lucide="user-check" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Por Estudiante</button>
+    <button class="tab" onclick="switchReportTab('history')"><i data-lucide="history" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Historial</button>
+  </div>
+  <div id="reportStudents" class="report-tab">
+    <div class="card" style="background:var(--surface);padding:0;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border)"><h3 class="font-bold">Cumplimiento por Estudiante</h3></div>
+      <div style="overflow-x:auto">
+        <table class="tbl" style="margin-bottom:0">
+          <thead><tr style="background:rgba(6,182,212,.05)"><th>Estudiante</th><th>Grado</th><th>Total</th><th>Completadas</th><th>Pendientes</th><th>%</th></tr></thead>
+          <tbody>${sArr.length>0?sArr.map(st=>{
+            const r=st.total>0?Math.round((st.completed/st.total)*100):0;
+            const c=r>=80?'#10b981':r>=50?'#f59e0b':'#ef4444';
+            return `<tr>
+              <td class="font-medium">${st.name}</td>
+              <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px">${st.grade}</span></td>
+              <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${st.total}</span></td>
+              <td><span class="badge" style="background:rgba(16,185,129,.15);color:#10b981">${st.completed}</span></td>
+              <td><span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444">${st.pending}</span></td>
+              <td><div style="display:flex;align-items:center;gap:8px">
+                <div style="width:60px;height:6px;border-radius:3px;background:rgba(6,182,212,.1);overflow:hidden"><div style="width:${r}%;height:100%;background:${c}"></div></div>
+                <span style="font-size:12px;font-weight:600;color:${c}">${r}%</span>
+              </div></td>
+            </tr>`;
+          }).join(''):`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--textm)">Sin datos</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div id="reportHistory" class="report-tab" style="display:none">
+    <div class="card" style="background:var(--surface)">
+      <h3 class="font-bold text-lg mb-4">Historial (Últimas 20 limpiezas)</h3>
+      ${history.length>0?`<div style="overflow-x:auto"><table class="tbl">
+        <thead><tr><th>Fecha</th><th>Grupo</th><th>Estudiante</th><th>Estado</th><th>Revisado por</th><th>Obs.</th></tr></thead>
+        <tbody>${history.map(h=>{
+          const bg=h.status==='Completado'?'#d1fae5;color:#059669':h.status==='Pendiente'?'#fef3c7;color:#92400e':'#fee2e2;color:#dc2626';
+          return `<tr><td><strong>${h.date}</strong></td><td>${h.group}</td><td>${h.student}</td>
+            <td><span class="badge" style="background:${bg}">${h.status}</span></td>
+            <td style="font-size:12px;color:var(--textm)">${h.reviewed_by||'—'}</td>
+            <td style="font-size:12px;color:var(--textm)">${h.observation?h.observation.substring(0,30)+'...':'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`:`<p style="text-align:center;padding:40px;color:var(--textm)">Sin historial</p>`}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   PERFIL / CONFIGURACIÓN
+   ============================================================ */
+function rSettings(){
+  // Datos persistentes en D para que no se pierdan al re-renderizar
+  if(!D._user) D._user={
+    name:'Admin Sistema',
+    email:'admin@cleanclass.edu',
+    role:'Administrador',
+    department:'Dirección Académica',
+    phone:'+57 300 123 4567',
+    joinDate:'2024-01-15',
+    avatar:'👨‍💼'
+  };
+  if(!D._settings) D._settings={
+    notifications:true,
+    emailAlerts:true,
+    darkMode:true,
+    language:'es',
+    twoFactor:false,
+    sessionTimeout:30
+  };
+  const currentUser=D._user;
+  const settings=D._settings;
+  
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div><h1 class="text-2xl font-bold">Perfil y Configuración</h1><p style="color:var(--textm)" class="text-sm">Gestión de cuenta y preferencias</p></div>
+  </div>
+  
+  <!-- Pestañas -->
+  <div class="flex gap-2 mb-6 border-b overflow-x-auto" style="border-color:var(--border)">
+    <button class="tab active" onclick="switchSettingsTab('profile')">
+      <i data-lucide="user" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Mi Perfil
+    </button>
+    <button class="tab" onclick="switchSettingsTab('security')">
+      <i data-lucide="lock" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Seguridad
+    </button>
+    <button class="tab" onclick="switchSettingsTab('preferences')">
+      <i data-lucide="sliders" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Preferencias
+    </button>
+    <button class="tab" onclick="switchSettingsTab('about')">
+      <i data-lucide="info" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Acerca de
+    </button>
+  </div>
+  
+  <!-- TAB 1: MI PERFIL -->
+  <div id="settingsProfile" class="settings-tab">
+    <div class="grid gap-6 lg:grid-cols-3">
+      <!-- Card de perfil principal -->
+      <div class="lg:col-span-1">
+        <div class="card" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.05));border:1px solid rgba(6,182,212,.3);text-align:center">
+          <div style="width:96px;height:96px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;border:3px solid var(--accent)">
+            ${D._profileImage?'<img id="profileAvatarImg" src="'+D._profileImage+'" style="width:100%;height:100%;object-fit:cover">':`<span id="profileAvatarEmoji" style="font-size:48px">${currentUser.avatar}</span>`}
+          </div>
+          <!-- Botón cambiar foto -->
+          <label style="display:inline-block;margin-bottom:12px;cursor:pointer">
+            <span class="btn btn-s" style="font-size:12px;padding:5px 12px">
+              <i data-lucide="camera" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Cambiar foto
+            </span>
+            <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileImage(this)">
+          </label>
+          <h2 class="font-bold text-xl">${currentUser.name}</h2>
+          <p style="color:var(--accent);font-size:13px;font-weight:600;margin:4px 0">${currentUser.role}</p>
+          <p style="color:var(--textm);font-size:12px;margin-bottom:12px">${currentUser.department}</p>
+          
+          <button class="btn btn-p w-full flex items-center justify-center gap-2 mt-4" onclick="openEditProfileModal()">
+            <i data-lucide="edit" style="width:14px;height:14px"></i>Editar Perfil
+          </button>
+        </div>
+      </div>
+      
+      <!-- Información detallada -->
+      <div class="lg:col-span-2">
+        <div class="card" style="background:var(--surface)">
+          <h3 class="font-bold text-lg mb-6">Información Personal</h3>
+          
+          <div class="grid gap-6 sm:grid-cols-2">
+            <!-- Nombre -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">NOMBRE COMPLETO</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium">${currentUser.name}</p>
+              </div>
+            </div>
+            
+            <!-- Email -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">EMAIL</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium" style="word-break:break-all">${currentUser.email}</p>
+              </div>
+            </div>
+            
+            <!-- Teléfono -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">TELÉFONO</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium">${currentUser.phone}</p>
+              </div>
+            </div>
+            
+            <!-- Rol -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">ROL EN EL SISTEMA</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium">${currentUser.role}</p>
+              </div>
+            </div>
+            
+            <!-- Departamento -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">DEPARTAMENTO</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium">${currentUser.department}</p>
+              </div>
+            </div>
+            
+            <!-- Fecha de ingreso -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">MIEMBRO DESDE</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium">${new Date(currentUser.joinDate).toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})}</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Sección de Estado -->
+          <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border)">
+            <h4 class="font-bold text-sm mb-4" style="color:var(--textm)">ESTADO DE LA CUENTA</h4>
+            <div class="flex flex-wrap gap-3">
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(16,185,129,.1);border-radius:6px;border:1px solid rgba(16,185,129,.2)">
+                <i data-lucide="check-circle" style="width:18px;height:18px;color:#10b981"></i>
+                <span style="font-size:12px;font-weight:600;color:#10b981">Cuenta Activa</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(59,130,246,.1);border-radius:6px;border:1px solid rgba(59,130,246,.2)">
+                <i data-lucide="shield-check" style="width:18px;height:18px;color:#3b82f6"></i>
+                <span style="font-size:12px;font-weight:600;color:#3b82f6">Verificado</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,.1);border-radius:6px;border:1px solid rgba(34,197,94,.2)">
+                <i data-lucide="lock" style="width:18px;height:18px;color:#22c55e"></i>
+                <span style="font-size:12px;font-weight:600;color:#22c55e">Protegida</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- TAB 2: SEGURIDAD -->
+  <div id="settingsSecurity" class="settings-tab" style="display:none">
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Cambiar contraseña -->
+      <div class="card" style="background:var(--surface)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="key" style="width:20px;height:20px;color:#ef4444"></i>
+          </div>
+          <div>
+            <h3 class="font-bold">Cambiar Contraseña</h3>
+            <p style="font-size:12px;color:var(--textm)">Actualiza tu contraseña regularmente</p>
+          </div>
+        </div>
+        
+        <form id="changePasswordForm" class="flex flex-col gap-3">
+          <div>
+            <label class="text-sm font-medium" style="color:var(--textm)">Contraseña Actual</label>
+            <input type="password" class="inp mt-1" placeholder="Ingresa tu contraseña actual" required>
+          </div>
+          <div>
+            <label class="text-sm font-medium" style="color:var(--textm)">Nueva Contraseña</label>
+            <input type="password" class="inp mt-1" placeholder="Mínimo 8 caracteres" required>
+          </div>
+          <div>
+            <label class="text-sm font-medium" style="color:var(--textm)">Confirmar Nueva Contraseña</label>
+            <input type="password" class="inp mt-1" placeholder="Confirma tu nueva contraseña" required>
+          </div>
+          
+          <!-- Requisitos de contraseña -->
+          <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;margin:8px 0">
+            <p style="font-size:11px;color:var(--textm);margin-bottom:8px;font-weight:600">REQUISITOS:</p>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+                <i data-lucide="check" style="width:14px;height:14px;color:#22c55e"></i>
+                <span style="color:var(--textm)">Mínimo 8 caracteres</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+                <i data-lucide="check" style="width:14px;height:14px;color:#22c55e"></i>
+                <span style="color:var(--textm)">Mayúsculas y minúsculas</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+                <i data-lucide="check" style="width:14px;height:14px;color:#22c55e"></i>
+                <span style="color:var(--textm)">Al menos un número</span>
+              </div>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn btn-p mt-2">Actualizar Contraseña</button>
+        </form>
+      </div>
+      
+      <!-- Autenticación de dos factores -->
+      <div class="card" style="background:var(--surface)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center">
+              <i data-lucide="shield" style="width:20px;height:20px;color:#3b82f6"></i>
+            </div>
+            <div>
+              <h3 class="font-bold">Autenticación de Dos Factores</h3>
+              <p style="font-size:12px;color:var(--textm)">Seguridad adicional en login</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;width:50px;height:28px;background:${settings.twoFactor?'#10b981':'rgba(6,182,212,.1)'};border-radius:14px;cursor:pointer;transition:all .3s" onclick="toggleTwoFactor(this)">
+            <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:${settings.twoFactor?'translateX(22px)':'translateX(2px)'}"></div>
+          </div>
+        </div>
+        
+        <div style="background:${settings.twoFactor?'rgba(16,185,129,.08)':'rgba(107,114,128,.05)'};padding:12px;border-radius:8px;border-left:3px solid ${settings.twoFactor?'#10b981':'var(--border)'}">
+          <p style="font-size:12px;color:var(--textm);margin-bottom:8px">
+            <strong>Estado:</strong> ${settings.twoFactor?'ACTIVADO':'DESACTIVADO'}
+          </p>
+          <p style="font-size:11px;color:var(--textm);line-height:1.5">
+            ${settings.twoFactor?'Tu cuenta está protegida con autenticación de dos factores. Recibirás un código en tu teléfono.':'Activa este servicio para mayor seguridad en tu cuenta.'}
+          </p>
+        </div>
+        
+        ${settings.twoFactor?`
+          <div style="margin-top:16px">
+            <h4 class="font-medium text-sm mb-3">Códigos de Recuperación</h4>
+            <p style="font-size:11px;color:var(--textm);margin-bottom:8px">Guarda estos códigos en un lugar seguro. Úsalos si pierdes acceso a tu teléfono:</p>
+            <div style="background:var(--border);padding:12px;border-radius:6px;font-family:monospace;font-size:11px;color:var(--text);line-height:1.8">
+              2847-5920-3456<br>
+              9234-5678-0124<br>
+              5847-2093-8745
+            </div>
+            <button class="btn btn-s mt-3 w-full flex items-center justify-center gap-2" style="font-size:12px">
+              <i data-lucide="copy" style="width:13px;height:13px"></i>
+              Copiar Códigos
+            </button>
+          </div>
+        `:''}
+      </div>
+      
+      <!-- Sesiones activas -->
+      <div class="card" style="background:var(--surface)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(249,115,22,.1);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="smartphone" style="width:20px;height:20px;color:#f97316"></i>
+          </div>
+          <div>
+            <h3 class="font-bold">Sesiones Activas</h3>
+            <p style="font-size:12px;color:var(--textm)">Dispositivos conectados</p>
+          </div>
+        </div>
+        
+        <div class="flex flex-col gap-3">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:rgba(16,185,129,.08);border-radius:8px;border:1px solid rgba(16,185,129,.2)">
+            <div class="flex items-center gap-3">
+              <i data-lucide="monitor" style="width:20px;height:20px;color:#10b981"></i>
+              <div>
+                <p class="font-medium text-sm">Windows PC</p>
+                <p style="font-size:11px;color:var(--textm)">Activa ahora • 192.168.1.5</p>
+              </div>
+            </div>
+            <i data-lucide="check" style="width:18px;height:18px;color:#10b981"></i>
+          </div>
+          
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:rgba(6,182,212,.08);border-radius:8px;border:1px solid rgba(6,182,212,.2)">
+            <div class="flex items-center gap-3">
+              <i data-lucide="smartphone" style="width:20px;height:20px;color:var(--accent)"></i>
+              <div>
+                <p class="font-medium text-sm">iPhone 12</p>
+                <p style="font-size:11px;color:var(--textm)">Hace 2 horas • 192.168.1.10</p>
+              </div>
+            </div>
+            <button class="btn btn-d" style="padding:4px 8px;font-size:11px">Cerrar</button>
+          </div>
+        </div>
+        
+        <button class="btn btn-s w-full mt-4" style="font-size:12px">
+          <i data-lucide="log-out" style="width:13px;height:13px;display:inline;margin-right:6px"></i>
+          Cerrar Todas las Sesiones
+        </button>
+      </div>
+      
+      <!-- Historial de acceso -->
+      <div class="card" style="background:var(--surface)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(139,92,246,.1);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="history" style="width:20px;height:20px;color:#8b5cf6"></i>
+          </div>
+          <div>
+            <h3 class="font-bold">Historial de Acceso</h3>
+            <p style="font-size:12px;color:var(--textm)">Últimos inicios de sesión</p>
+          </div>
+        </div>
+        
+        <div class="flex flex-col gap-2">
+          <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(6,182,212,.05);border-radius:6px;border-left:2px solid var(--accent)">
+            <div>
+              <p style="font-size:11px;color:var(--textm)">Hoy a las 09:30</p>
+              <p style="font-size:12px;color:var(--text)">Windows PC</p>
+            </div>
+            <span class="badge" style="background:#d1fae5;color:#059669;font-size:10px">Exitoso</span>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(6,182,212,.05);border-radius:6px;border-left:2px solid var(--accent)">
+            <div>
+              <p style="font-size:11px;color:var(--textm)">Ayer a las 14:15</p>
+              <p style="font-size:12px;color:var(--text)">iPhone 12</p>
+            </div>
+            <span class="badge" style="background:#d1fae5;color:#059669;font-size:10px">Exitoso</span>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(6,182,212,.05);border-radius:6px;border-left:2px solid var(--accent)">
+            <div>
+              <p style="font-size:11px;color:var(--textm)">Hace 2 días a las 11:20</p>
+              <p style="font-size:12px;color:var(--text)">Linux Server</p>
+            </div>
+            <span class="badge" style="background:#d1fae5;color:#059669;font-size:10px">Exitoso</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- TAB 3: PREFERENCIAS -->
+  <div id="settingsPreferences" class="settings-tab" style="display:none">
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Notificaciones -->
+      <div class="card" style="background:var(--surface)">
+        <h3 class="font-bold text-lg mb-4">Notificaciones</h3>
+        
+        <div class="flex flex-col gap-4">
+          <!-- Notificaciones del sistema -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <div>
+              <p class="font-medium text-sm">Notificaciones del Sistema</p>
+              <p style="font-size:11px;color:var(--textm)">Alertas de actividades importantes</p>
+            </div>
+            <div style="display:flex;align-items:center;width:50px;height:28px;background:${settings.notifications?'#10b981':'rgba(6,182,212,.1)'};border-radius:14px;cursor:pointer;transition:all .3s">
+              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:${settings.notifications?'translateX(22px)':'translateX(2px)'}"></div>
+            </div>
+          </div>
+          
+          <!-- Alertas por email -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <div>
+              <p class="font-medium text-sm">Alertas por Email</p>
+              <p style="font-size:11px;color:var(--textm)">Recibe actualizaciones por correo</p>
+            </div>
+            <div style="display:flex;align-items:center;width:50px;height:28px;background:${settings.emailAlerts?'#10b981':'rgba(6,182,212,.1)'};border-radius:14px;cursor:pointer;transition:all .3s">
+              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:${settings.emailAlerts?'translateX(22px)':'translateX(2px)'}"></div>
+            </div>
+          </div>
+          
+          <!-- Notificaciones de reportes -->
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <p class="font-medium text-sm">Notificaciones de Reportes</p>
+              <p style="font-size:11px;color:var(--textm)">Alertas cuando hay reportes pendientes</p>
+            </div>
+            <div style="display:flex;align-items:center;width:50px;height:28px;background:#10b981;border-radius:14px;cursor:pointer;transition:all .3s">
+              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:translateX(22px)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Preferencias de Interfaz -->
+      <div class="card" style="background:var(--surface)">
+        <h3 class="font-bold text-lg mb-4">Interfaz</h3>
+        
+        <div class="flex flex-col gap-4">
+          <!-- Tema -->
+          <div>
+            <p class="font-medium text-sm mb-2">Tema</p>
+            <div class="flex gap-2">
+              <button class="btn" style="width:100%;padding:10px;background:rgba(6,182,212,.2);color:var(--accent);border:2px solid var(--accent);border-radius:8px;font-size:12px;font-weight:600">
+                <i data-lucide="moon" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Oscuro
+              </button>
+            </div>
+          </div>
+          
+          <!-- Idioma -->
+          <div style="padding-top:12px;border-top:1px solid var(--border)">
+            <p class="font-medium text-sm mb-2">Idioma</p>
+            <select class="inp">
+              <option value="es" selected>Español</option>
+              <option value="en">English</option>
+              <option value="pt">Português</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Configuración de Sistema -->
+      <div class="card" style="background:var(--surface)">
+        <h3 class="font-bold text-lg mb-4">Configuración del Sistema</h3>
+        
+        <div class="flex flex-col gap-4">
+          <!-- Timeout de sesión -->
+          <div>
+            <label class="text-sm font-medium" style="color:var(--textm)">Tiempo de Sesión (minutos)</label>
+            <input type="number" class="inp mt-1" value="${settings.sessionTimeout}" min="5" max="120">
+            <p style="font-size:11px;color:var(--textm);margin-top:4px">Se cerrará la sesión tras inactividad</p>
+          </div>
+          
+          <!-- Sincronización automática -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)">
+            <div>
+              <p class="font-medium text-sm">Sincronización Automática</p>
+              <p style="font-size:11px;color:var(--textm)">Actualizar datos en tiempo real</p>
+            </div>
+            <div style="display:flex;align-items:center;width:50px;height:28px;background:#10b981;border-radius:14px;cursor:pointer;transition:all .3s">
+              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:translateX(22px)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Datos y Privacidad -->
+      <div class="card" style="background:var(--surface)">
+        <h3 class="font-bold text-lg mb-4">Datos y Privacidad</h3>
+        
+        <div class="flex flex-col gap-3">
+          <button class="btn btn-s w-full flex items-center justify-center gap-2" style="font-size:12px;padding:10px">
+            <i data-lucide="download" style="width:14px;height:14px"></i>
+            Descargar Mis Datos
+          </button>
+          
+          <button class="btn btn-s w-full flex items-center justify-center gap-2" style="font-size:12px;padding:10px">
+            <i data-lucide="trash-2" style="width:14px;height:14px;color:#ef4444"></i>
+            <span style="color:#ef4444">Limpiar Caché</span>
+          </button>
+          
+          <div style="background:rgba(59,130,246,.08);padding:10px;border-radius:6px;border-left:2px solid #3b82f6">
+            <p style="font-size:11px;color:var(--textm)"><strong>Última actualización:</strong> Hoy a las 09:30</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- TAB 4: ACERCA DE -->
+  <div id="settingsAbout" class="settings-tab" style="display:none">
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Información del sistema -->
+      <div class="card" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.05));border:1px solid rgba(6,182,212,.3)">
+        <div style="text-align:center;margin-bottom:20px">
+        <div style="display:flex;justify-content:center;margin-bottom:12px;">
+    <img src="img/logo.png" style="width:8cm;height:8cm;">
+</div>
+          <h2 class="font-bold text-2xl mb-2">CleanClass</h2>
+          <p style="color:var(--accent);font-weight:600">Sistema de Gestión de Aseo Escolar</p>
+        </div>
+        
+        <div style="background:rgba(6,182,212,.05);padding:20px;border-radius:12px;text-align:center">
+          <p style="font-size:12px;color:var(--textm);line-height:1.6">
+            Una solución integral para gestionar turnos de aseo, registrar evidencias y validar el cumplimiento en instituciones educativas.
+          </p>
+        </div>
+      </div>
+      
+      <!-- Detalles técnicos -->
+      <div class="card" style="background:var(--surface)">
+        <h3 class="font-bold text-lg mb-4">Información del Sistema</h3>
+        
+        <div class="flex flex-col gap-3">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--textm);font-size:12px">Versión</span>
+            <span class="font-medium">v1.0.0</span>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--textm);font-size:12px">Última Actualización</span>
+            <span class="font-medium">15 de Enero, 2025</span>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--textm);font-size:12px">Estado del Sistema</span>
+            <span class="font-medium" style="color:#10b981">Operativo</span>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;padding:8px 0">
+            <span style="color:var(--textm);font-size:12px">Usuarios Activos</span>
+            <span class="font-medium">1</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Características -->
+      <div class="card" style="background:var(--surface);lg:col-span-2">
+        <h3 class="font-bold text-lg mb-4">Características Principales</h3>
+        
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div style="display:flex;gap:10px">
+            <i data-lucide="users" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"></i>
+            <div>
+              <p class="font-medium text-sm">Gestión de Usuarios</p>
+              <p style="font-size:11px;color:var(--textm)">Estudiantes, docentes y administrativos</p>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:10px">
+            <i data-lucide="sparkles" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"></i>
+            <div>
+              <p class="font-medium text-sm">Turnos de Aseo</p>
+              <p style="font-size:11px;color:var(--textm)">Programación semanal flexible</p>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:10px">
+            <i data-lucide="camera" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"></i>
+            <div>
+              <p class="font-medium text-sm">Evidencias Fotográficas</p>
+              <p style="font-size:11px;color:var(--textm)">Validación con imágenes</p>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:10px">
+            <i data-lucide="check-square" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"></i>
+            <div>
+              <p class="font-medium text-sm">Validación de Aseos</p>
+              <p style="font-size:11px;color:var(--textm)">Aprobación por profesores</p>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:10px">
+            <i data-lucide="alert-circle" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"></i>
+            <div>
+              <p class="font-medium text-sm">Reporte de Incidentes</p>
+              <p style="font-size:11px;color:var(--textm)">Seguimiento y resolución</p>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:10px">
+            <i data-lucide="bar-chart-2" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"></i>
+            <div>
+              <p class="font-medium text-sm">Reportes Analíticos</p>
+              <p style="font-size:11px;color:var(--textm)">Métricas y estadísticas</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Soporte -->
+      <div class="card" style="background:var(--surface);lg:col-span-2">
+        <h3 class="font-bold text-lg mb-4">Soporte y Contacto</h3>
+        
+        <div class="grid gap-4 sm:grid-cols-3">
+          <div style="text-align:center">
+            <i data-lucide="mail" style="width:32px;height:32px;color:var(--accent);margin:0 auto 12px"></i>
+            <p class="font-medium text-sm">Email de Soporte</p>
+            <p style="font-size:12px;color:var(--textm);margin-top:4px">soporte@cleanclass.edu</p>
+          </div>
+          
+          <div style="text-align:center">
+            <i data-lucide="phone" style="width:32px;height:32px;color:var(--accent);margin:0 auto 12px"></i>
+            <p class="font-medium text-sm">Teléfono</p>
+            <p style="font-size:12px;color:var(--textm);margin-top:4px">+57 (1) 234 5678</p>
+          </div>
+          
+          <div style="text-align:center">
+            <i data-lucide="globe" style="width:32px;height:32px;color:var(--accent);margin:0 auto 12px"></i>
+            <p class="font-medium text-sm">Sitio Web</p>
+            <p style="font-size:12px;color:var(--textm);margin-top:4px">www.cleanclass.edu</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+

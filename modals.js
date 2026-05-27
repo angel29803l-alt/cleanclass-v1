@@ -1,0 +1,441 @@
+// ============================================================
+// modals.js — CleanClass v2.0
+// CAMBIO PUNTO 4: Select múltiple de estudiantes desde BD central
+// CAMBIO PUNTO 1: Admin Override en grupos
+// ============================================================
+
+const formFields={
+  rooms:[
+    {k:'name',l:'Nombre del Salón'},
+    {k:'capacity',l:'Capacidad',type:'number'},
+    {k:'grade',l:'Grado'}
+  ],
+  cleanGroups:()=>{
+    const gradeOpts = isAdmin()
+      ? [...new Set(D.rooms.map(r=>r.grade))].map(g=>({id:g,name:g}))
+      : [{id:getCurrentGrade(),name:getCurrentGrade()}];
+
+    const baseFields = [
+      {k:'name', l:'Nombre del Grupo'},
+      {k:'grade', l:'Grado', type:'select', options:()=>gradeOpts},
+      {k:'color', l:'Color del Grupo', type:'color'}
+    ];
+
+    if(assignmentMode==='daily'){
+      return [
+        ...baseFields.slice(0,2),
+        {k:'day', l:'Día de la Semana', type:'select', options:()=>{
+          return ['Lunes','Martes','Miércoles','Jueves','Viernes'].map(d=>({id:d,name:d}));
+        }},
+        {k:'members', l:'Miembros del Grupo', type:'multiselect'},
+        baseFields[2]
+      ];
+    } else {
+      return [
+        ...baseFields.slice(0,2),
+        {k:'members', l:'Miembros del Grupo', type:'multiselect'},
+        baseFields[2]
+      ];
+    }
+  },
+  evidence:[
+    {k:'group', l:'Grupo', type:'select', options:()=>{
+      const myGrade=getCurrentGrade();
+      const groups = isAdmin() ? D.cleanGroups : D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
+      return groups.map(g=>({id:g.id,name:g.name}));
+    }},
+    {k:'student', l:'Tu Nombre'},
+    {k:'image', l:'Foto de la Limpieza', type:'file'}
+  ],
+  incidents:[
+    {k:'type',l:'Tipo de Incidente',type:'select',options:()=>[
+      {id:1,name:'Suciedad'},{id:2,name:'Daño a Mueble'},
+      {id:3,name:'Material Faltante'},{id:4,name:'Otros'}
+    ]},
+    {k:'description',l:'Descripción'},
+    {k:'location',l:'Ubicación'},
+    {k:'priority',l:'Prioridad',type:'select',options:()=>[
+      {id:1,name:'Baja'},{id:2,name:'Media'},{id:3,name:'Alta'}
+    ]}
+  ]
+};
+
+// ---- RENDER DE CAMPO MULTISELECT (PUNTO 4) ----
+function renderMultiSelect(fieldKey, label, selectedMembers, gradeValue){
+  const grade = gradeValue || getCurrentGrade();
+  const studentNames = getStudentNamesByGrade(grade);
+  const sel = selectedMembers || [];
+  return `
+  <div id="field-${fieldKey}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <label class="text-sm font-medium" style="color:var(--textm)">${label}</label>
+      <div style="display:flex;gap:6px">
+        <button type="button" onclick="selectAllMembers()" class="btn btn-s" style="padding:3px 8px;font-size:11px">
+          Todos
+        </button>
+        <button type="button" onclick="clearAllMembers()" class="btn" style="padding:3px 8px;font-size:11px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)">
+          Limpiar
+        </button>
+      </div>
+    </div>
+    <div id="multiSelectWrap" style="border:1.5px solid #1d4ed8;border-radius:10px;overflow:hidden;background:#0b1d35;max-height:200px;overflow-y:auto">
+      ${studentNames.length > 0
+        ? studentNames.map(name => `
+          <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(59,130,246,.1);transition:background .15s"
+            onmouseover="this.style.background='rgba(59,130,246,.15)'"
+            onmouseout="this.style.background='transparent'">
+            <input type="checkbox" name="member_cb" value="${name}"
+              ${sel.includes(name)?'checked':''}
+              style="width:16px;height:16px;accent-color:#06b6d4;cursor:pointer">
+            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;flex-shrink:0">
+              ${name.charAt(0)}
+            </div>
+            <span style="font-size:13px;color:#bfdbfe;font-weight:500">${name}</span>
+          </label>`).join('')
+        : `<p style="text-align:center;padding:20px;color:var(--textm);font-size:13px">No hay estudiantes en este grado</p>`
+      }
+    </div>
+    <p id="memberCount" style="font-size:11px;color:var(--textm);margin-top:6px;text-align:right">
+      ${sel.length} seleccionados
+    </p>
+  </div>`;
+}
+
+function selectAllMembers(){
+  document.querySelectorAll('input[name="member_cb"]').forEach(cb=>{cb.checked=true;});
+  updateMemberCount();
+}
+function clearAllMembers(){
+  document.querySelectorAll('input[name="member_cb"]').forEach(cb=>{cb.checked=false;});
+  updateMemberCount();
+}
+function updateMemberCount(){
+  const count=document.querySelectorAll('input[name="member_cb"]:checked').length;
+  const el=document.getElementById('memberCount');
+  if(el) el.textContent=count+' seleccionados';
+}
+
+function openModal(mode,col,id){
+  let fields=formFields[col];
+  if(typeof fields==='function') fields=fields();
+  let item={};
+  if(mode==='edit'){
+    const found=D[col].find(x=>x.id===id);
+    if(!found) return;
+    item={...found};
+  }
+
+  const modalTitle = col==='incidents'
+    ? (mode==='add'?t('reportIncident'):t('edit'))
+    : mode==='add'?t('add'):t('edit');
+
+  // ---- ADMIN OVERRIDE BADGE (PUNTO 1) ----
+  const adminOverrideBadge = (col==='cleanGroups' && (isAdmin()||isTeacher()))
+    ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:8px;margin-bottom:12px">
+        <i data-lucide="shield-check" style="width:14px;height:14px;color:var(--accent)"></i>
+        <span style="font-size:11px;color:var(--accent);font-weight:600">${isAdmin()?'Admin Override activo — Edición total':'Modo Docente — Puedes editar este grupo manualmente'}</span>
+       </div>`
+    : '';
+
+  const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal fade-in" style="max-width:480px">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg">${modalTitle}</h2>
+        <button onclick="closeModal()" class="btn btn-s" style="padding:4px">
+          <i data-lucide="x" style="width:18px;height:18px"></i>
+        </button>
+      </div>
+      ${adminOverrideBadge}
+      <form id="modalForm" class="flex flex-col gap-3">
+        ${fields.map(f=>{
+          if(f.type==='multiselect'){
+            return renderMultiSelect(f.k, f.l, item.members||[], item.grade||getCurrentGrade());
+          }else if(f.type==='color'){
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <input type="color" class="inp mt-1" name="${f.k}" value="${item[f.k]||'#06b6d4'}" style="padding:4px;cursor:pointer"></div>`;
+          }else if(f.type==='select'){
+            const opts=f.options?.();
+            return `<div id="field-${f.k}"><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <select class="inp mt-1" name="${f.k}" required onchange="onGradeSelectChange(this)">
+                <option value="">Selecciona una opción</option>
+                ${opts?.map(o=>`<option value="${o.name}" ${item[f.k]===o.name?'selected':''}>${o.name}</option>`).join('')||''}
+              </select></div>`;
+          }else if(f.type==='file'){
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <input type="file" class="inp mt-1" name="${f.k}" accept="image/*" ${col==='evidence'?'required':''} style="padding:8px">
+              <p style="font-size:11px;color:var(--textm);margin-top:4px">JPG o PNG, máximo 5MB</p></div>`;
+          }else if(f.type==='number'){
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <input class="inp mt-1" name="${f.k}" type="number" value="${item[f.k]||''}" required></div>`;
+          }else{
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <input class="inp mt-1" name="${f.k}" type="text" value="${(item[f.k]||'').toString().replace(/"/g,'&quot;')}" required></div>`;
+          }
+        }).join('')}
+
+        ${col==='incidents'&&mode==='edit'&&(isAdmin()||isTeacher())?`
+          <div><label class="text-sm font-medium" style="color:var(--textm)">Estado del Incidente</label>
+            <select class="inp mt-1" name="status" required>
+              <option value="Abierto" ${item.status==='Abierto'?'selected':''}>Abierto</option>
+              <option value="En Proceso" ${item.status==='En Proceso'?'selected':''}>En Proceso</option>
+              <option value="Resuelto" ${item.status==='Resuelto'?'selected':''}>Resuelto</option>
+            </select>
+          </div>
+          <div><label class="text-sm font-medium" style="color:var(--textm)">Notas/Observaciones</label>
+            <textarea class="inp mt-1" name="notes" style="resize:vertical;min-height:80px;padding:10px">${item.notes||''}</textarea>
+          </div>`
+        :col==='incidents'&&mode==='add'?`
+          <div><label class="text-sm font-medium" style="color:var(--textm)">Reportado por</label>
+            <input class="inp mt-1" name="reporter" type="text" value="${currentSession?currentSession.name:''}" required>
+          </div>`:''}
+
+        <button type="submit" class="btn btn-p mt-2 w-full slide-up">
+          ${col==='incidents'?mode==='add'?t('reportIncident'):t('edit'):col==='evidence'?t('uploadEvidence'):t('save')}
+        </button>
+      </form>
+    </div>
+  </div>`;
+
+  const d=document.createElement('div');
+  d.id='modalWrap';
+  d.innerHTML=html;
+  document.body.appendChild(d);
+  lucide.createIcons();
+
+  // Listener para actualizar contador de multiselect
+  document.querySelectorAll('input[name="member_cb"]').forEach(cb=>{
+    cb.addEventListener('change', updateMemberCount);
+  });
+
+  document.getElementById('modalForm').onsubmit=e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const obj={};
+
+    if(col==='evidence'){
+      obj.group=fd.get('group');
+      obj.student=fd.get('student');
+      obj.date=new Date().toISOString().split('T')[0];
+      obj.status='Pendiente';
+      obj.compliant=false; // booleano de cumplimiento (PUNTO 3)
+      obj.image=null;
+      obj.reviewed_by=null;
+      obj.observation=null;
+      obj.reviewed_at=null;
+
+      const file=fd.get('image');
+      if(file&&file.size>0){
+        obj.id=nid();
+        D[col].push(obj);
+        closeModal();
+        saveEvidenceWithImage(obj, file).then(()=>render());
+        return;
+      }else if(mode==='edit'&&item.image){
+        obj.image=item.image;
+      }
+    }else if(col==='incidents'){
+      obj.type=fd.get('type');
+      obj.description=fd.get('description');
+      obj.location=fd.get('location');
+      obj.priority=fd.get('priority');
+      obj.grade=getCurrentGrade();
+      if(mode==='add'){
+        obj.date=new Date().toISOString().split('T')[0];
+        obj.reporter=fd.get('reporter');
+        obj.status='Abierto';
+        obj.assigned_to='Por Asignar';
+        obj.resolution_date=null;
+        obj.notes='';
+        obj.grade=getCurrentGrade();
+      }else{
+        obj.status=(isAdmin()||isTeacher())?fd.get('status'):item.status;
+        obj.notes=(isAdmin()||isTeacher())?fd.get('notes'):item.notes;
+        obj.date=item.date;
+        obj.reporter=item.reporter;
+        obj.assigned_to=item.assigned_to;
+        obj.resolution_date=item.resolution_date;
+      }
+    }else{
+      fields.forEach(f=>{
+        if(f.type==='file'||f.type==='radio'||f.type==='multiselect') return;
+        obj[f.k]=f.type==='number'?Number(fd.get(f.k)):fd.get(f.k);
+      });
+      if(col==='cleanGroups'){
+        obj.frequency=assignmentMode;
+        if(assignmentMode==='daily') obj.day=fd.get('day');
+        // PUNTO 4: leer miembros del multiselect
+        obj.members=[...document.querySelectorAll('input[name="member_cb"]:checked')].map(cb=>cb.value);
+        if(!obj.color) obj.color='#06b6d4';
+        if(!isAdmin()) obj.grade=getCurrentGrade();
+      }
+    }
+
+    if(mode==='add'){obj.id=nid();D[col].push(obj);}
+    else{const idx=D[col].findIndex(x=>x.id===id);if(idx>=0){obj.id=id;Object.assign(D[col][idx],obj);}}
+    // Guardar en Supabase
+    if(col==='cleanGroups') saveCleanGroup(obj);
+    else if(col==='evidence') saveEvidence(obj);
+    else if(col==='incidents') saveIncident(obj);
+    else if(col==='rooms') saveRoom(obj);
+    closeModal(); render();
+  };
+}
+
+// Cuando cambia el grado en el select, actualizar el multiselect de miembros
+function onGradeSelectChange(sel){
+  if(sel.name !== 'grade') return;
+  const wrap = document.getElementById('field-members');
+  if(!wrap) return;
+  const grade = sel.value;
+  const currentChecked = [...document.querySelectorAll('input[name="member_cb"]:checked')].map(cb=>cb.value);
+  wrap.innerHTML = renderMultiSelect('members','Miembros del Grupo', currentChecked, grade);
+  document.querySelectorAll('input[name="member_cb"]').forEach(cb=>{
+    cb.addEventListener('change', updateMemberCount);
+  });
+}
+
+function closeModal(){
+  const w=document.getElementById('modalWrap');
+  if(w) w.remove();
+}
+
+// ---- ADMIN MODAL (students & teachers) ----
+function openAdminModal(type, id){
+  const isEdit = typeof id !== 'undefined';
+  let item = {};
+  if(isEdit){
+    if(type==='student') item={...D.students.find(s=>s.id===id)||{}};
+    else item={...D.teachers.find(t=>t.id===id)||{}};
+  }
+  const allGrades=[...new Set(D.rooms.map(r=>r.grade))].sort();
+
+  const fields = type==='student'
+    ? [
+        {k:'name',   l:'Nombre completo', v:item.name||''},
+        {k:'grade',  l:'Grado',           v:item.grade||'', type:'select', opts:allGrades},
+        {k:'email',  l:'Email',           v:item.email||'', inputType:'email'},
+        {k:'phone',  l:'Teléfono',        v:item.phone||''}
+      ]
+    : [
+        {k:'name',       l:'Nombre completo',  v:item.name||''},
+        {k:'subject',    l:'Materia',          v:item.subject||''},
+        {k:'grade',      l:'Grado asignado',   v:item.grade||'', type:'select', opts:allGrades},
+        {k:'email',      l:'Email',            v:item.email||'', inputType:'email'},
+        {k:'department', l:'Departamento',     v:item.department||''}
+      ];
+
+  const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg">${isEdit?'Editar':'Agregar'} ${type==='student'?t('students'):t('teachers')}</h2>
+        <button onclick="closeModal()" class="btn btn-s" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:8px;margin-bottom:12px">
+        <i data-lucide="database" style="width:14px;height:14px;color:var(--accent)"></i>
+        <span style="font-size:11px;color:var(--accent);font-weight:600">Base de Datos Centralizada — CleanClass v2.0</span>
+      </div>
+      <form id="adminModalForm" class="flex flex-col gap-3">
+        ${fields.map(f=>{
+          if(f.type==='select'){
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <select class="inp mt-1" name="${f.k}" required>
+                <option value="">Selecciona grado</option>
+                ${f.opts.map(g=>`<option value="${g}" ${f.v===g?'selected':''}>${g}</option>`).join('')}
+              </select></div>`;
+          }
+          return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+            <input class="inp mt-1" name="${f.k}" type="${f.inputType||'text'}" value="${f.v}" required></div>`;
+        }).join('')}
+        <button type="submit" class="btn btn-p mt-2 w-full">${isEdit?t('save'):'Agregar'}</button>
+      </form>
+    </div>
+  </div>`;
+  const d=document.createElement('div');d.id='modalWrap';d.innerHTML=html;document.body.appendChild(d);
+  lucide.createIcons();
+
+  document.getElementById('adminModalForm').onsubmit=e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const obj={};
+    fields.forEach(f=>obj[f.k]=fd.get(f.k));
+    if(isEdit){
+      const col=type==='student'?'students':'teachers';
+      const idx=D[col].findIndex(x=>x.id===id);
+      if(idx>=0){obj.id=id;Object.assign(D[col][idx],obj);}
+    }else{
+      obj.id=nid();
+      obj.status='active';
+      obj.joinDate=new Date().toISOString().split('T')[0];
+      if(type==='student') D.students.push(obj);
+      else D.teachers.push(obj);
+    }
+    // Guardar en Supabase
+    if(type==='student') saveStudent(obj);
+    else saveTeacher(obj);
+    closeModal(); render();
+  };
+}
+
+function delAdmin(col, id){
+  D[col]=D[col].filter(x=>x.id!==id);
+  // Eliminar en Supabase
+  if(col==='students') deleteStudent(id);
+  else if(col==='teachers') deleteTeacher(id);
+  else if(col==='rooms') deleteRoom(id);
+  render();
+}
+
+let pendingDel=null;
+function del(col,id){
+  if(pendingDel&&pendingDel.col===col&&pendingDel.id===id){
+    D[col]=D[col].filter(x=>x.id!==id);
+    // Eliminar en Supabase
+    if(col==='cleanGroups') deleteCleanGroup(id);
+    else if(col==='incidents') deleteIncident(id);
+    pendingDel=null;render();return;
+  }
+  pendingDel={col,id};
+  const btn=event.currentTarget;
+  btn.innerHTML='<span style="font-size:11px">¿Seguro?</span>';
+  btn.classList.remove('btn-d');btn.classList.add('btn-p');
+  setTimeout(()=>{pendingDel=null;render();},2500);
+}
+
+function changeAssignmentMode(mode){
+  assignmentMode=mode;
+  render();
+}
+
+function bindEvents(){
+  document.querySelectorAll('.validation-btn').forEach(btn=>{
+    btn.onclick=e=>{
+      e.preventDefault();
+      const evidenceId=parseInt(btn.dataset.id);
+      const action=btn.dataset.action;
+      const obs=document.getElementById(`obs-${evidenceId}`);
+      const observation=obs?.value||'';
+      const evidence=D.evidence.find(ev=>ev.id===evidenceId);
+      if(!evidence) return;
+      evidence.status=action==='approve'?'Completado':'Rechazado';
+      evidence.compliant=action==='approve'; // PUNTO 3: actualiza booleano
+      evidence.reviewed_by=currentSession?currentSession.name:'Docente';
+      evidence.observation=observation;
+      evidence.reviewed_at=new Date().toISOString();
+      // Guardar validación en Supabase
+      saveEvidence(evidence);
+      render();
+    };
+  });
+
+  document.querySelectorAll('.quality-btn').forEach(btn=>{
+    btn.onclick=e=>{
+      e.preventDefault();
+      document.querySelectorAll('.quality-btn[data-id="'+btn.dataset.id+'"]').forEach(b=>{
+        b.style.background='transparent';b.style.color='var(--textm)';b.style.borderColor='var(--border)';
+      });
+      btn.style.background='var(--accent)';
+      btn.style.color='#fff';
+      btn.style.borderColor='var(--accent)';
+    };
+  });
+}
