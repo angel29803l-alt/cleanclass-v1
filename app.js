@@ -182,7 +182,7 @@ function showScreen(name){
 let authTimer, authTime=56;
 async function startAuthTimer(){
   // Obtener el correo ingresado
-  const emailInput = document.querySelector('#screen-verificacion input[type="email"]');
+  const emailInput = document.getElementById('recoveryEmail');
   const emailVal = (emailInput?.value||'').trim();
 
   if(!emailVal){

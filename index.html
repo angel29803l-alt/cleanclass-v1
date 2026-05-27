@@ -96,16 +96,18 @@
     <!-- VERIFICACIÓN -->
     <div id="screen-verificacion" class="auth-screen">
       <h1 class="auth-title">CleanClass</h1>
-      <p class="auth-sub">Verificación de usuario</p>
+      <p class="auth-sub">Recuperar contraseña</p>
+      <p style="color:var(--textm);font-size:13px;text-align:center;margin-bottom:16px">
+        Ingresa tu correo y te enviaremos un enlace para cambiar tu contraseña.
+      </p>
       <label class="auth-label">Correo electrónico</label>
-      <input type="email" class="auth-input">
-      <div class="auth-row" style="margin-bottom:12px">
-        <span id="authCount" class="auth-count">Reenviar código en: 56 s</span>
-        <button class="auth-mini-btn" onclick="startAuthTimer()">Enviar</button>
+      <input type="email" id="recoveryEmail" class="auth-input" placeholder="tucorreo@ejemplo.com">
+      <p id="authCount" class="auth-count" style="text-align:center;margin-bottom:12px;min-height:20px"></p>
+      <button class="auth-btn-primary" onclick="startAuthTimer()">Enviar enlace</button>
+      <div class="auth-bottom">
+        <span class="auth-link">¿Recordaste tu contraseña?</span>
+        <button class="auth-btn-secondary" onclick="showScreen('login')">Iniciar sesión</button>
       </div>
-      <label class="auth-label">Ingresa el código</label>
-      <input type="text" class="auth-input">
-      <button class="auth-btn-primary" onclick="showScreen('nueva')">Cambiar contraseña</button>
     </div>
 
     <!-- NUEVA CONTRASEÑA -->
