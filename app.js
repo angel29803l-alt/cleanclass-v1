@@ -539,3 +539,75 @@ sb.auth.onAuthStateChange((event, session) => {
     showScreen('nueva');
   }
 });
+
+// ---- AUTO LOGIN — verifica sesión activa al cargar ----
+(async function checkExistingSession() {
+  // Mostrar pantalla de carga
+  const loader = document.createElement('div');
+  loader.id = 'appLoader';
+  loader.style.cssText = 'position:fixed;inset:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px';
+  loader.innerHTML = `
+    <div style="width:48px;height:48px;border-radius:12px;background:#06b6d4;display:flex;align-items:center;justify-content:center;animation:pulse-glow 1.5s infinite">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+    </div>
+    <p style="color:#cbd5e1;font-size:14px;font-weight:600;letter-spacing:.3px">Cargando CleanClass...</p>
+  `;
+  document.body.appendChild(loader);
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (session) {
+      // Hay sesión activa — cargar usuario y entrar directo
+      const { data: userData } = await sb.from('users').select('*').eq('id', session.user.id).single();
+
+      let localUser = userData;
+      if (!localUser) {
+        localUser = D.users.find(u => u.email.toLowerCase() === session.user.email.toLowerCase()) || {
+          id: session.user.id,
+          name: session.user.email.split('@')[0],
+          email: session.user.email,
+          role: 'admin',
+          grade: null,
+          department: 'Administración',
+          phone: '',
+          avatar: '👨‍💼'
+        };
+      }
+
+      currentSession = localUser;
+      D._user = {
+        name: localUser.name,
+        email: localUser.email,
+        role: localUser.role === 'admin' ? t('roleAdmin') : localUser.role === 'teacher' ? t('roleTeacher') : t('roleStudent'),
+        department: localUser.department || '—',
+        phone: localUser.phone || '—',
+        joinDate: localUser.created_at || '2024-01-15',
+        avatar: localUser.avatar || '👤'
+      };
+
+      if (isAdmin()) cur = 'adminPanel';
+      else cur = 'dash';
+
+      document.getElementById('authWrap').style.display = 'none';
+      const lbw = document.getElementById('langBtnWrap');
+      if (lbw) lbw.style.display = 'none';
+      const app = document.getElementById('app');
+      app.style.removeProperty('display');
+      app.style.display = 'flex';
+      isLoggedOut = false;
+      checkResp();
+      await loadAllData();
+      render();
+    }
+  } catch(e) {
+    console.error('Error verificando sesión:', e);
+  } finally {
+    // Quitar pantalla de carga
+    setTimeout(() => {
+      const l = document.getElementById('appLoader');
+      if (l) l.style.opacity = '0';
+      setTimeout(() => { const l2 = document.getElementById('appLoader'); if (l2) l2.remove(); }, 300);
+    }, 600);
+  }
+})();
