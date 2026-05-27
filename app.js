@@ -449,8 +449,10 @@ function confirmLogout(){
 
 function closeLogoutModal(){const w=document.getElementById('logoutModalWrap');if(w)w.remove();}
 
-function performLogout(){
+async function performLogout(){
   closeLogoutModal();
+  // Cerrar sesión en Supabase para que no vuelva al refrescar
+  await sb.auth.signOut();
   isLoggedOut=true;
   currentSession=null;
   D._user=null;
