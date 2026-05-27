@@ -532,7 +532,7 @@ if(window.elementSdk){
 // PASSWORD_RECOVERY se maneja dentro de initApp
 
 // ---- AUTO LOGIN — verifica sesión activa al cargar ----
-(function initApp() {
+(async function initApp() {
   // Mostrar pantalla de carga
   const loader = document.createElement('div');
   loader.id = 'appLoader';
@@ -551,50 +551,61 @@ if(window.elementSdk){
   }
 
   async function enterApp(session) {
-    const { data: userData } = await sb.from('users').select('*').eq('id', session.user.id).single();
-
-    let localUser = userData;
-    if (!localUser) {
-      localUser = D.users.find(u => u.email.toLowerCase() === session.user.email.toLowerCase()) || {
-        id: session.user.id,
-        name: session.user.email.split('@')[0],
-        email: session.user.email,
-        role: 'admin',
-        grade: null,
-        department: 'Administración',
-        phone: '',
-        avatar: '👨‍💼'
+    try {
+      const { data: userData } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      let localUser = userData;
+      if (!localUser) {
+        localUser = D.users.find(u => u.email.toLowerCase() === session.user.email.toLowerCase()) || {
+          id: session.user.id,
+          name: session.user.email.split('@')[0],
+          email: session.user.email,
+          role: 'admin',
+          grade: null,
+          department: 'Administración',
+          phone: '',
+          avatar: '👨‍💼'
+        };
+      }
+      currentSession = localUser;
+      D._user = {
+        name: localUser.name,
+        email: localUser.email,
+        role: localUser.role === 'admin' ? t('roleAdmin') : localUser.role === 'teacher' ? t('roleTeacher') : t('roleStudent'),
+        department: localUser.department || '—',
+        phone: localUser.phone || '—',
+        joinDate: localUser.created_at || '2024-01-15',
+        avatar: localUser.avatar || '👤'
       };
+      if (isAdmin()) cur = 'adminPanel';
+      else cur = 'dash';
+      document.getElementById('authWrap').style.display = 'none';
+      const lbw = document.getElementById('langBtnWrap');
+      if (lbw) lbw.style.display = 'none';
+      const app = document.getElementById('app');
+      app.style.removeProperty('display');
+      app.style.display = 'flex';
+      isLoggedOut = false;
+      checkResp();
+      await loadAllData();
+      render();
+    } catch(e) {
+      console.error('Error entrando a la app:', e);
     }
-
-    currentSession = localUser;
-    D._user = {
-      name: localUser.name,
-      email: localUser.email,
-      role: localUser.role === 'admin' ? t('roleAdmin') : localUser.role === 'teacher' ? t('roleTeacher') : t('roleStudent'),
-      department: localUser.department || '—',
-      phone: localUser.phone || '—',
-      joinDate: localUser.created_at || '2024-01-15',
-      avatar: localUser.avatar || '👤'
-    };
-
-    if (isAdmin()) cur = 'adminPanel';
-    else cur = 'dash';
-
-    document.getElementById('authWrap').style.display = 'none';
-    const lbw = document.getElementById('langBtnWrap');
-    if (lbw) lbw.style.display = 'none';
-    const app = document.getElementById('app');
-    app.style.removeProperty('display');
-    app.style.display = 'flex';
-    isLoggedOut = false;
-    checkResp();
-    await loadAllData();
-    render();
   }
 
-  // Usar onAuthStateChange para esperar a que Supabase esté listo
-  const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session && !isLoggedOut) {
+      await enterApp(session);
+    }
+  } catch(e) {
+    console.error('Error verificando sesión:', e);
+  } finally {
+    hideLoader();
+  }
+
+  // Manejar recuperación de contraseña
+  sb.auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
       hideLoader();
       document.getElementById('authWrap').style.display = 'flex';
@@ -603,20 +614,6 @@ if(window.elementSdk){
       const app = document.getElementById('app');
       if (app) app.style.display = 'none';
       showScreen('nueva');
-      return;
-    }
-
-    if (event === 'SIGNED_IN' && session && !currentSession) {
-      await enterApp(session);
-      hideLoader();
-      return;
-    }
-
-    if (event === 'INITIAL_SESSION') {
-      if (session && !isLoggedOut) {
-        await enterApp(session);
-      }
-      hideLoader();
     }
   });
 })();
