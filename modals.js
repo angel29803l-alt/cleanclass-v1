@@ -313,15 +313,14 @@ function openAdminModal(type, id){
     ? [
         {k:'name',   l:'Nombre completo', v:item.name||''},
         {k:'grade',  l:'Grado',           v:item.grade||'', type:'select', opts:allGrades},
-        {k:'email',  l:'Email',           v:item.email||'', inputType:'email'},
-        {k:'phone',  l:'Teléfono',        v:item.phone||''}
+        {k:'email',  l:'Email',           v:item.email||'', inputType:'email'}
       ]
     : [
         {k:'name',       l:'Nombre completo',  v:item.name||''},
         {k:'subject',    l:'Materia',          v:item.subject||''},
         {k:'grade',      l:'Grado asignado',   v:item.grade||'', type:'select', opts:allGrades},
         {k:'email',      l:'Email',            v:item.email||'', inputType:'email'},
-        {k:'department', l:'Departamento',     v:item.department||''}
+        ...(!isEdit ? [{k:'password', l:'Contraseña', v:'', inputType:'password'}] : [])
       ];
 
   const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()">
@@ -370,9 +369,53 @@ function openAdminModal(type, id){
       else D.teachers.push(obj);
     }
     // Guardar en Supabase
-    if(type==='student') saveStudent(obj);
-    else saveTeacher(obj);
-    closeModal(); render();
+    if(type==='student') {
+      saveStudent(obj);
+      closeModal(); render();
+    } else {
+      // Para docentes nuevos, crear en Supabase Auth
+      if(!isEdit && obj.password) {
+        (async () => {
+          const { data, error } = await sb.auth.admin ? 
+            // Intentar con admin API
+            {data: null, error: {message: 'use_signup'}} :
+            await sb.auth.signUp({ email: obj.email, password: obj.password, options: { data: { full_name: obj.name } } });
+          
+          // Usar signUp normal
+          const { data: signUpData, error: signUpError } = await sb.auth.signUp({
+            email: obj.email,
+            password: obj.password,
+            options: { data: { full_name: obj.name } }
+          });
+
+          if (signUpError && !signUpError.message.includes('already registered')) {
+            showDbError('docente', signUpError.message);
+            return;
+          }
+
+          // Guardar en tabla users con rol teacher
+          const userId = signUpData?.user?.id;
+          if (userId) {
+            await sb.from('users').insert({
+              id: userId,
+              name: obj.name,
+              email: obj.email,
+              role: 'teacher',
+              avatar: '👩‍🏫',
+              status: 'active'
+            });
+          }
+
+          delete obj.password;
+          await saveTeacher(obj);
+          closeModal(); render();
+        })();
+      } else {
+        delete obj.password;
+        saveTeacher(obj);
+        closeModal(); render();
+      }
+    }
   };
 }
 

@@ -888,7 +888,7 @@ function rUsers(){
     </div>
     <div style="overflow-x:auto"><table class="tbl" style="margin:0">
       <thead><tr style="background:rgba(124,58,237,.04)">
-        <th style="width:36px">#</th><th>Nombre</th><th>Materia</th><th>Grado</th><th>Email</th><th>Departamento</th>
+        <th style="width:36px">#</th><th>Nombre</th><th>Materia</th><th>Grado</th><th>Email</th>
       </tr></thead>
       <tbody>${filteredTeachers.length>0?filteredTeachers.map((tc,i)=>`
       <tr>
@@ -900,7 +900,7 @@ function rUsers(){
         <td style="font-size:13px">${tc.subject||'—'}</td>
         <td><span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${tc.grade||'—'}</span></td>
         <td style="font-size:12px;color:var(--textm)">${tc.email||'—'}</td>
-        <td style="font-size:12px;color:var(--textm)">${tc.department||'—'}</td>
+
       </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--textm)">Sin docentes</td></tr>`}
       </tbody>
     </table></div>
