@@ -555,16 +555,21 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       const { data: userData } = await sb.from('users').select('*').eq('id', session.user.id).single();
       let localUser = userData;
       if (!localUser) {
-        localUser = D.users.find(u => u.email.toLowerCase() === session.user.email.toLowerCase()) || {
-          id: session.user.id,
-          name: session.user.email.split('@')[0],
-          email: session.user.email,
-          role: 'admin',
-          grade: null,
-          department: 'Administración',
-          phone: '',
-          avatar: '👨‍💼'
-        };
+        // Verificar si es el admin hardcodeado
+        const hardAdmin = D.users.find(u => u.email.toLowerCase() === session.user.email.toLowerCase());
+        if (hardAdmin) {
+          localUser = hardAdmin;
+        } else {
+          // Usuario no existe en la tabla users ni es admin — cerrar sesión
+          await sb.auth.signOut();
+          isLoggedOut = true;
+          document.getElementById('authWrap').style.display = 'flex';
+          const lbw = document.getElementById('langBtnWrap');
+          if (lbw) lbw.style.display = 'block';
+          hideLoader();
+          showScreen('login');
+          return;
+        }
       }
       currentSession = localUser;
       D._user = {
