@@ -593,6 +593,42 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
     }
   }
 
+  // Verificar si la URL tiene token de recuperación de contraseña
+  const urlHash = window.location.hash;
+  const isRecovery = urlHash.includes('type=recovery') || urlHash.includes('type=email');
+
+  if (isRecovery) {
+    // Es un enlace de recuperación — esperar el evento PASSWORD_RECOVERY
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        hideLoader();
+        document.getElementById('authWrap').style.display = 'flex';
+        const lbw = document.getElementById('langBtnWrap');
+        if (lbw) lbw.style.display = 'block';
+        const app = document.getElementById('app');
+        if (app) app.style.display = 'none';
+        // Limpiar la URL
+        history.replaceState(null, '', window.location.pathname);
+        showScreen('nueva');
+      }
+    });
+    return;
+  }
+
+  // Manejar recuperación de contraseña en otras ventanas
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      hideLoader();
+      document.getElementById('authWrap').style.display = 'flex';
+      const lbw = document.getElementById('langBtnWrap');
+      if (lbw) lbw.style.display = 'block';
+      const app = document.getElementById('app');
+      if (app) app.style.display = 'none';
+      history.replaceState(null, '', window.location.pathname);
+      showScreen('nueva');
+    }
+  });
+
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session && !isLoggedOut) {
@@ -611,17 +647,4 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
   } finally {
     hideLoader();
   }
-
-  // Manejar recuperación de contraseña
-  sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'PASSWORD_RECOVERY') {
-      hideLoader();
-      document.getElementById('authWrap').style.display = 'flex';
-      const lbw = document.getElementById('langBtnWrap');
-      if (lbw) lbw.style.display = 'block';
-      const app = document.getElementById('app');
-      if (app) app.style.display = 'none';
-      showScreen('nueva');
-    }
-  });
 });
