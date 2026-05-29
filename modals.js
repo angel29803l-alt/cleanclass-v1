@@ -406,16 +406,10 @@ function openAdminModal(type, id){
       // Para docentes nuevos, crear en Supabase Auth
       if(!isEdit && obj.password) {
         (async () => {
-          const { data, error } = await sb.auth.admin ? 
-            // Intentar con admin API
-            {data: null, error: {message: 'use_signup'}} :
-            await sb.auth.signUp({ email: obj.email, password: obj.password, options: { data: { full_name: obj.name } } });
-          
-          // Usar signUp normal
           const { data: signUpData, error: signUpError } = await sb.auth.signUp({
             email: obj.email,
             password: obj.password,
-            options: { data: { full_name: obj.name } }
+            options: { data: { full_name: obj.name, role: 'teacher' } }
           });
 
           if (signUpError && !signUpError.message.includes('already registered')) {
@@ -426,7 +420,7 @@ function openAdminModal(type, id){
           // Guardar en tabla users con rol teacher
           const userId = signUpData?.user?.id;
           if (userId) {
-            await sb.from('users').insert({
+            await sb.from('users').upsert({
               id: userId,
               name: obj.name,
               email: obj.email,
@@ -450,19 +444,22 @@ function openAdminModal(type, id){
 }
 
 async function delAdmin(col, id){
-  D[col]=D[col].filter(x=>x.id!==id);
-
   if(col==='students'){
+    // Guardar email ANTES de filtrar
     const student = D.students.find(s=>s.id===id);
     const email = student?.email;
+    D.students = D.students.filter(x=>x.id!==id);
     await deleteStudent(id);
+    // El trigger borra de auth.users automáticamente
     if(email) await sb.from('users').delete().eq('email', email);
   } else if(col==='teachers'){
     const teacher = D.teachers.find(t=>t.id===id);
     const email = teacher?.email;
+    D.teachers = D.teachers.filter(x=>x.id!==id);
     await deleteTeacher(id);
     if(email) await sb.from('users').delete().eq('email', email);
   } else if(col==='rooms'){
+    D.rooms = D.rooms.filter(x=>x.id!==id);
     await deleteRoom(id);
   }
   render();
