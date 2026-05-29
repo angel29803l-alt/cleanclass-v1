@@ -85,13 +85,15 @@ function showDbError(entidad, msg) {
 }
 
 async function deleteStudent(id) {
-  const { error } = await sb.from('students').delete().eq('id', id);
-  if (!error) await loadStudents();
+  const { error } = await sb.from('students').delete().eq('id', Number(id));
+  if (error) { console.error('❌ deleteStudent error:', error.message); showDbError('estudiante', error.message); return; }
+  await loadStudents();
 }
 
 async function deleteTeacher(id) {
-  const { error } = await sb.from('teachers').delete().eq('id', id);
-  if (!error) await loadTeachers();
+  const { error } = await sb.from('teachers').delete().eq('id', Number(id));
+  if (error) { console.error('❌ deleteTeacher error:', error.message); showDbError('docente', error.message); return; }
+  await loadTeachers();
 }
 
 async function deleteCleanGroup(id) {
@@ -116,11 +118,8 @@ const D={
   // Docentes — se cargan desde Supabase
   teachers:[],
 
-  rooms:[
-    {id:1,name:'Salón 101',capacity:35,grade:'10°1'},
-    {id:2,name:'Salón 202',capacity:30,grade:'11°1'},
-    {id:3,name:'Salón 103',capacity:40,grade:'9°1'}
-  ],
+  // Salones — se cargan desde Supabase
+  rooms:[],
 
   cleanGroups:[],
 
@@ -257,6 +256,23 @@ async function saveRoom(room) {
 }
 
 async function deleteRoom(id) {
-  const { error } = await sb.from('rooms').delete().eq('id', id);
-  if (!error) await loadRooms();
+  const { error } = await sb.from('rooms').delete().eq('id', Number(id));
+  if (error) {
+    console.error('❌ deleteRoom error:', error.message, error.details);
+    showDbError('salón', error.message);
+    return;
+  }
+  await loadRooms();
+}
+
+async function deleteStudentDb(id) {
+  const { error } = await sb.from('students').delete().eq('id', Number(id));
+  if (error) { console.error('❌ deleteStudent error:', error.message); showDbError('estudiante', error.message); return; }
+  await loadStudents();
+}
+
+async function deleteTeacherDb(id) {
+  const { error } = await sb.from('teachers').delete().eq('id', Number(id));
+  if (error) { console.error('❌ deleteTeacher error:', error.message); showDbError('docente', error.message); return; }
+  await loadTeachers();
 }

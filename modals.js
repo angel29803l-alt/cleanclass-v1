@@ -313,7 +313,8 @@ function openAdminModal(type, id){
     ? [
         {k:'name',   l:'Nombre completo', v:item.name||''},
         {k:'grade',  l:'Grado',           v:item.grade||'', type:'select', opts:allGrades},
-        {k:'email',  l:'Email',           v:item.email||'', inputType:'email'}
+        {k:'email',  l:'Email',           v:item.email||'', inputType:'email'},
+        ...(!isEdit ? [{k:'password', l:'Contraseña', v:'', inputType:'password'}] : [])
       ]
     : [
         {k:'name',       l:'Nombre completo',  v:item.name||''},
@@ -370,8 +371,37 @@ function openAdminModal(type, id){
     }
     // Guardar en Supabase
     if(type==='student') {
-      saveStudent(obj);
-      closeModal(); render();
+      if(!isEdit && obj.password) {
+        (async () => {
+          const { data: signUpData, error: signUpError } = await sb.auth.signUp({
+            email: obj.email,
+            password: obj.password,
+            options: { data: { full_name: obj.name } }
+          });
+          if (signUpError && !signUpError.message.includes('already registered')) {
+            showDbError('estudiante', signUpError.message);
+            return;
+          }
+          const userId = signUpData?.user?.id;
+          if (userId) {
+            await sb.from('users').insert({
+              id: userId,
+              name: obj.name,
+              email: obj.email,
+              role: 'student',
+              avatar: '👤',
+              status: 'active'
+            });
+          }
+          delete obj.password;
+          await saveStudent(obj);
+          closeModal(); render();
+        })();
+      } else {
+        delete obj.password;
+        saveStudent(obj);
+        closeModal(); render();
+      }
     } else {
       // Para docentes nuevos, crear en Supabase Auth
       if(!isEdit && obj.password) {
@@ -419,12 +449,22 @@ function openAdminModal(type, id){
   };
 }
 
-function delAdmin(col, id){
+async function delAdmin(col, id){
   D[col]=D[col].filter(x=>x.id!==id);
-  // Eliminar en Supabase
-  if(col==='students') deleteStudent(id);
-  else if(col==='teachers') deleteTeacher(id);
-  else if(col==='rooms') deleteRoom(id);
+
+  if(col==='students'){
+    const student = D.students.find(s=>s.id===id);
+    const email = student?.email;
+    await deleteStudent(id);
+    if(email) await sb.from('users').delete().eq('email', email);
+  } else if(col==='teachers'){
+    const teacher = D.teachers.find(t=>t.id===id);
+    const email = teacher?.email;
+    await deleteTeacher(id);
+    if(email) await sb.from('users').delete().eq('email', email);
+  } else if(col==='rooms'){
+    await deleteRoom(id);
+  }
   render();
 }
 
