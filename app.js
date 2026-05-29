@@ -620,7 +620,7 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
     return;
   }
 
-  // Manejar recuperación de contraseña en otras ventanas
+  // Manejar recuperación de contraseña y cierre de sesión forzado
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
       hideLoader();
@@ -631,6 +631,27 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       if (app) app.style.display = 'none';
       history.replaceState(null, '', window.location.pathname);
       showScreen('nueva');
+      return;
+    }
+
+    // Si la sesión se cerró inesperadamente (usuario borrado desde Supabase o Panel Admin)
+    if (event === 'SIGNED_OUT' && !isLoggedOut && currentSession) {
+      currentSession = null;
+      D._user = null;
+      isLoggedOut = true;
+      const appEl = document.getElementById('app');
+      if (appEl) appEl.style.display = 'none';
+      const authWrap = document.getElementById('authWrap');
+      if (authWrap) authWrap.style.display = 'flex';
+      const lbw = document.getElementById('langBtnWrap');
+      if (lbw) lbw.style.display = 'block';
+      showScreen('login');
+      // Mostrar mensaje al usuario
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fecaca;padding:14px 20px;border-radius:10px;z-index:9999;font-size:13px;font-weight:600;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+      msg.textContent = '⚠ Tu sesión fue cerrada. Contacta al administrador.';
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 5000);
     }
   });
 
