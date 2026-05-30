@@ -547,8 +547,21 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
 
   function hideLoader() {
     const l = document.getElementById('appLoader');
-    if (l) { l.style.opacity = '0'; setTimeout(() => { if (l.parentNode) l.remove(); }, 300); }
+    if (l) { l.style.opacity = '0'; setTimeout(() => { if (l && l.parentNode) l.remove(); }, 300); }
   }
+
+  // Timeout de seguridad — si después de 5 segundos sigue el loader, quitarlo y mostrar login
+  setTimeout(() => {
+    const l = document.getElementById('appLoader');
+    if (l) {
+      hideLoader();
+      if (!currentSession) {
+        document.getElementById('authWrap').style.display = 'flex';
+        const lbw = document.getElementById('langBtnWrap');
+        if (lbw) lbw.style.display = 'block';
+      }
+    }
+  }, 5000);
 
   async function enterApp(session) {
     try {
