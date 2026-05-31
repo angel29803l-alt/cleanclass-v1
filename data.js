@@ -107,10 +107,8 @@ async function deleteIncident(id) {
 }
 
 const D={
-  // Solo el admin hardcodeado para acceso inicial
-  users:[
-    {id:1, name:'Admin Sistema', email:'admin@cleanclass.edu', password:'Admin2024!', role:'admin', grade:null, department:'Dirección Académica', phone:'+57 300 123 4567', avatar:'👨‍💼'}
-  ],
+  // Usuarios — se cargan desde Supabase
+  users:[],
 
   // Estudiantes — se cargan desde Supabase
   students:[],
@@ -275,4 +273,25 @@ async function deleteTeacherDb(id) {
   const { error } = await sb.from('teachers').delete().eq('id', Number(id));
   if (error) { console.error('❌ deleteTeacher error:', error.message); showDbError('docente', error.message); return; }
   await loadTeachers();
+}
+
+// ---- REALTIME — actualización automática para todos los usuarios ----
+function initRealtime() {
+  sb.channel('db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'students' },
+      async () => { await loadStudents(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'teachers' },
+      async () => { await loadTeachers(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' },
+      async () => { await loadRooms(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'clean_groups' },
+      async () => { await loadCleanGroups(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'evidence' },
+      async () => { await loadEvidence(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' },
+      async () => { await loadIncidents(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },
+      async () => { await loadAllData(); render(); })
+    .subscribe();
+  console.log('✅ Realtime activado');
 }

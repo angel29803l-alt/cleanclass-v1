@@ -294,7 +294,10 @@ async function doLogin(){
   app.style.display='flex';
   isLoggedOut=false;
   checkResp();
-  loadAllData().then(()=>render());
+  loadAllData().then(()=>{
+    render();
+    if (typeof initRealtime === 'function') initRealtime();
+  });
 }
 
 async function doRegistro(){
@@ -606,6 +609,8 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       checkResp();
       await loadAllData();
       render();
+      // Activar actualización en tiempo real
+      if (typeof initRealtime === 'function') initRealtime();
     } catch(e) {
       console.error('Error entrando a la app:', e);
     }
