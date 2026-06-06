@@ -777,7 +777,7 @@ function rUsers(){
         <div style="position:relative">
           <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--textm);pointer-events:none"></i>
           <input type="text" placeholder="Buscar..." value="${usersSearch}"
-            oninput="usersSearch=this.value;render()"
+            onchange="usersSearch=this.value;render()" onkeydown="if(event.key==='Enter'){usersSearch=this.value;render()}"
             class="inp" style="padding:8px 12px 8px 32px;width:170px;font-size:13px">
         </div>
         ${isAdmin()?`<select class="inp" style="width:auto;padding:8px 32px 8px 12px;font-size:13px" onchange="usersGradeFilter=this.value||null;render()">
@@ -834,8 +834,7 @@ function rUsers(){
   <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:10px;flex-wrap:wrap">
     ${[
       {key:'students',label:`Estudiantes (${filteredStudents.length})`,color:'#2563eb'},
-      {key:'teachers',label:`Docentes (${filteredTeachers.length})`,color:'#7c3aed'},
-      {key:'cards',   label:'Vista Tarjetas',color:'#059669'}
+      {key:'teachers',label:`Docentes (${filteredTeachers.length})`,color:'#7c3aed'}
     ].map(tab=>`
     <button onclick="usersTab='${tab.key}';render()"
       style="padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;
@@ -905,25 +904,7 @@ function rUsers(){
       </tbody>
     </table></div>
   </div>`:''}
-
-  <!-- TARJETAS -->
-  ${usersTab==='cards'?`
-  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-    ${filteredStudents.map((s,i)=>{
-      const group=D.cleanGroups.find(g=>g.members&&g.members.includes(s.name));
-      const evs=D.evidence.filter(e=>e.student===s.name);
-      const comp=evs.length?Math.round((evs.filter(e=>e.compliant||e.status==='Completado').length/evs.length)*100):null;
-      const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
-      return `<div class="card pop-in" style="background:var(--surface);text-align:center;animation-delay:${i*0.04}s">
-        <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:700;margin:0 auto 10px">${s.name.charAt(0)}</div>
-        <p style="font-weight:700;margin-bottom:3px">${s.name}</p>
-        <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px;display:inline-block;margin-bottom:9px">${s.grade}</span>
-        ${group?`<div style="background:${group.color||'#06b6d4'}15;border:1px solid ${group.color||'#06b6d4'}25;border-radius:7px;padding:5px 8px;margin-bottom:8px"><p style="font-size:11px;color:${group.color||'var(--accent)'};font-weight:600">${group.name}</p></div>`:`<p style="font-size:11px;color:var(--textm);margin-bottom:8px;font-style:italic">Sin grupo</p>`}
-        ${comp!==null?`<div><div class="progress-bar-track"><div class="progress-bar-fill" style="width:${comp}%;background:${cc}"></div></div><p style="font-size:12px;font-weight:700;color:${cc};margin-top:4px">${comp}%</p></div>`:''}
-      </div>`;
-    }).join('')}
-    ${filteredStudents.length===0?`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--textm)">Sin estudiantes</div>`:''}
-  </div>`:''}`;
+`;
 }
 
 // ============================================================

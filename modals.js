@@ -11,8 +11,11 @@ const formFields={
     {k:'grade',l:'Grado'}
   ],
   cleanGroups:()=>{
+    const defaultGrades = ['6°1','6°2','7°1','7°2','8°1','8°2','9°1','9°2','10°1','10°2','11°1','11°2'];
+    const roomGrades = D.rooms.map(r=>r.grade).filter(Boolean);
+    const allG = [...new Set([...defaultGrades, ...roomGrades])].sort();
     const gradeOpts = isAdmin()
-      ? [...new Set(D.rooms.map(r=>r.grade))].map(g=>({id:g,name:g}))
+      ? allG.map(g=>({id:g,name:g}))
       : [{id:getCurrentGrade(),name:getCurrentGrade()}];
 
     const baseFields = [
@@ -307,7 +310,10 @@ function openAdminModal(type, id){
     if(type==='student') item={...D.students.find(s=>s.id===id)||{}};
     else item={...D.teachers.find(t=>t.id===id)||{}};
   }
-  const allGrades=[...new Set(D.rooms.map(r=>r.grade))].sort();
+  // Grados fijos + los que vienen de salones
+  const defaultGrades = ['6°1','6°2','7°1','7°2','8°1','8°2','9°1','9°2','10°1','10°2','11°1','11°2'];
+  const roomGrades = D.rooms.map(r=>r.grade).filter(Boolean);
+  const allGrades = [...new Set([...defaultGrades, ...roomGrades])].sort();
 
   const fields = type==='student'
     ? [
@@ -344,7 +350,7 @@ function openAdminModal(type, id){
               </select></div>`;
           }
           return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
-            <input class="inp mt-1" name="${f.k}" type="${f.inputType||'text'}" value="${f.v}" required></div>`;
+            <input class="inp mt-1" name="${f.k}" type="${f.inputType||'text'}" value="${f.v}" autocomplete="${f.inputType==='password'?'new-password':f.inputType==='email'?'off':'off'}" required></div>`;
         }).join('')}
         <button type="submit" class="btn btn-p mt-2 w-full">${isEdit?t('save'):'Agregar'}</button>
       </form>

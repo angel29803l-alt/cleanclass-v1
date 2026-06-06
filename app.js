@@ -454,7 +454,6 @@ function closeLogoutModal(){const w=document.getElementById('logoutModalWrap');i
 
 async function performLogout(){
   closeLogoutModal();
-  // Cerrar sesión en Supabase para que no vuelva al refrescar
   await sb.auth.signOut();
   isLoggedOut=true;
   currentSession=null;
@@ -465,9 +464,11 @@ async function performLogout(){
   document.getElementById('authWrap').style.display='flex';
   const lbw=document.getElementById('langBtnWrap');if(lbw)lbw.style.display='block';
   showScreen('login');
-  // Limpiar campos de login
-  const inputs=document.getElementById('screen-login').querySelectorAll('input');
-  inputs.forEach(i=>i.value='');
+  // Limpiar TODOS los campos de auth
+  document.querySelectorAll('.auth-input').forEach(i=>i.value='');
+  // Resetear botón de login
+  const loginBtn=document.querySelector('#screen-login .auth-btn-primary');
+  if(loginBtn){loginBtn.textContent='Iniciar sesión';loginBtn.disabled=false;}
 }
 
 function updateProfileImage(input){
