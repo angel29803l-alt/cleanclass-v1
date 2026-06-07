@@ -273,17 +273,9 @@ async function doLogin(){
     };
   }
 
-  // Buscar grado en tabla students o teachers según rol
-  let userGrade = localUser.grade || null;
-  if(!userGrade && localUser.role === 'student') {
-    const { data: sData } = await sb.from('students').select('grade').eq('email', localUser.email).single();
-    if(sData?.grade) userGrade = sData.grade;
-  } else if(!userGrade && localUser.role === 'teacher') {
-    const { data: tData } = await sb.from('teachers').select('grade').eq('email', localUser.email).single();
-    if(tData?.grade) userGrade = tData.grade;
-  }
-  localUser.grade = userGrade;
   currentSession = localUser;
+  currentSession.birth_date = localUser.birth_date || null;
+  currentSession.avatar_url = localUser.avatar_url || null;
   D._user = {
     name: localUser.name,
     email: localUser.email,
@@ -426,7 +418,9 @@ function showEmailModal(){
       </div>
       <div class="flex flex-col gap-4">
         <div style="background:var(--border);padding:12px;border-radius:8px;text-align:center">
-          <p style="font-size:24px;margin-bottom:4px">${currentSession?.avatar||'👤'}</p>
+          <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 8px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;border:2px solid var(--accent)">
+            ${(currentSession?.avatar_url||D._profileImage)?`<img src="${currentSession?.avatar_url||D._profileImage}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:28px">${currentSession?.avatar||'👤'}</span>`}
+          </div>
           <p class="font-bold">${currentSession?.name||''}</p>
           <p style="color:var(--accent);font-size:12px;font-weight:600">${roleLabel}</p>
           ${currentSession?.grade?`<p style="color:var(--textm);font-size:12px;margin-top:4px">Grado: ${currentSession.grade}</p>`:''}
@@ -598,17 +592,9 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
           return;
         }
       }
-      // Buscar grado en tabla students o teachers según rol
-      let userGrade = localUser.grade || null;
-      if(!userGrade && localUser.role === 'student') {
-        const { data: sData } = await sb.from('students').select('grade').eq('email', localUser.email).single();
-        if(sData?.grade) userGrade = sData.grade;
-      } else if(!userGrade && localUser.role === 'teacher') {
-        const { data: tData } = await sb.from('teachers').select('grade').eq('email', localUser.email).single();
-        if(tData?.grade) userGrade = tData.grade;
-      }
-      localUser.grade = userGrade;
       currentSession = localUser;
+  currentSession.birth_date = localUser.birth_date || null;
+  currentSession.avatar_url = localUser.avatar_url || null;
       D._user = {
         name: localUser.name,
         email: localUser.email,
@@ -713,3 +699,101 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
     hideLoader();
   }
 });
+
+// ---- GUARDAR HORARIOS ----
+async function saveAllSchedules() {
+  const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))];
+  for(const grade of grades) {
+    const gid = grade.replace(/[°\s]/g,'_');
+    const cleanEl = document.getElementById(`clean_${gid}`);
+    const earlyEl = document.getElementById(`early_${gid}`);
+    const earlyDays = [...document.querySelectorAll(`.eday_${gid}:checked`)].map(c=>c.value);
+    if(!cleanEl) continue;
+    const schedule = {
+      grade,
+      clean_time: cleanEl.value || '15:00',
+      early_exit_time: earlyEl?.value || null,
+      early_exit_days: earlyDays.length ? earlyDays : null
+    };
+    const existing = D.schedules?.find(s=>s.grade===grade);
+    if(existing) schedule.id = existing.id;
+    await saveSchedule(schedule);
+  }
+  // Mostrar confirmación
+  const n = document.createElement('div');
+  n.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
+  n.textContent = '✅ Horarios guardados';
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(), 2500);
+  // Reprogramar notificaciones
+  initNotifications();
+}
+
+// ---- SISTEMA DE NOTIFICACIONES FCM ----
+const VAPID_KEY = 'BE-B5i3Vyu89wcEhORXlKe9jH2Pia94LGWoWmMCjfDO4H5kmp6lkuRc_1CZz1b23Q0yodiemNBSs7RmtoWN04v4';
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  const perm = await Notification.requestPermission();
+  return perm === 'granted';
+}
+
+async function getFCMToken() {
+  try {
+    if (!window._fcmMessaging) return null;
+    const token = await window._fcmMessaging.getToken({ vapidKey: VAPID_KEY });
+    return token;
+  } catch(e) {
+    console.error('Error FCM token:', e);
+    return null;
+  }
+}
+
+async function scheduleLocalNotification() {
+  if (!currentSession) return;
+  const grade = getCurrentGrade();
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const dow = today.getDay();
+  if (dow === 0 || dow === 6) return;
+  const isNoClass = (D.noClassDays || []).some(x => x.date === todayStr);
+  if (isNoClass) return;
+  const schedule = D.schedules?.find(s => s.grade === grade) || D.schedules?.[0];
+  if (!schedule) return;
+  const dayNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const hasEarlyExit = schedule.early_exit_days?.includes(dayNames[dow]);
+  const notifTime = hasEarlyExit ? (schedule.early_exit_time || schedule.clean_time) : schedule.clean_time;
+  if (!notifTime) return;
+  if (window._swReg?.active) {
+    window._swReg.active.postMessage({
+      type: 'SCHEDULE_NOTIFICATION',
+      time: notifTime,
+      title: '🧹 ¡Hora del Aseo!',
+      body: grade ? `Grado ${grade}: Es hora de hacer el aseo del salón` : 'Es hora de hacer el aseo',
+      grade
+    });
+    console.log(`✅ Notificación programada: ${notifTime}`);
+  }
+}
+
+async function initNotifications() {
+  const granted = await requestNotificationPermission();
+  if (!granted) { console.log('Notificaciones no permitidas'); return; }
+  const token = await getFCMToken();
+  if (token) {
+    await sb.from('users').update({ fcm_token: token }).eq('id', currentSession?.id);
+    console.log('✅ Token FCM guardado');
+  }
+  await scheduleLocalNotification();
+  if (window._fcmMessaging) {
+    window._fcmMessaging.onMessage(payload => {
+      const { title, body } = payload.notification || {};
+      const n = document.createElement('div');
+      n.style.cssText = 'position:fixed;top:20px;right:20px;background:var(--accent);color:#fff;padding:16px 20px;border-radius:12px;z-index:9999;font-weight:600;font-size:14px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+      n.innerHTML = `<strong>${title||'🧹 CleanClass'}</strong><br><span style="font-weight:400;font-size:13px">${body||'¡Es hora del aseo!'}</span>`;
+      document.body.appendChild(n);
+      setTimeout(() => n.remove(), 6000);
+    });
+  }
+}

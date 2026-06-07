@@ -34,6 +34,16 @@ async function loadIncidents() {
   if (!error && data) D.incidents = data;
 }
 
+async function loadUsers() {
+  const { data, error } = await sb.from('users').select('id, name, email, avatar_url');
+  if (!error && data) D.usersProfiles = data;
+}
+
+async function loadNoClassDays() {
+  const { data, error } = await sb.from('no_class_days').select('*');
+  if (!error && data) D.noClassDays = data;
+}
+
 async function loadAllData() {
   await Promise.all([
     loadStudents(),
@@ -41,7 +51,10 @@ async function loadAllData() {
     loadCleanGroups(),
     loadEvidence(),
     loadIncidents(),
-    loadRooms()
+    loadRooms(),
+    loadUsers(),
+    loadNoClassDays(),
+    loadSchedules()
   ]);
   console.log('✅ Datos cargados desde Supabase');
 }
@@ -109,6 +122,9 @@ async function deleteIncident(id) {
 const D={
   // Usuarios — se cargan desde Supabase
   users:[],
+  usersProfiles:[],
+  noClassDays:[],
+  schedules:[],
 
   // Estudiantes — se cargan desde Supabase
   students:[],
@@ -294,4 +310,15 @@ function initRealtime() {
       async () => { await loadAllData(); render(); })
     .subscribe();
   console.log('✅ Realtime activado');
+}
+
+// ---- HORARIOS DE ASEO ----
+async function loadSchedules() {
+  const { data, error } = await sb.from('schedules').select('*');
+  if (!error && data) D.schedules = data;
+}
+
+async function saveSchedule(schedule) {
+  const { error } = await sb.from('schedules').upsert(schedule);
+  if (!error) await loadSchedules();
 }

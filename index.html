@@ -10,6 +10,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#06b6d4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CleanClass">
+  <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body class="h-full" style="background:var(--bg);color:var(--text)">
 
@@ -190,6 +196,43 @@
   <script src="views.js"></script>
   <script src="modals.js"></script>
   <script src="app.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+
+  <script>
+    // Inicializar Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyA-rPAwb5Fv_Dl8rc6zum3UKFNj-x2KxCI",
+      authDomain: "cleanclass-3577e.firebaseapp.com",
+      projectId: "cleanclass-3577e",
+      storageBucket: "cleanclass-3577e.firebasestorage.app",
+      messagingSenderId: "922075322537",
+      appId: "1:922075322537:web:d1717fdfe06899497471b8"
+    };
+    firebase.initializeApp(firebaseConfig);
+    window._fcmMessaging = firebase.messaging();
+
+    // Registrar Service Workers
+    if('serviceWorker' in navigator){
+      // SW principal para PWA
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => {
+          console.log('✅ Service Worker registrado');
+          window._swReg = reg;
+        })
+        .catch(err => console.error('SW error:', err));
+
+      // SW de Firebase para notificaciones en background
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(reg => {
+          console.log('✅ Firebase SW registrado');
+          window._fbSwReg = reg;
+        })
+        .catch(err => console.error('Firebase SW error:', err));
+    }
+  </script>
 
 </body>
 </html>

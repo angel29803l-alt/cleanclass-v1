@@ -108,6 +108,7 @@ function rAdminPanel(){
     ${tabBtn('teachers',  'Docentes',    'book-open')}
     ${tabBtn('rooms',     'Salones',     'door-open')}
     ${tabBtn('supervision','Supervisión','eye')}
+    ${tabBtn('schedules', 'Horarios',   'clock')}
   </div>`;
 
   // ── TAB: RESUMEN ──
@@ -215,7 +216,7 @@ function rAdminPanel(){
             <tr>
               <td>
                 <div class="flex items-center gap-2">
-                  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${s.name.charAt(0)}</div>
+                  <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${(()=>{const up=D.usersProfiles?.find(u=>u.email===s.email);const av=up?.avatar_url;return av?`<img src="${av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`;})()}</div>
                   <span class="font-medium">${s.name}</span>
                 </div>
               </td>
@@ -381,6 +382,50 @@ function rAdminPanel(){
     </div>`;
   }
 
+
+  // ── TAB: HORARIOS ──
+  if(adminTab==='schedules'){
+    const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort();
+    html += `
+    <div class="fade-in">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 class="font-bold text-lg">⏰ Horarios de Aseo</h2>
+        <button class="btn btn-p flex items-center gap-2" onclick="saveAllSchedules()">
+          <i data-lucide="save" style="width:15px;height:15px"></i>Guardar
+        </button>
+      </div>
+      ${grades.length===0?`<p style="color:var(--textm)">Crea salones primero para configurar horarios.</p>`:`
+      <div class="grid gap-4">
+        ${grades.map(grade=>{
+          const gid=grade.replace(/[°\s]/g,'_');
+          const sch=D.schedules?.find(s=>s.grade===grade)||{};
+          return `<div class="card" style="background:var(--surface)">
+            <h3 class="font-bold mb-4" style="color:var(--accent)">Grado ${grade}</h3>
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:4px">Hora de aseo</label>
+                <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}">
+              </div>
+              <div>
+                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:4px">Hora salida temprana</label>
+                <input type="time" class="inp" id="early_${gid}" value="${sch.early_exit_time||''}">
+              </div>
+              <div>
+                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:4px">Días salida temprana</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+                  ${['Lunes','Martes','Miércoles','Jueves','Viernes'].map(day=>`
+                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+                    <input type="checkbox" class="eday_${gid}" value="${day}" ${(sch.early_exit_days||[]).includes(day)?'checked':''}>${day}
+                  </label>`).join('')}
+                </div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`}
+    </div>`;
+  }
+
   return html;
 }
 
@@ -415,14 +460,18 @@ function rDash(){
   const weekly=myGroups.filter(g=>g.frequency==='weekly');
 
   let calDays='';
+  const noClassSet=new Set((D.noClassDays||[]).map(x=>x.date));
   for(let i=0;i<firstDay;i++)calDays+=`<div></div>`;
   for(let d=1;d<=daysInMonth;d++){
     const dow=new Date(year,month,d).getDay();
     const dname=dayNames[dow];
     const isWD=[1,2,3,4,5].includes(dow);
     const isToday=d===now.getDate()&&month===now.getMonth()&&year===now.getFullYear();
+    const isPast=new Date(year,month,d)<new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isNoClass=noClassSet.has(dateStr);
     let group=null;
-    if(isWD){
+    if(isWD&&!isNoClass){
       if(assignmentMode==='daily'){
         const cands=byDay[dname]||[];
         if(cands.length>0){
@@ -435,16 +484,20 @@ function rDash(){
         group=weekly[((gw%weekly.length)+weekly.length)%weekly.length];
       }
     }
-    const bg=group?(group.color||'#06b6d4')+'28':'transparent';
-    const brd=group?'2px solid '+(group.color||'#06b6d4'):isToday?'2px solid var(--accent)':'1px solid transparent';
-    const col=group?(group.color||'#06b6d4'):isToday?'var(--accent)':'inherit';
-    calDays+=`<div ${group?`title="${group.name}"`:''}style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;border-radius:6px;background:${bg};border:${brd};min-height:36px">
-      <span style="font-size:12px;font-weight:${group||isToday?'700':'400'};color:${col}">${d}</span>
-      ${group?`<div style="width:7px;height:7px;border-radius:50%;background:${group.color||'#06b6d4'};margin-top:3px"></div>`:''}
+    const bg=isNoClass?'rgba(239,68,68,.1)':isPast?'transparent':group?(group.color||'#06b6d4')+'28':'transparent';
+    const brd=isNoClass?'1px solid rgba(239,68,68,.3)':group&&!isPast?'2px solid '+(group.color||'#06b6d4'):isToday?'2px solid var(--accent)':'1px solid transparent';
+    const col=isNoClass?'#ef4444':isPast?'rgba(100,100,100,.4)':group&&!isPast?(group.color||'#06b6d4'):isToday?'var(--accent)':'inherit';
+    const clickFn=isAdmin()&&isWD?`onclick="toggleNoClassDay('${dateStr}',${isNoClass})"`:""
+    calDays+=`<div ${clickFn} ${group&&!isPast?`title="${group.name}"`:''}style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;border-radius:6px;background:${bg};border:${brd};min-height:36px;${isAdmin()&&isWD?'cursor:pointer;':''}"
+      ${isAdmin()&&isWD?`onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'"`:''}>
+      <span style="font-size:12px;font-weight:${(group&&!isPast)||isToday?'700':'400'};color:${col};${isPast?'opacity:.5':''}${isNoClass?'text-decoration:line-through':''}">${d}</span>
+      ${group&&!isPast?`<div style="width:7px;height:7px;border-radius:50%;background:${group.color||'#06b6d4'};margin-top:3px"></div>`:''}
+      ${isNoClass?`<div style="width:7px;height:7px;border-radius:50%;background:#ef4444;margin-top:3px"></div>`:''}
     </div>`;
   }
 
-  const avatarInner=D._profileImage?`<img src="${D._profileImage}" style="width:100%;height:100%;object-fit:cover">`:`<i data-lucide="mail" style="width:40px;height:40px;color:#fff"></i>`;
+  const _avatarSrc = currentSession?.avatar_url || D._profileImage;
+  const avatarInner=_avatarSrc?`<img src="${_avatarSrc}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:32px;font-weight:700;color:#fff">${currentSession?.name?.charAt(0)||'👤'}</span>`;
   const emailBtn=`<button id="emailBtn" style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(37,99,235,.2);border:none;cursor:pointer;transition:transform .2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="showEmailModal()">${avatarInner}</button>`;
 
   return `<div class="flex items-center justify-between mb-6">
@@ -862,7 +915,7 @@ function rUsers(){
         return `<tr>
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
-            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${s.name.charAt(0)}</div>
+            <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${(()=>{const up=D.usersProfiles?.find(u=>u.email===s.email);const av=up?.avatar_url;return av?`<img src="${av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`;})()}</div>
             <span style="font-weight:600;font-size:13px">${s.name}</span>
           </div></td>
           <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${s.grade}</span></td>
@@ -1045,13 +1098,9 @@ function openCameraModal(){
 
       <!-- Botones -->
       <div id="camBtns" class="flex gap-3">
-        <button id="btnCapture" class="btn btn-p flex-1 flex items-center justify-center gap-2" onclick="capturePhoto()">
-          <i data-lucide="aperture" style="width:16px;height:16px"></i>Capturar
+        <button id="btnCapture" class="btn btn-p w-full flex items-center justify-center gap-2" onclick="capturePhoto()">
+          <i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto
         </button>
-        <label class="btn btn-s flex-1 flex items-center justify-center gap-2" style="cursor:pointer">
-          <i data-lucide="upload" style="width:16px;height:16px"></i>Subir Foto
-          <input type="file" id="camFileInput" accept="image/*" capture="environment" style="display:none" onchange="loadFromFile(this)">
-        </label>
       </div>
       <div id="camRetakeBtns" style="display:none" class="flex gap-3">
         <button class="btn btn-s flex-1" onclick="retakePhoto()">
@@ -1094,7 +1143,7 @@ function startCamera(){
       const btnCap=document.getElementById('btnCapture');
       if(btnCap) btnCap.style.display='none';
       const err=document.getElementById('camError');
-      if(err){err.textContent='Cámara no disponible — usa el botón "Subir Foto"';err.style.display='block';}
+      if(err){err.textContent='Cámara no disponible en este dispositivo';err.style.display='block';}
     });
 }
 
@@ -1711,12 +1760,6 @@ function rSettings(){
     <button class="tab active" onclick="switchSettingsTab('profile')">
       <i data-lucide="user" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Mi Perfil
     </button>
-    <button class="tab" onclick="switchSettingsTab('security')">
-      <i data-lucide="lock" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Seguridad
-    </button>
-    <button class="tab" onclick="switchSettingsTab('preferences')">
-      <i data-lucide="sliders" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Preferencias
-    </button>
     <button class="tab" onclick="switchSettingsTab('about')">
       <i data-lucide="info" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Acerca de
     </button>
@@ -1729,7 +1772,7 @@ function rSettings(){
       <div class="lg:col-span-1">
         <div class="card" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.05));border:1px solid rgba(6,182,212,.3);text-align:center">
           <div style="width:96px;height:96px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;border:3px solid var(--accent)">
-            ${D._profileImage?'<img id="profileAvatarImg" src="'+D._profileImage+'" style="width:100%;height:100%;object-fit:cover">':`<span id="profileAvatarEmoji" style="font-size:48px">${currentUser.avatar}</span>`}
+            ${(currentSession?.avatar_url||D._profileImage)?`<img id="profileAvatarImg" src="${currentSession?.avatar_url||D._profileImage}" style="width:100%;height:100%;object-fit:cover">`:`<span id="profileAvatarEmoji" style="font-size:48px">${currentUser.avatar}</span>`}
           </div>
           <!-- Botón cambiar foto -->
           <label style="display:inline-block;margin-bottom:12px;cursor:pointer">
@@ -1770,14 +1813,6 @@ function rSettings(){
               </div>
             </div>
             
-            <!-- Teléfono -->
-            <div>
-              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">TELÉFONO</p>
-              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
-                <p class="font-medium">${currentUser.phone}</p>
-              </div>
-            </div>
-            
             <!-- Rol -->
             <div>
               <p style="font-size:12px;color:var(--textm);margin-bottom:6px">ROL EN EL SISTEMA</p>
@@ -1786,19 +1821,27 @@ function rSettings(){
               </div>
             </div>
             
-            <!-- Departamento -->
-            <div>
-              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">DEPARTAMENTO</p>
-              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
-                <p class="font-medium">${currentUser.department}</p>
-              </div>
-            </div>
-            
-            <!-- Fecha de ingreso -->
+            <!-- Miembro desde -->
             <div>
               <p style="font-size:12px;color:var(--textm);margin-bottom:6px">MIEMBRO DESDE</p>
               <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
-                <p class="font-medium">${new Date(currentUser.joinDate).toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})}</p>
+                <p class="font-medium">${currentUser.joinDate?new Date(currentUser.joinDate).toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'}):'—'}</p>
+              </div>
+            </div>
+            
+            <!-- Días en la plataforma -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">DÍAS EN CLEANCLASS</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium" style="color:var(--accent)">${(()=>{const d=currentSession?.created_at||currentUser.joinDate;if(!d)return '—';const days=Math.floor((new Date()-new Date(d))/(1000*60*60*24));return days===0?'¡Hoy te uniste!':days+' días';})()}</p>
+              </div>
+            </div>
+            
+            <!-- Edad -->
+            <div>
+              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">EDAD</p>
+              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
+                <p class="font-medium">${(()=>{const bd=currentSession?.birth_date;if(!bd)return '—';const p=bd.split('/');if(p.length!==3)return '—';const birth=new Date(p[2],p[1]-1,p[0]);const now=new Date();let age=now.getFullYear()-birth.getFullYear();const m=now.getMonth()-birth.getMonth();if(m<0||(m===0&&now.getDate()<birth.getDate()))age--;return age+' años';})()}</p>
               </div>
             </div>
           </div>
@@ -1826,311 +1869,16 @@ function rSettings(){
     </div>
   </div>
   
-  <!-- TAB 2: SEGURIDAD -->
-  <div id="settingsSecurity" class="settings-tab" style="display:none">
-    <div class="grid gap-6 lg:grid-cols-2">
-      <!-- Cambiar contraseña -->
-      <div class="card" style="background:var(--surface)">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-          <div style="width:40px;height:40px;border-radius:10px;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center">
-            <i data-lucide="key" style="width:20px;height:20px;color:#ef4444"></i>
-          </div>
-          <div>
-            <h3 class="font-bold">Cambiar Contraseña</h3>
-            <p style="font-size:12px;color:var(--textm)">Actualiza tu contraseña regularmente</p>
-          </div>
-        </div>
-        
-        <form id="changePasswordForm" class="flex flex-col gap-3">
-          <div>
-            <label class="text-sm font-medium" style="color:var(--textm)">Contraseña Actual</label>
-            <input type="password" class="inp mt-1" placeholder="Ingresa tu contraseña actual" required>
-          </div>
-          <div>
-            <label class="text-sm font-medium" style="color:var(--textm)">Nueva Contraseña</label>
-            <input type="password" class="inp mt-1" placeholder="Mínimo 8 caracteres" required>
-          </div>
-          <div>
-            <label class="text-sm font-medium" style="color:var(--textm)">Confirmar Nueva Contraseña</label>
-            <input type="password" class="inp mt-1" placeholder="Confirma tu nueva contraseña" required>
-          </div>
-          
-          <!-- Requisitos de contraseña -->
-          <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;margin:8px 0">
-            <p style="font-size:11px;color:var(--textm);margin-bottom:8px;font-weight:600">REQUISITOS:</p>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
-                <i data-lucide="check" style="width:14px;height:14px;color:#22c55e"></i>
-                <span style="color:var(--textm)">Mínimo 8 caracteres</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
-                <i data-lucide="check" style="width:14px;height:14px;color:#22c55e"></i>
-                <span style="color:var(--textm)">Mayúsculas y minúsculas</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:11px">
-                <i data-lucide="check" style="width:14px;height:14px;color:#22c55e"></i>
-                <span style="color:var(--textm)">Al menos un número</span>
-              </div>
-            </div>
-          </div>
-          
-          <button type="submit" class="btn btn-p mt-2">Actualizar Contraseña</button>
-        </form>
-      </div>
-      
-      <!-- Autenticación de dos factores -->
-      <div class="card" style="background:var(--surface)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:40px;height:40px;border-radius:10px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center">
-              <i data-lucide="shield" style="width:20px;height:20px;color:#3b82f6"></i>
-            </div>
-            <div>
-              <h3 class="font-bold">Autenticación de Dos Factores</h3>
-              <p style="font-size:12px;color:var(--textm)">Seguridad adicional en login</p>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;width:50px;height:28px;background:${settings.twoFactor?'#10b981':'rgba(6,182,212,.1)'};border-radius:14px;cursor:pointer;transition:all .3s" onclick="toggleTwoFactor(this)">
-            <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:${settings.twoFactor?'translateX(22px)':'translateX(2px)'}"></div>
-          </div>
-        </div>
-        
-        <div style="background:${settings.twoFactor?'rgba(16,185,129,.08)':'rgba(107,114,128,.05)'};padding:12px;border-radius:8px;border-left:3px solid ${settings.twoFactor?'#10b981':'var(--border)'}">
-          <p style="font-size:12px;color:var(--textm);margin-bottom:8px">
-            <strong>Estado:</strong> ${settings.twoFactor?'ACTIVADO':'DESACTIVADO'}
-          </p>
-          <p style="font-size:11px;color:var(--textm);line-height:1.5">
-            ${settings.twoFactor?'Tu cuenta está protegida con autenticación de dos factores. Recibirás un código en tu teléfono.':'Activa este servicio para mayor seguridad en tu cuenta.'}
-          </p>
-        </div>
-        
-        ${settings.twoFactor?`
-          <div style="margin-top:16px">
-            <h4 class="font-medium text-sm mb-3">Códigos de Recuperación</h4>
-            <p style="font-size:11px;color:var(--textm);margin-bottom:8px">Guarda estos códigos en un lugar seguro. Úsalos si pierdes acceso a tu teléfono:</p>
-            <div style="background:var(--border);padding:12px;border-radius:6px;font-family:monospace;font-size:11px;color:var(--text);line-height:1.8">
-              2847-5920-3456<br>
-              9234-5678-0124<br>
-              5847-2093-8745
-            </div>
-            <button class="btn btn-s mt-3 w-full flex items-center justify-center gap-2" style="font-size:12px">
-              <i data-lucide="copy" style="width:13px;height:13px"></i>
-              Copiar Códigos
-            </button>
-          </div>
-        `:''}
-      </div>
-      
-      <!-- Sesiones activas -->
-      <div class="card" style="background:var(--surface)">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-          <div style="width:40px;height:40px;border-radius:10px;background:rgba(249,115,22,.1);display:flex;align-items:center;justify-content:center">
-            <i data-lucide="smartphone" style="width:20px;height:20px;color:#f97316"></i>
-          </div>
-          <div>
-            <h3 class="font-bold">Sesiones Activas</h3>
-            <p style="font-size:12px;color:var(--textm)">Dispositivos conectados</p>
-          </div>
-        </div>
-        
-        <div class="flex flex-col gap-3">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:rgba(16,185,129,.08);border-radius:8px;border:1px solid rgba(16,185,129,.2)">
-            <div class="flex items-center gap-3">
-              <i data-lucide="monitor" style="width:20px;height:20px;color:#10b981"></i>
-              <div>
-                <p class="font-medium text-sm">Windows PC</p>
-                <p style="font-size:11px;color:var(--textm)">Activa ahora • 192.168.1.5</p>
-              </div>
-            </div>
-            <i data-lucide="check" style="width:18px;height:18px;color:#10b981"></i>
-          </div>
-          
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:rgba(6,182,212,.08);border-radius:8px;border:1px solid rgba(6,182,212,.2)">
-            <div class="flex items-center gap-3">
-              <i data-lucide="smartphone" style="width:20px;height:20px;color:var(--accent)"></i>
-              <div>
-                <p class="font-medium text-sm">iPhone 12</p>
-                <p style="font-size:11px;color:var(--textm)">Hace 2 horas • 192.168.1.10</p>
-              </div>
-            </div>
-            <button class="btn btn-d" style="padding:4px 8px;font-size:11px">Cerrar</button>
-          </div>
-        </div>
-        
-        <button class="btn btn-s w-full mt-4" style="font-size:12px">
-          <i data-lucide="log-out" style="width:13px;height:13px;display:inline;margin-right:6px"></i>
-          Cerrar Todas las Sesiones
-        </button>
-      </div>
-      
-      <!-- Historial de acceso -->
-      <div class="card" style="background:var(--surface)">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-          <div style="width:40px;height:40px;border-radius:10px;background:rgba(139,92,246,.1);display:flex;align-items:center;justify-content:center">
-            <i data-lucide="history" style="width:20px;height:20px;color:#8b5cf6"></i>
-          </div>
-          <div>
-            <h3 class="font-bold">Historial de Acceso</h3>
-            <p style="font-size:12px;color:var(--textm)">Últimos inicios de sesión</p>
-          </div>
-        </div>
-        
-        <div class="flex flex-col gap-2">
-          <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(6,182,212,.05);border-radius:6px;border-left:2px solid var(--accent)">
-            <div>
-              <p style="font-size:11px;color:var(--textm)">Hoy a las 09:30</p>
-              <p style="font-size:12px;color:var(--text)">Windows PC</p>
-            </div>
-            <span class="badge" style="background:#d1fae5;color:#059669;font-size:10px">Exitoso</span>
-          </div>
-          
-          <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(6,182,212,.05);border-radius:6px;border-left:2px solid var(--accent)">
-            <div>
-              <p style="font-size:11px;color:var(--textm)">Ayer a las 14:15</p>
-              <p style="font-size:12px;color:var(--text)">iPhone 12</p>
-            </div>
-            <span class="badge" style="background:#d1fae5;color:#059669;font-size:10px">Exitoso</span>
-          </div>
-          
-          <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(6,182,212,.05);border-radius:6px;border-left:2px solid var(--accent)">
-            <div>
-              <p style="font-size:11px;color:var(--textm)">Hace 2 días a las 11:20</p>
-              <p style="font-size:12px;color:var(--text)">Linux Server</p>
-            </div>
-            <span class="badge" style="background:#d1fae5;color:#059669;font-size:10px">Exitoso</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- TAB 3: PREFERENCIAS -->
-  <div id="settingsPreferences" class="settings-tab" style="display:none">
-    <div class="grid gap-6 lg:grid-cols-2">
-      <!-- Notificaciones -->
-      <div class="card" style="background:var(--surface)">
-        <h3 class="font-bold text-lg mb-4">Notificaciones</h3>
-        
-        <div class="flex flex-col gap-4">
-          <!-- Notificaciones del sistema -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)">
-            <div>
-              <p class="font-medium text-sm">Notificaciones del Sistema</p>
-              <p style="font-size:11px;color:var(--textm)">Alertas de actividades importantes</p>
-            </div>
-            <div style="display:flex;align-items:center;width:50px;height:28px;background:${settings.notifications?'#10b981':'rgba(6,182,212,.1)'};border-radius:14px;cursor:pointer;transition:all .3s">
-              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:${settings.notifications?'translateX(22px)':'translateX(2px)'}"></div>
-            </div>
-          </div>
-          
-          <!-- Alertas por email -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)">
-            <div>
-              <p class="font-medium text-sm">Alertas por Email</p>
-              <p style="font-size:11px;color:var(--textm)">Recibe actualizaciones por correo</p>
-            </div>
-            <div style="display:flex;align-items:center;width:50px;height:28px;background:${settings.emailAlerts?'#10b981':'rgba(6,182,212,.1)'};border-radius:14px;cursor:pointer;transition:all .3s">
-              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:${settings.emailAlerts?'translateX(22px)':'translateX(2px)'}"></div>
-            </div>
-          </div>
-          
-          <!-- Notificaciones de reportes -->
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div>
-              <p class="font-medium text-sm">Notificaciones de Reportes</p>
-              <p style="font-size:11px;color:var(--textm)">Alertas cuando hay reportes pendientes</p>
-            </div>
-            <div style="display:flex;align-items:center;width:50px;height:28px;background:#10b981;border-radius:14px;cursor:pointer;transition:all .3s">
-              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:translateX(22px)"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Preferencias de Interfaz -->
-      <div class="card" style="background:var(--surface)">
-        <h3 class="font-bold text-lg mb-4">Interfaz</h3>
-        
-        <div class="flex flex-col gap-4">
-          <!-- Tema -->
-          <div>
-            <p class="font-medium text-sm mb-2">Tema</p>
-            <div class="flex gap-2">
-              <button class="btn" style="width:100%;padding:10px;background:rgba(6,182,212,.2);color:var(--accent);border:2px solid var(--accent);border-radius:8px;font-size:12px;font-weight:600">
-                <i data-lucide="moon" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Oscuro
-              </button>
-            </div>
-          </div>
-          
-          <!-- Idioma -->
-          <div style="padding-top:12px;border-top:1px solid var(--border)">
-            <p class="font-medium text-sm mb-2">Idioma</p>
-            <select class="inp">
-              <option value="es" selected>Español</option>
-              <option value="en">English</option>
-              <option value="pt">Português</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Configuración de Sistema -->
-      <div class="card" style="background:var(--surface)">
-        <h3 class="font-bold text-lg mb-4">Configuración del Sistema</h3>
-        
-        <div class="flex flex-col gap-4">
-          <!-- Timeout de sesión -->
-          <div>
-            <label class="text-sm font-medium" style="color:var(--textm)">Tiempo de Sesión (minutos)</label>
-            <input type="number" class="inp mt-1" value="${settings.sessionTimeout}" min="5" max="120">
-            <p style="font-size:11px;color:var(--textm);margin-top:4px">Se cerrará la sesión tras inactividad</p>
-          </div>
-          
-          <!-- Sincronización automática -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)">
-            <div>
-              <p class="font-medium text-sm">Sincronización Automática</p>
-              <p style="font-size:11px;color:var(--textm)">Actualizar datos en tiempo real</p>
-            </div>
-            <div style="display:flex;align-items:center;width:50px;height:28px;background:#10b981;border-radius:14px;cursor:pointer;transition:all .3s">
-              <div style="width:24px;height:24px;background:#fff;border-radius:50%;transition:all .3s;transform:translateX(22px)"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Datos y Privacidad -->
-      <div class="card" style="background:var(--surface)">
-        <h3 class="font-bold text-lg mb-4">Datos y Privacidad</h3>
-        
-        <div class="flex flex-col gap-3">
-          <button class="btn btn-s w-full flex items-center justify-center gap-2" style="font-size:12px;padding:10px">
-            <i data-lucide="download" style="width:14px;height:14px"></i>
-            Descargar Mis Datos
-          </button>
-          
-          <button class="btn btn-s w-full flex items-center justify-center gap-2" style="font-size:12px;padding:10px">
-            <i data-lucide="trash-2" style="width:14px;height:14px;color:#ef4444"></i>
-            <span style="color:#ef4444">Limpiar Caché</span>
-          </button>
-          
-          <div style="background:rgba(59,130,246,.08);padding:10px;border-radius:6px;border-left:2px solid #3b82f6">
-            <p style="font-size:11px;color:var(--textm)"><strong>Última actualización:</strong> Hoy a las 09:30</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- TAB 4: ACERCA DE -->
   <div id="settingsAbout" class="settings-tab" style="display:none">
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Información del sistema -->
       <div class="card" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.05));border:1px solid rgba(6,182,212,.3)">
         <div style="text-align:center;margin-bottom:20px">
         <div style="display:flex;justify-content:center;margin-bottom:12px;">
-    <img src="img/logo.png" style="width:8cm;height:8cm;">
-</div>
+          <div style="width:80px;height:80px;border-radius:20px;background:var(--accent);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="graduation-cap" style="width:44px;height:44px;color:#1e293b"></i>
+          </div>
+        </div>
           <h2 class="font-bold text-2xl mb-2">CleanClass</h2>
           <p style="color:var(--accent);font-weight:600">Sistema de Gestión de Aseo Escolar</p>
         </div>
@@ -2322,4 +2070,15 @@ function previewIncidentPhoto(input){
     }
   };
   reader.readAsDataURL(file);
+}
+
+// ---- DÍAS SIN CLASE ----
+async function toggleNoClassDay(dateStr, isNoClass) {
+  if(isNoClass) {
+    await sb.from('no_class_days').delete().eq('date', dateStr);
+  } else {
+    await sb.from('no_class_days').insert({date: dateStr, created_by: currentSession?.name});
+  }
+  await loadNoClassDays();
+  render();
 }
