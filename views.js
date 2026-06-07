@@ -771,7 +771,7 @@ function rUsers(){
           </div>
           Módulo de Usuarios
         </h1>
-        <p style="color:var(--textm);font-size:13px;margin-top:4px">${isAdmin()?'Todos los grados':'Grado '+myGrade}</p>
+        <p style="color:var(--textm);font-size:13px;margin-top:4px">${isAdmin()?'Todos los grados':myGrade?'Grado '+myGrade:'Sin grado asignado'}</p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <div style="position:relative">
@@ -928,9 +928,12 @@ function rEvidence(){
       <h1 class="text-2xl font-bold">Evidencias de Aseo</h1>
       <p style="color:var(--textm);font-size:13px">Toma la foto de la limpieza directamente desde la app</p>
     </div>
-    ${myGroups.length>0?`<button class="btn btn-p flex items-center gap-2" onclick="openCameraModal()">
-      <i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto
-    </button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">El docente debe crear grupos primero</span>`}
+    ${(()=>{
+      if(!isStudent()) return myGroups.length>0?`<button class="btn btn-p flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
+      const myGroup=D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
+      if(!myGroup) return `<span style="font-size:13px;color:var(--textm);font-style:italic">No estás en ningún grupo</span>`;
+      return `<button class="btn btn-p flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
+    })()}
   </div>
 
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -953,7 +956,7 @@ function rEvidence(){
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     ${myEvidence.length>0?[...myEvidence].sort((a,b)=>new Date(b.date)-new Date(a.date)).map((e,i)=>`
     <div class="card pop-in" style="background:var(--surface);animation-delay:${i*0.05}s">
-      <div style="width:100%;height:160px;border-radius:10px;overflow:hidden;margin-bottom:12px;background:rgba(6,182,212,.08);position:relative">
+      <div style="width:100%;height:160px;border-radius:10px;overflow:hidden;margin-bottom:12px;background:rgba(6,182,212,.08);position:relative;cursor:pointer" onclick="if('${e.image}')openImageFullscreen('${e.image}')">
         ${e.image?`<img src="${e.image}" style="width:100%;height:100%;object-fit:cover">`:`<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:8px"><i data-lucide="image" style="width:36px;height:36px;color:rgba(6,182,212,.4)"></i><p style="font-size:11px;color:var(--textm)">Sin imagen</p></div>`}
         ${e.image?`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.75));padding:8px 10px">
           <p style="font-size:10px;color:#fff;font-weight:600">${e.date}${e.time?' · '+e.time:''}</p>
@@ -969,6 +972,8 @@ function rEvidence(){
         <p style="font-size:11px;color:var(--accent);font-weight:600">${e.reviewed_by}:</p>
         <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.observation}</p>
       </div>`:''}
+      ${(isStudent()&&e.student===currentSession?.name&&e.status==='Pendiente')||isAdmin()?`
+      <button class="btn btn-d w-full mt-2" style="font-size:12px;padding:6px" onclick="deleteEvidenceFromApp(${e.id},'${e.image||''}')"><i data-lucide="trash-2" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Eliminar</button>`:''}
     </div>`).join(''):`
     <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
       <i data-lucide="camera" style="width:44px;height:44px;opacity:.35;margin:0 auto 14px;display:block"></i>
@@ -984,10 +989,25 @@ function rEvidence(){
 // ---- CÁMARA MODAL con sello fecha/hora/día ----
 function openCameraModal(){
   const myGrade = getCurrentGrade();
-  const myGroups= D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
   const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const now     = new Date();
   const stamp   = `${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+
+  // Obtener el grupo del estudiante automáticamente
+  const myGroup = D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
+
+  // Verificar si ya subió evidencia hoy para este grupo
+  const today = now.toISOString().split('T')[0];
+  const alreadyUploaded = myGroup && D.evidence.some(e=>
+    e.group===myGroup.name &&
+    e.student===currentSession?.name &&
+    e.date===today
+  );
+
+  if(alreadyUploaded){
+    alert('Ya subiste una evidencia hoy para este grupo.');
+    return;
+  }
 
   const html=`<div class="modal-bg" onclick="if(event.target===this)closeCameraModal()">
     <div class="modal fade-in" style="max-width:500px;max-height:92vh;overflow-y:auto">
@@ -1001,19 +1021,14 @@ function openCameraModal(){
         </button>
       </div>
 
-      <!-- Selector de grupo -->
+      <!-- Info del grupo (solo lectura) -->
       <div class="flex flex-col gap-3 mb-4">
-        <div>
-          <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Grupo de Aseo</label>
-          <select id="camGroup" class="inp">
-            <option value="">Selecciona tu grupo</option>
-            ${myGroups.map(g=>`<option value="${g.name}">${g.name} — ${g.grade}</option>`).join('')}
-          </select>
+        <div style="padding:10px 14px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:8px">
+          <p style="font-size:12px;color:var(--textm);margin-bottom:2px">Grupo asignado</p>
+          <p style="font-weight:700;color:var(--accent)">${myGroup?.name||'Sin grupo'} — ${myGroup?.grade||''}</p>
         </div>
-        <div>
-          <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Tu Nombre</label>
-          <input id="camStudent" class="inp" type="text" value="${currentSession?.name||''}" placeholder="Nombre completo">
-        </div>
+        <input id="camGroup" type="hidden" value="${myGroup?.name||''}">
+        <input id="camStudent" type="hidden" value="${currentSession?.name||''}">
       </div>
 
       <!-- Área de cámara/preview -->
@@ -1164,31 +1179,46 @@ function retakePhoto(){
   startCamera();
 }
 
-function saveEvidence(){
+async function saveEvidence(){
   const group  = document.getElementById('camGroup')?.value;
   const student= document.getElementById('camStudent')?.value?.trim();
   const err    = document.getElementById('camError');
+  const btn    = document.querySelector('#camRetakeBtns .btn-p');
 
   if(!group){if(err){err.textContent='Selecciona un grupo';err.style.display='block';}return;}
   if(!student){if(err){err.textContent='Ingresa tu nombre';err.style.display='block';}return;}
   if(!_capturedDataUrl){if(err){err.textContent='Toma o sube una foto primero';err.style.display='block';}return;}
 
+  if(btn){btn.textContent='Guardando...';btn.disabled=true;}
+
   const now=new Date();
   const ev={
-    id:nid(),
     group, student,
     date: now.toISOString().split('T')[0],
-    time: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
-    day:  ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][now.getDay()],
     status:'Pendiente',
     compliant:false,
-    image:_capturedDataUrl,
-    stamp:_capturedStamp,
     reviewed_by:null, observation:null, reviewed_at:null
   };
-  D.evidence.push(ev);
-  closeCameraModal();
-  render();
+
+  try {
+    // Convertir dataUrl a File para subir al Storage
+    const res = await fetch(_capturedDataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], `evidencia_${Date.now()}.jpg`, {type:'image/jpeg'});
+
+    const ok = await saveEvidenceWithImage(ev, file);
+    if(ok){
+      closeCameraModal();
+      render();
+    } else {
+      if(err){err.textContent='Error al guardar. Intenta de nuevo.';err.style.display='block';}
+      if(btn){btn.textContent='Guardar Evidencia';btn.disabled=false;}
+    }
+  } catch(e) {
+    console.error('Error guardando evidencia:', e);
+    if(err){err.textContent='Error al guardar: '+e.message;err.style.display='block';}
+    if(btn){btn.textContent='Guardar Evidencia';btn.disabled=false;}
+  }
 }
 
 function closeCameraModal(){
@@ -1253,10 +1283,10 @@ function rClean(){
             return `<div style="border-radius:10px;padding:12px;background:${bg}20;border:2px solid ${brd};min-height:140px">
               <p class="font-semibold text-sm mb-3" style="color:${hg?bg:'var(--accent)'}">${d}</p>
               <div class="flex flex-col gap-2">
-                ${gfd.map(g=>`<div style="background:${g.color||'#06b6d4'};padding:10px;border-radius:8px">
+                ${gfd.map(g=>`<div style="background:${g.color||'#06b6d4'};padding:10px;border-radius:8px;cursor:pointer" onclick="showGroupMembers(${g.id})">
                   <p class="text-xs font-bold text-white">${g.name}</p>
                   <p style="font-size:10px;color:rgba(255,255,255,.8);margin-top:2px">${g.members.length} est.</p>
-                  ${canCreate?`<div class="flex gap-1 mt-2">
+                  ${canCreate?`<div class="flex gap-1 mt-2" onclick="event.stopPropagation()">
                     <button class="btn" style="flex:1;background:rgba(255,255,255,.2);color:#fff;border:none;padding:4px;font-size:10px;border-radius:4px" onclick="openModal('edit','cleanGroups',${g.id})">${t('edit')}</button>
                     <button class="btn" style="background:rgba(255,0,0,.3);color:#fff;border:none;padding:4px;font-size:10px;border-radius:4px" onclick="del('cleanGroups',${g.id})">✕</button>
                   </div>`:''}
@@ -1268,7 +1298,7 @@ function rClean(){
         </div>
       </div>`:`
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        ${weekly.map(g=>`<div class="card" style="background:var(--surface);border-left:4px solid ${g.color||'#06b6d4'}">
+        ${weekly.map(g=>`<div class="card" style="background:var(--surface);border-left:4px solid ${g.color||'#06b6d4'};cursor:pointer" onclick="showGroupMembers(${g.id})">
           <div class="flex items-start justify-between mb-2">
             <div class="flex items-center gap-2">
               <div style="width:12px;height:12px;border-radius:50%;background:${g.color||'#06b6d4'}"></div>
@@ -1551,6 +1581,8 @@ function rReportIncident(){
       <p style="font-size:12px;color:var(--textm);margin-bottom:6px">${i.description}</p>
       <p style="font-size:11px;color:var(--textm)">📍 ${i.location} · 📅 ${i.date}</p>
       <span class="badge" style="background:${pc[i.priority]||'#888'}15;color:${pc[i.priority]||'#888'};font-size:10px;margin-top:6px;display:inline-block">${i.priority}</span>
+      ${i.image?`<img src="${i.image}" onclick="openImageFullscreen('${i.image}')" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-top:8px;cursor:pointer">`:''}
+
       ${i.notes?`<div style="background:rgba(59,130,246,.08);padding:8px;border-radius:6px;margin-top:8px;border-left:2px solid #3b82f6">
         <p style="font-size:11px;font-weight:600;color:#3b82f6">Respuesta del docente:</p>
         <p style="font-size:12px;color:var(--text);margin-top:2px">${i.notes}</p>
@@ -2221,3 +2253,73 @@ function rSettings(){
   `;
 }
 
+
+// ---- VER IMAGEN EN PANTALLA COMPLETA ----
+function openImageFullscreen(url){
+  if(!url) return;
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  d.onclick = () => d.remove();
+  d.innerHTML = `<img src="${url}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px">
+    <button style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.2);border:none;border-radius:50%;width:36px;height:36px;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="this.parentElement.remove()">×</button>`;
+  document.body.appendChild(d);
+}
+
+// ---- BORRAR EVIDENCIA DESDE LA APP ----
+async function deleteEvidenceFromApp(id, imageUrl){
+  if(!confirm('¿Seguro que quieres eliminar esta evidencia?')) return;
+  if(imageUrl) await deleteEvidenceImage(imageUrl);
+  const { error } = await sb.from('evidence').delete().eq('id', Number(id));
+  if(error){ console.error('Error borrando evidencia:', error.message); return; }
+  await loadEvidence();
+  render();
+}
+
+// ---- VER INTEGRANTES DEL GRUPO ----
+function showGroupMembers(groupId){
+  const g = D.cleanGroups.find(x=>x.id===groupId);
+  if(!g) return;
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.onclick = (e) => { if(e.target===d) d.remove(); };
+  d.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto;border:1px solid rgba(6,182,212,.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:12px;height:12px;border-radius:50%;background:${g.color||'#06b6d4'}"></div>
+          <h3 style="font-weight:700;font-size:16px">${g.name}</h3>
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:transparent;border:none;color:var(--textm);font-size:20px;cursor:pointer">×</button>
+      </div>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:12px">${g.grade} · ${g.members.length} integrantes</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${g.members.map(m=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.1)">
+            <div style="width:32px;height:32px;border-radius:50%;background:${g.color||'#06b6d4'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${m.charAt(0)}</div>
+            <span style="font-size:13px;font-weight:500">${m}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+// ---- FOTO INCIDENTE ----
+let _incidentPhotoFile = null;
+
+function previewIncidentPhoto(input){
+  const file = input.files[0];
+  if(!file) return;
+  _incidentPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('incidentPhotoPreview');
+    if(preview){
+      preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">
+        <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.6);border-radius:6px;padding:4px 8px;font-size:11px;color:#fff;cursor:pointer" onclick="document.getElementById('incidentCamInput').click()">Cambiar</div>`;
+      preview.style.position = 'relative';
+      preview.style.border = 'none';
+      preview.onclick = null;
+    }
+  };
+  reader.readAsDataURL(file);
+}

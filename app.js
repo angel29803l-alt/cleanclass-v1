@@ -273,6 +273,16 @@ async function doLogin(){
     };
   }
 
+  // Buscar grado en tabla students o teachers según rol
+  let userGrade = localUser.grade || null;
+  if(!userGrade && localUser.role === 'student') {
+    const { data: sData } = await sb.from('students').select('grade').eq('email', localUser.email).single();
+    if(sData?.grade) userGrade = sData.grade;
+  } else if(!userGrade && localUser.role === 'teacher') {
+    const { data: tData } = await sb.from('teachers').select('grade').eq('email', localUser.email).single();
+    if(tData?.grade) userGrade = tData.grade;
+  }
+  localUser.grade = userGrade;
   currentSession = localUser;
   D._user = {
     name: localUser.name,
@@ -588,6 +598,16 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
           return;
         }
       }
+      // Buscar grado en tabla students o teachers según rol
+      let userGrade = localUser.grade || null;
+      if(!userGrade && localUser.role === 'student') {
+        const { data: sData } = await sb.from('students').select('grade').eq('email', localUser.email).single();
+        if(sData?.grade) userGrade = sData.grade;
+      } else if(!userGrade && localUser.role === 'teacher') {
+        const { data: tData } = await sb.from('teachers').select('grade').eq('email', localUser.email).single();
+        if(tData?.grade) userGrade = tData.grade;
+      }
+      localUser.grade = userGrade;
       currentSession = localUser;
       D._user = {
         name: localUser.name,

@@ -26,7 +26,7 @@ const formFields={
 
     if(assignmentMode==='daily'){
       return [
-        ...baseFields.slice(0,2),
+        ...baseFields.filter(Boolean).slice(0, isAdmin() ? 2 : 1),
         {k:'day', l:'Día de la Semana', type:'select', options:()=>{
           return ['Lunes','Martes','Miércoles','Jueves','Viernes'].map(d=>({id:d,name:d}));
         }},
@@ -35,7 +35,7 @@ const formFields={
       ];
     } else {
       return [
-        ...baseFields.slice(0,2),
+        ...baseFields.filter(Boolean).slice(0, isAdmin() ? 2 : 1),
         {k:'members', l:'Miembros del Grupo', type:'multiselect'},
         baseFields[2]
       ];
@@ -56,10 +56,11 @@ const formFields={
       {id:3,name:'Material Faltante'},{id:4,name:'Otros'}
     ]},
     {k:'description',l:'Descripción'},
-    {k:'location',l:'Ubicación'},
+    {k:'location',l:'Salón',type:'select',options:()=>D.rooms.map(r=>({id:r.name,name:r.name}))},
     {k:'priority',l:'Prioridad',type:'select',options:()=>[
       {id:1,name:'Baja'},{id:2,name:'Media'},{id:3,name:'Alta'}
-    ]}
+    ]},
+    {k:'image',l:'Foto del incidente (opcional)',type:'camera'}
   ]
 };
 
@@ -167,6 +168,15 @@ function openModal(mode,col,id){
             return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
               <input type="file" class="inp mt-1" name="${f.k}" accept="image/*" ${col==='evidence'?'required':''} style="padding:8px">
               <p style="font-size:11px;color:var(--textm);margin-top:4px">JPG o PNG, máximo 5MB</p></div>`;
+          }else if(f.type==='camera'){
+            return `<div>
+              <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">${f.l}</label>
+              <label style="display:block;width:100%;height:140px;border-radius:10px;background:rgba(6,182,212,.05);border:2px dashed rgba(6,182,212,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:8px;position:relative" id="incidentPhotoPreview">
+                <i data-lucide="camera" style="width:28px;height:28px;color:var(--accent)"></i>
+                <p style="font-size:12px;color:var(--textm)">Toca para tomar foto</p>
+                <input type="file" accept="image/*" capture="environment" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="previewIncidentPhoto(this)">
+              </label>
+            </div>`;
           }else if(f.type==='number'){
             return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
               <input class="inp mt-1" name="${f.k}" type="number" value="${item[f.k]||''}" required></div>`;
@@ -250,6 +260,25 @@ function openModal(mode,col,id){
         obj.resolution_date=null;
         obj.notes='';
         obj.grade=getCurrentGrade();
+
+        // Manejar foto del incidente
+        const imgFile = typeof _incidentPhotoFile !== 'undefined' ? _incidentPhotoFile : null;
+        if(imgFile){
+          (async()=>{
+            const ext = imgFile.name.split('.').pop();
+            const fileName = `incidente_${Date.now()}.${ext}`;
+            const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, imgFile, {upsert:true});
+            if(!upErr){
+              const { data } = sb.storage.from('evidencias').getPublicUrl(fileName);
+              obj.image = data.publicUrl;
+            }
+            _incidentPhotoFile = null;
+            if(mode==='add'){obj.id=nid();D[col].push(obj);}
+            saveIncident(obj);
+            closeModal(); render();
+          })();
+          return;
+        }
       }else{
         obj.status=(isAdmin()||isTeacher())?fd.get('status'):item.status;
         obj.notes=(isAdmin()||isTeacher())?fd.get('notes'):item.notes;
@@ -260,7 +289,7 @@ function openModal(mode,col,id){
       }
     }else{
       fields.forEach(f=>{
-        if(f.type==='file'||f.type==='radio'||f.type==='multiselect') return;
+        if(f.type==='file'||f.type==='radio'||f.type==='multiselect'||f.type==='camera') return;
         obj[f.k]=f.type==='number'?Number(fd.get(f.k)):fd.get(f.k);
       });
       if(col==='cleanGroups'){
