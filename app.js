@@ -299,6 +299,7 @@ async function doLogin(){
   loadAllData().then(()=>{
     render();
     if (typeof initRealtime === 'function') initRealtime();
+    setTimeout(initNotifications, 2000);
   });
 }
 
@@ -726,7 +727,6 @@ async function saveAllSchedules() {
   document.body.appendChild(n);
   setTimeout(()=>n.remove(), 2500);
   // Reprogramar notificaciones
-  initNotifications();
 }
 
 // ---- SISTEMA DE NOTIFICACIONES FCM ----
