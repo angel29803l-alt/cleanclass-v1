@@ -296,9 +296,16 @@ async function doLogin(){
   app.style.display='flex';
   isLoggedOut=false;
   checkResp();
-  loadAllData().then(()=>{
+  loadAllData().then(async ()=>{
     render();
     if (typeof initRealtime === 'function') initRealtime();
+    // Verificar si el usuario tiene notificaciones activas
+    if(currentSession?.fcm_token) {
+      setTimeout(initNotifications, 1500);
+      setTimeout(updateNotifBtn, 1600);
+    } else {
+      setTimeout(updateNotifBtn, 500);
+    }
   });
 }
 
@@ -822,9 +829,12 @@ async function toggleNotifications() {
 function updateNotifBtn() {
   const btn = document.getElementById('btnNotif');
   if (!btn) return;
-  if (Notification.permission === 'granted') {
-    btn.textContent = '🔕 Desactivar notificaciones';
-  } else {
-    btn.textContent = '🔔 Activar notificaciones';
-  }
+  const isActive = Notification.permission === 'granted' && currentSession?.fcm_token;
+  btn.innerHTML = isActive 
+    ? '<i data-lucide="bell-off" style="width:15px;height:15px"></i> Notificaciones activas'
+    : '<i data-lucide="bell" style="width:15px;height:15px"></i> Activar notificaciones';
+  btn.style.background = isActive ? 'rgba(34,197,94,.15)' : '';
+  btn.style.borderColor = isActive ? 'rgba(34,197,94,.3)' : '';
+  btn.style.color = isActive ? '#16a34a' : '';
+  if(typeof lucide !== 'undefined') lucide.createIcons();
 }
