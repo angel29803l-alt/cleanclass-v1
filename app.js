@@ -706,19 +706,21 @@ async function saveAllSchedules() {
   for(const grade of grades) {
     const gid = grade.replace(/[°\s]/g,'_');
     const cleanEl = document.getElementById(`clean_${gid}`);
-    const earlyEl = document.getElementById(`early_${gid}`);
-    const earlyDays = [...document.querySelectorAll(`.eday_${gid}:checked`)].map(c=>c.value);
     if(!cleanEl) continue;
-    const schedule = {
-      grade,
-      clean_time: cleanEl.value || '15:00',
-      early_exit_time: earlyEl?.value || null,
-      early_exit_days: earlyDays.length ? earlyDays : null
-    };
+    const cleanTime = cleanEl.value || '15:00';
     const existing = D.schedules?.find(s=>s.grade===grade);
-    if(existing) schedule.id = existing.id;
-    await saveSchedule(schedule);
+    
+    if(existing) {
+      // Update
+      const { error } = await sb.from('schedules').update({ clean_time: cleanTime }).eq('id', existing.id);
+      if(error) console.error('Error actualizando horario:', error.message);
+    } else {
+      // Insert
+      const { error } = await sb.from('schedules').insert({ grade, clean_time: cleanTime });
+      if(error) console.error('Error insertando horario:', error.message);
+    }
   }
+  await loadSchedules();
   // Mostrar confirmación
   const n = document.createElement('div');
   n.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
