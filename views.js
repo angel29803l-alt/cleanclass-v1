@@ -386,43 +386,123 @@ function rAdminPanel(){
   // ── TAB: HORARIOS ──
   if(adminTab==='schedules'){
     const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort();
+    const today = new Date();
+    const noClassSet = new Set((D.noClassDays||[]).map(x=>x.date));
+    
+    // Construir mini calendario para días sin clase
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year,month+1,0).getDate();
+    const firstDay = (new Date(year,month,1).getDay()+6)%7;
+    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const dayNames2 = ['L','M','X','J','V','S','D'];
+    
+    let calHtml = '';
+    for(let i=0;i<firstDay;i++) calHtml += `<div></div>`;
+    for(let d=1;d<=daysInMonth;d++){
+      const dow = new Date(year,month,d).getDay();
+      const isWD = [1,2,3,4,5].includes(dow);
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isNoClass = noClassSet.has(dateStr);
+      const isPast = new Date(year,month,d) < new Date(today.getFullYear(),today.getMonth(),today.getDate());
+      calHtml += `<div onclick="${isWD&&!isPast?`toggleNoClassDay('${dateStr}',${isNoClass})`:''}" 
+        style="display:flex;align-items:center;justify-content:center;height:32px;border-radius:6px;font-size:12px;font-weight:${isNoClass?'700':'400'};
+        cursor:${isWD&&!isPast?'pointer':'default'};
+        background:${isNoClass?'rgba(239,68,68,.2)':'transparent'};
+        color:${isNoClass?'#ef4444':isPast?'rgba(100,100,100,.3)':isWD?'var(--text)':'var(--textm)'};
+        border:${isNoClass?'1px solid rgba(239,68,68,.4)':'1px solid transparent'};
+        text-decoration:${isNoClass?'line-through':'none'};
+        opacity:${isPast?'.4':'1'}"
+        ${isWD&&!isPast?`onmouseover="this.style.background='${isNoClass?'rgba(239,68,68,.3)':'rgba(6,182,212,.1)'}'" onmouseout="this.style.background='${isNoClass?'rgba(239,68,68,.2)':'transparent'}'"`:''}>
+        ${d}
+      </div>`;
+    }
+
     html += `
-    <div class="fade-in">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-        <h2 class="font-bold text-lg">⏰ Horarios de Aseo</h2>
-        <button class="btn btn-p flex items-center gap-2" onclick="saveAllSchedules()">
-          <i data-lucide="save" style="width:15px;height:15px"></i>Guardar
-        </button>
+    <div class="fade-in" style="display:grid;gap:20px;grid-template-columns:1fr 1fr">
+
+      <!-- BLOQUE 1: HORARIOS POR GRADO -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 class="font-bold text-base">⏰ Hora de Aseo por Grado</h2>
+          <button class="btn btn-p" style="font-size:12px;padding:7px 12px" onclick="saveAllSchedules()">
+            <i data-lucide="save" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Guardar
+          </button>
+        </div>
+        ${grades.length===0?`<p style="color:var(--textm);font-size:13px">Crea salones primero.</p>`:`
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${grades.map(grade=>{
+            const gid=grade.replace(/[°\s]/g,'_');
+            const sch=D.schedules?.find(s=>s.grade===grade)||{};
+            return `<div class="card" style="background:var(--surface);padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font-weight:700;font-size:14px;color:var(--accent)">Grado ${grade}</span>
+                <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}" style="width:120px;padding:6px 10px">
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`}
+
+        <!-- SALIDAS TEMPRANAS -->
+        <div style="margin-top:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 class="font-bold text-base">🚪 Salidas Tempranas</h3>
+            <button class="btn btn-p" style="font-size:12px;padding:7px 12px" onclick="showEarlyExitModal()">
+              + Agregar
+            </button>
+          </div>
+          <div id="earlyExitList" style="display:flex;flex-direction:column;gap:8px">
+            ${(D.schedules||[]).filter(s=>s.early_exit_time).map(s=>`
+            <div class="card" style="background:var(--surface);padding:12px;display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <p style="font-size:13px;font-weight:600">${s.grade==='all'?'Todos los grados':'Grado '+s.grade}</p>
+                <p style="font-size:11px;color:var(--textm)">Salida: ${s.early_exit_time} · ${(s.early_exit_days||[]).join(', ')||'Todos los días'}</p>
+              </div>
+              <button class="btn btn-d" style="padding:5px 8px;font-size:11px" onclick="removeEarlyExit('${s.grade}')">✕</button>
+            </div>`).join('') || `<p style="font-size:12px;color:var(--textm)">No hay salidas tempranas configuradas</p>`}
+          </div>
+        </div>
       </div>
-      ${grades.length===0?`<p style="color:var(--textm)">Crea salones primero para configurar horarios.</p>`:`
-      <div class="grid gap-4">
-        ${grades.map(grade=>{
-          const gid=grade.replace(/[°\s]/g,'_');
-          const sch=D.schedules?.find(s=>s.grade===grade)||{};
-          return `<div class="card" style="background:var(--surface)">
-            <h3 class="font-bold mb-4" style="color:var(--accent)">Grado ${grade}</h3>
-            <div class="grid gap-3 sm:grid-cols-3">
-              <div>
-                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:4px">Hora de aseo</label>
-                <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}">
-              </div>
-              <div>
-                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:4px">Hora salida temprana</label>
-                <input type="time" class="inp" id="early_${gid}" value="${sch.early_exit_time||''}">
-              </div>
-              <div>
-                <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:4px">Días salida temprana</label>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
-                  ${['Lunes','Martes','Miércoles','Jueves','Viernes'].map(day=>`
-                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-                    <input type="checkbox" class="eday_${gid}" value="${day}" ${(sch.early_exit_days||[]).includes(day)?'checked':''}>${day}
-                  </label>`).join('')}
-                </div>
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`}
+
+      <!-- BLOQUE 2: DÍAS SIN CLASE -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 class="font-bold text-base">📅 Días Sin Clase</h2>
+          <button class="btn btn-d" style="font-size:12px;padding:7px 12px" onclick="clearAllNoClassDays()">
+            Limpiar todo
+          </button>
+        </div>
+        
+        <!-- Botones rápidos -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-s" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('all')">📌 Todos</button>
+          <button class="btn btn-s" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('some')">📌 Algunos grados</button>
+          <button class="btn btn-s" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('one')">📌 Un grado</button>
+        </div>
+
+        <!-- Calendario -->
+        <div class="card" style="background:var(--surface);padding:16px">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px">
+            ${dayNames2.map(d=>`<div style="text-align:center;font-size:11px;font-weight:600;color:var(--textm)">${d}</div>`).join('')}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+            ${calHtml}
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+            <div style="width:12px;height:12px;border-radius:3px;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.4)"></div>
+            <span style="font-size:11px;color:var(--textm)">Sin clase · Haz clic en un día para marcarlo</span>
+          </div>
+        </div>
+
+        <!-- Lista días marcados -->
+        ${noClassSet.size>0?`<div style="margin-top:12px">
+          <p style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--textm)">${noClassSet.size} día(s) sin clase marcado(s)</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${[...noClassSet].sort().map(d=>`
+            <span style="padding:4px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:20px;font-size:11px;color:#ef4444;cursor:pointer" onclick="toggleNoClassDay('${d}',true)">${d} ✕</span>`).join('')}
+          </div>
+        </div>`:''}
+      </div>
     </div>`;
   }
 
@@ -2079,6 +2159,174 @@ async function toggleNoClassDay(dateStr, isNoClass) {
   } else {
     await sb.from('no_class_days').insert({date: dateStr, created_by: currentSession?.name});
   }
+  await loadNoClassDays();
+  render();
+}
+
+// ---- MODAL SALIDA TEMPRANA ----
+function showEarlyExitModal() {
+  const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort();
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.onclick = e => { if(e.target===d) d.remove(); };
+  d.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:400px;border:1px solid rgba(6,182,212,.2)">
+      <h3 style="font-weight:700;font-size:16px;margin-bottom:16px">🚪 Agregar Salida Temprana</h3>
+      
+      <div style="margin-bottom:12px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">¿Para quién?</label>
+        <select id="earlyScope" class="inp" onchange="updateEarlyGradeList()">
+          <option value="all">Todos los grados</option>
+          <option value="some">Algunos grados</option>
+          <option value="one">Un grado específico</option>
+        </select>
+      </div>
+
+      <div id="earlyGradeList" style="display:none;margin-bottom:12px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Selecciona grados</label>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;padding:8px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.15)">
+          ${grades.map(g=>`
+          <label style="display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer">
+            <input type="checkbox" class="earlyGradeCheck" value="${g}">
+            <span style="font-size:13px">Grado ${g}</span>
+          </label>`).join('')}
+        </div>
+      </div>
+
+      <div id="earlyOneGrade" style="display:none;margin-bottom:12px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Selecciona el grado</label>
+        <select id="earlyOneSelect" class="inp">
+          ${grades.map(g=>`<option value="${g}">Grado ${g}</option>`).join('')}
+        </select>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Hora de salida temprana</label>
+        <input type="time" id="earlyTime" class="inp" value="12:00">
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Días</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${['Lunes','Martes','Miércoles','Jueves','Viernes'].map(day=>`
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 8px;background:rgba(6,182,212,.08);border-radius:6px">
+            <input type="checkbox" class="earlyDayCheck" value="${day}">${day}
+          </label>`).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s flex-1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn btn-p flex-1" onclick="saveEarlyExit()">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+function updateEarlyGradeList() {
+  const scope = document.getElementById('earlyScope')?.value;
+  document.getElementById('earlyGradeList').style.display = scope==='some' ? 'block' : 'none';
+  document.getElementById('earlyOneGrade').style.display = scope==='one' ? 'block' : 'none';
+}
+
+async function saveEarlyExit() {
+  const scope = document.getElementById('earlyScope')?.value;
+  const time = document.getElementById('earlyTime')?.value;
+  const days = [...document.querySelectorAll('.earlyDayCheck:checked')].map(c=>c.value);
+  if(!time) return alert('Selecciona una hora');
+
+  let gradesToSave = [];
+  if(scope==='all') {
+    gradesToSave = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))];
+  } else if(scope==='some') {
+    gradesToSave = [...document.querySelectorAll('.earlyGradeCheck:checked')].map(c=>c.value);
+  } else {
+    gradesToSave = [document.getElementById('earlyOneSelect')?.value];
+  }
+  if(!gradesToSave.length) return alert('Selecciona al menos un grado');
+
+  for(const grade of gradesToSave) {
+    const existing = D.schedules?.find(s=>s.grade===grade);
+    const schedule = { grade, clean_time: existing?.clean_time||'15:00', early_exit_time: time, early_exit_days: days.length ? days : null };
+    if(existing?.id) schedule.id = existing.id;
+    await saveSchedule(schedule);
+  }
+  document.querySelector('[style*=fixed]')?.remove();
+  render();
+}
+
+async function removeEarlyExit(grade) {
+  const existing = D.schedules?.find(s=>s.grade===grade);
+  if(!existing) return;
+  await saveSchedule({...existing, early_exit_time: null, early_exit_days: null});
+  render();
+}
+
+// ---- MARCAR DÍAS SIN CLASE ----
+function markNoClassModal(scope) {
+  const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort();
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.onclick = e => { if(e.target===d) d.remove(); };
+  d.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:400px;border:1px solid rgba(6,182,212,.2)">
+      <h3 style="font-weight:700;font-size:16px;margin-bottom:16px">📅 Marcar Día Sin Clase</h3>
+      
+      <div style="margin-bottom:12px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Fecha</label>
+        <input type="date" id="noClassDate" class="inp" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+
+      ${scope==='all'?'<p style="font-size:13px;color:var(--textm);margin-bottom:16px">Se marcará para <strong>todos los grados</strong>.</p>':''}
+      
+      ${scope==='some'?`<div style="margin-bottom:16px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Selecciona grados</label>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;padding:8px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.15)">
+          ${grades.map(g=>`
+          <label style="display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer">
+            <input type="checkbox" class="noClassGradeCheck" value="${g}">
+            <span style="font-size:13px">Grado ${g}</span>
+          </label>`).join('')}
+        </div>
+      </div>`:''}
+
+      ${scope==='one'?`<div style="margin-bottom:16px">
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Selecciona el grado</label>
+        <select id="noClassOneSelect" class="inp">
+          ${grades.map(g=>`<option value="${g}">Grado ${g}</option>`).join('')}
+        </select>
+      </div>`:''}
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s flex-1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn btn-p flex-1" onclick="saveNoClassDay('${scope}')">Marcar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+async function saveNoClassDay(scope) {
+  const date = document.getElementById('noClassDate')?.value;
+  if(!date) return alert('Selecciona una fecha');
+  const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))];
+  let selectedGrades = [];
+  if(scope==='all') selectedGrades = grades;
+  else if(scope==='some') selectedGrades = [...document.querySelectorAll('.noClassGradeCheck:checked')].map(c=>c.value);
+  else selectedGrades = [document.getElementById('noClassOneSelect')?.value];
+  if(!selectedGrades.length) return alert('Selecciona al menos un grado');
+
+  for(const grade of selectedGrades) {
+    const existing = (D.noClassDays||[]).find(x=>x.date===date&&x.grade===grade);
+    if(!existing) await sb.from('no_class_days').insert({date, grade, created_by: currentSession?.name});
+  }
+  await loadNoClassDays();
+  document.querySelector('[style*=fixed]')?.remove();
+  render();
+}
+
+async function clearAllNoClassDays() {
+  if(!confirm('¿Limpiar todos los días sin clase marcados?')) return;
+  await sb.from('no_class_days').delete().neq('id', 0);
   await loadNoClassDays();
   render();
 }
