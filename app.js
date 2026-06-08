@@ -299,7 +299,6 @@ async function doLogin(){
   loadAllData().then(()=>{
     render();
     if (typeof initRealtime === 'function') initRealtime();
-    setTimeout(initNotifications, 2000);
   });
 }
 
@@ -727,6 +726,7 @@ async function saveAllSchedules() {
   document.body.appendChild(n);
   setTimeout(()=>n.remove(), 2500);
   // Reprogramar notificaciones
+  initNotifications();
 }
 
 // ---- SISTEMA DE NOTIFICACIONES FCM ----
@@ -795,5 +795,34 @@ async function initNotifications() {
       document.body.appendChild(n);
       setTimeout(() => n.remove(), 6000);
     });
+  }
+}
+
+// ---- TOGGLE NOTIFICACIONES ----
+async function toggleNotifications() {
+  const btn = document.getElementById('btnNotif');
+  if (Notification.permission === 'granted') {
+    // Desactivar — no hay forma de revocar permiso via JS, guiar al usuario
+    if(btn) btn.textContent = '🔕 Notificaciones activas';
+    alert('Para desactivar las notificaciones, ve a Configuración del sitio en tu navegador.');
+    return;
+  }
+  if(btn){ btn.textContent = '⏳ Activando...'; btn.disabled = true; }
+  await initNotifications();
+  if (Notification.permission === 'granted') {
+    if(btn){ btn.textContent = '🔕 Desactivar notificaciones'; btn.disabled = false; }
+  } else {
+    if(btn){ btn.textContent = '🔔 Activar notificaciones'; btn.disabled = false; }
+  }
+}
+
+// Actualizar estado del botón al cargar
+function updateNotifBtn() {
+  const btn = document.getElementById('btnNotif');
+  if (!btn) return;
+  if (Notification.permission === 'granted') {
+    btn.textContent = '🔕 Desactivar notificaciones';
+  } else {
+    btn.textContent = '🔔 Activar notificaciones';
   }
 }
