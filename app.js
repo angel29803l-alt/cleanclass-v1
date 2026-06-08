@@ -299,6 +299,7 @@ async function doLogin(){
   loadAllData().then(async ()=>{
     render();
     if (typeof initRealtime === 'function') initRealtime();
+    if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
     // Verificar si el usuario tiene notificaciones activas
     if(currentSession?.fcm_token) {
       setTimeout(initNotifications, 1500);

@@ -456,7 +456,7 @@ function rAdminPanel(){
             <div class="card" style="background:var(--surface);padding:12px;display:flex;align-items:center;justify-content:space-between">
               <div>
                 <p style="font-size:13px;font-weight:600">${s.grade==='all'?'Todos los grados':'Grado '+s.grade}</p>
-                <p style="font-size:11px;color:var(--textm)">Salida: ${s.early_exit_time} · ${(s.early_exit_days||[]).join(', ')||'Todos los días'}</p>
+                <p style="font-size:11px;color:var(--textm)">Salida: ${s.early_exit_time} · ${s.early_exit_date||'Hoy'}</p>
               </div>
               <button class="pill pill-danger" style="padding:5px 8px;font-size:11px" onclick="removeEarlyExit('${s.grade}')">✕</button>
             </div>`).join('') || `<p style="font-size:12px;color:var(--textm)">No hay salidas tempranas configuradas</p>`}
@@ -2206,13 +2206,9 @@ function showEarlyExitModal() {
       </div>
 
       <div style="margin-bottom:16px">
-        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Días</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${['Lunes','Martes','Miércoles','Jueves','Viernes'].map(day=>`
-          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 8px;background:rgba(6,182,212,.08);border-radius:6px">
-            <input type="checkbox" class="earlyDayCheck" value="${day}">${day}
-          </label>`).join('')}
-        </div>
+        <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Fecha de la salida temprana</label>
+        <input type="date" id="earlyDate" class="inp" value="${new Date().toISOString().split('T')[0]}">
+        <p style="font-size:11px;color:var(--textm);margin-top:4px">Se borrará automáticamente al día siguiente.</p>
       </div>
 
       <div style="display:flex;gap:8px">
@@ -2329,4 +2325,14 @@ async function clearAllNoClassDays() {
   await sb.from('no_class_days').delete().neq('id', 0);
   await loadNoClassDays();
   render();
+}
+
+// ---- LIMPIAR SALIDAS TEMPRANAS VENCIDAS ----
+async function clearExpiredEarlyExits() {
+  const today = new Date().toISOString().split('T')[0];
+  const expired = (D.schedules||[]).filter(s => s.early_exit_time && s.early_exit_date && s.early_exit_date < today);
+  for(const s of expired) {
+    await sb.from('schedules').update({ early_exit_time: null, early_exit_date: null }).eq('id', s.id);
+  }
+  if(expired.length) await loadSchedules();
 }
