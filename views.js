@@ -77,7 +77,7 @@ function rAdminPanel(){
           ${allGrades.map(g=>`<option value="${g}" ${window.adminGradeFilter===g?'selected':''}>${g}</option>`).join('')}
         </select>
         <button onclick="showEmailModal()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
-          <span style="font-size:20px">${currentSession?.avatar||'👤'}</span>
+          <span style="font-size:20px">${currentSession?.avatar||''}</span>
         </button>
       </div>
     </div>
@@ -202,7 +202,7 @@ function rAdminPanel(){
     <div class="card" style="background:var(--surface)">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="font-bold text-xl">Gestión de Estudiantes</h3>
-        <button class="btn btn-p flex items-center gap-1" onclick="openAdminModal('student')">
+        <button class="pill pill-primary flex items-center gap-1" onclick="openAdminModal('student')">
           <i data-lucide="user-plus" style="width:15px;height:15px"></i>Agregar Estudiante
         </button>
       </div>
@@ -224,8 +224,8 @@ function rAdminPanel(){
               <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
               <td>
                 <div class="flex gap-1">
-                  <button class="btn btn-s" style="padding:5px" onclick="openAdminModal('student',${s.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
-                  <button class="btn btn-d" style="padding:5px" onclick="delAdmin('students',${s.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                  <button class="pill pill-ghost" style="padding:5px" onclick="openAdminModal('student',${s.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                  <button class="pill pill-danger" style="padding:5px" onclick="delAdmin('students',${s.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
                 </div>
               </td>
             </tr>`).join(''):`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--textm)">Sin estudiantes registrados</td></tr>`}
@@ -241,7 +241,7 @@ function rAdminPanel(){
     <div class="card" style="background:var(--surface)">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="font-bold text-xl">Gestión de Docentes</h3>
-        <button class="btn btn-p flex items-center gap-1" onclick="openAdminModal('teacher')">
+        <button class="pill pill-primary flex items-center gap-1" onclick="openAdminModal('teacher')">
           <i data-lucide="user-plus" style="width:15px;height:15px"></i>Agregar Docente
         </button>
       </div>
@@ -262,8 +262,8 @@ function rAdminPanel(){
               <td style="font-size:12px;color:var(--textm)">${tc.email||'—'}</td>
               <td>
                 <div class="flex gap-1">
-                  <button class="btn btn-s" style="padding:5px" onclick="openAdminModal('teacher',${tc.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
-                  <button class="btn btn-d" style="padding:5px" onclick="delAdmin('teachers',${tc.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                  <button class="pill pill-ghost" style="padding:5px" onclick="openAdminModal('teacher',${tc.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                  <button class="pill pill-danger" style="padding:5px" onclick="delAdmin('teachers',${tc.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
                 </div>
               </td>
             </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--textm)">Sin docentes registrados</td></tr>`}
@@ -279,7 +279,7 @@ function rAdminPanel(){
     <div class="card" style="background:var(--surface)">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="font-bold text-xl">Gestión de Salones</h3>
-        <button class="btn btn-p flex items-center gap-1" onclick="openModal('add','rooms')">
+        <button class="pill pill-primary flex items-center gap-1" onclick="openModal('add','rooms')">
           <i data-lucide="plus" style="width:15px;height:15px"></i>Agregar Salón
         </button>
       </div>
@@ -299,8 +299,8 @@ function rAdminPanel(){
               <td><span class="badge" style="background:rgba(5,150,105,.15);color:#059669">${r.grade}</span></td>
               <td>
                 <div class="flex gap-1">
-                  <button class="btn btn-s" style="padding:5px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
-                  <button class="btn btn-d" style="padding:5px" onclick="del('rooms',${r.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                  <button class="pill pill-ghost" style="padding:5px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                  <button class="pill pill-danger" style="padding:5px" onclick="del('rooms',${r.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
                 </div>
               </td>
             </tr>`).join(''):`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--textm)">Sin salones registrados</td></tr>`}
@@ -369,8 +369,8 @@ function rAdminPanel(){
                   <td style="font-size:12px;color:var(--textm)">${i.date}</td>
                   <td>
                     <div class="flex gap-1">
-                      <button class="btn btn-s" style="padding:4px" onclick="openModal('edit','incidents',${i.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
-                      <button class="btn btn-d" style="padding:4px" onclick="del('incidents',${i.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                      <button class="pill pill-ghost" style="padding:4px" onclick="openModal('edit','incidents',${i.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                      <button class="pill pill-danger" style="padding:4px" onclick="del('incidents',${i.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
                     </div>
                   </td>
                 </tr>`;
@@ -425,7 +425,7 @@ function rAdminPanel(){
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <h2 class="font-bold text-base">⏰ Hora de Aseo por Grado</h2>
-          <button class="btn btn-p" style="font-size:12px;padding:7px 12px" onclick="saveAllSchedules()">
+          <button class="pill pill-primary" style="font-size:12px;padding:7px 12px" onclick="saveAllSchedules()">
             <i data-lucide="save" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Guardar
           </button>
         </div>
@@ -446,8 +446,8 @@ function rAdminPanel(){
         <!-- SALIDAS TEMPRANAS -->
         <div style="margin-top:20px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <h3 class="font-bold text-base">🚪 Salidas Tempranas</h3>
-            <button class="btn btn-p" style="font-size:12px;padding:7px 12px" onclick="showEarlyExitModal()">
+            <h3 class="font-bold text-base"><i data-lucide="door-open" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Salidas Tempranas</h3>
+            <button class="pill pill-primary" style="font-size:12px;padding:7px 12px" onclick="showEarlyExitModal()">
               + Agregar
             </button>
           </div>
@@ -458,7 +458,7 @@ function rAdminPanel(){
                 <p style="font-size:13px;font-weight:600">${s.grade==='all'?'Todos los grados':'Grado '+s.grade}</p>
                 <p style="font-size:11px;color:var(--textm)">Salida: ${s.early_exit_time} · ${(s.early_exit_days||[]).join(', ')||'Todos los días'}</p>
               </div>
-              <button class="btn btn-d" style="padding:5px 8px;font-size:11px" onclick="removeEarlyExit('${s.grade}')">✕</button>
+              <button class="pill pill-danger" style="padding:5px 8px;font-size:11px" onclick="removeEarlyExit('${s.grade}')">✕</button>
             </div>`).join('') || `<p style="font-size:12px;color:var(--textm)">No hay salidas tempranas configuradas</p>`}
           </div>
         </div>
@@ -467,17 +467,17 @@ function rAdminPanel(){
       <!-- BLOQUE 2: DÍAS SIN CLASE -->
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <h2 class="font-bold text-base">📅 Días Sin Clase</h2>
-          <button class="btn btn-d" style="font-size:12px;padding:7px 12px" onclick="clearAllNoClassDays()">
+          <h2 class="font-bold text-base"><i data-lucide="calendar" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Días Sin Clase</h2>
+          <button class="pill pill-danger" style="font-size:12px;padding:7px 12px" onclick="clearAllNoClassDays()">
             Limpiar todo
           </button>
         </div>
         
         <!-- Botones rápidos -->
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <button class="btn btn-s" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('all')">📌 Todos</button>
-          <button class="btn btn-s" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('some')">📌 Algunos grados</button>
-          <button class="btn btn-s" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('one')">📌 Un grado</button>
+          <button class="pill pill-ghost" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('all')"><i data-lucide="map-pin" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Todos</button>
+          <button class="pill pill-ghost" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('some')"><i data-lucide="map-pin" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Algunos grados</button>
+          <button class="pill pill-ghost" style="font-size:11px;padding:6px 10px" onclick="markNoClassModal('one')"><i data-lucide="map-pin" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Un grado</button>
         </div>
 
         <!-- Calendario -->
@@ -577,7 +577,7 @@ function rDash(){
   }
 
   const _avatarSrc = currentSession?.avatar_url || D._profileImage;
-  const avatarInner=_avatarSrc?`<img src="${_avatarSrc}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:32px;font-weight:700;color:#fff">${currentSession?.name?.charAt(0)||'👤'}</span>`;
+  const avatarInner=_avatarSrc?`<img src="${_avatarSrc}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:32px;font-weight:700;color:#fff">${currentSession?.name?.charAt(0)||''}</span>`;
   const emailBtn=`<button id="emailBtn" style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(37,99,235,.2);border:none;cursor:pointer;transition:transform .2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="showEmailModal()">${avatarInner}</button>`;
 
   return `<div class="flex items-center justify-between mb-6">
@@ -598,9 +598,9 @@ function rDash(){
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold">${monthNames[month]} ${year}</h3>
         <div class="flex gap-1">
-          <button class="btn btn-s" style="padding:5px 8px" onclick="calendarOffset--;render()"><i data-lucide="chevron-left" style="width:15px;height:15px"></i></button>
-          ${calendarOffset!==0?`<button class="btn btn-s" style="padding:5px 8px;font-size:11px" onclick="calendarOffset=0;render()">Hoy</button>`:''}
-          <button class="btn btn-s" style="padding:5px 8px" onclick="calendarOffset++;render()"><i data-lucide="chevron-right" style="width:15px;height:15px"></i></button>
+          <button class="pill pill-ghost" style="padding:5px 8px" onclick="calendarOffset--;render()"><i data-lucide="chevron-left" style="width:15px;height:15px"></i></button>
+          ${calendarOffset!==0?`<button class="pill pill-ghost" style="padding:5px 8px;font-size:11px" onclick="calendarOffset=0;render()">Hoy</button>`:''}
+          <button class="pill pill-ghost" style="padding:5px 8px" onclick="calendarOffset++;render()"><i data-lucide="chevron-right" style="width:15px;height:15px"></i></button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
@@ -636,9 +636,9 @@ const _charts = {};
 function destroyChart(id){ if(_charts[id]){_charts[id].destroy();delete _charts[id];} }
 
 function complianceBadge(ev){
-  if(ev.status==='Pendiente') return `<span class="badge-pendiente">⏳ Pendiente</span>`;
-  if(ev.compliant||ev.status==='Completado') return `<span class="badge-bien">✅ BIEN</span>`;
-  return `<span class="badge-mal">❌ MAL</span>`;
+  if(ev.status==='Pendiente') return `<span class="badge-pill badge-pill-amber">⏳ Pendiente</span>`;
+  if(ev.compliant||ev.status==='Completado') return `<span class="badge-pill badge-pill-green">✅ BIEN</span>`;
+  return `<span class="badge-pill badge-pill-red">❌ MAL</span>`;
 }
 
 window.initCharts = function(){
@@ -713,7 +713,7 @@ function rAnalytics(){
 
   const rankGrade = rankingFilter==='school'?null:rankingFilter;
   const ranked    = getRankedGroups(rankGrade);
-  const medals    = ['🥇','🥈','🥉'];
+  const medals    = ['<i data-lucide="medal" style="width:16px;height:16px;display:inline-block;vertical-align:middle;color:#f59e0b"></i>','<i data-lucide="medal" style="width:16px;height:16px;display:inline-block;vertical-align:middle;color:#94a3b8"></i>','<i data-lucide="medal" style="width:16px;height:16px;display:inline-block;vertical-align:middle;color:#cd7c2f"></i>'];
 
   const emptyState = (icon,msg,sub='')=>`
     <div style="text-align:center;padding:50px 20px;border:2px dashed rgba(6,182,212,.2);border-radius:12px;background:rgba(6,182,212,.03)">
@@ -790,8 +790,8 @@ function rAnalytics(){
     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:18px;padding:12px 16px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.18);border-radius:10px">
       <i data-lucide="filter" style="width:14px;height:14px;color:var(--accent)"></i>
       <span style="font-size:13px;font-weight:600;color:var(--accent)">Filtrar:</span>
-      <button onclick="rankingFilter='school';render()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${rankingFilter==='school'?'var(--accent)':'rgba(6,182,212,.1)'};color:${rankingFilter==='school'?'#fff':'var(--textm)'}">🏫 Todo el Colegio</button>
-      ${allGrades.map(g=>`<button onclick="rankingFilter='${g}';render()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${rankingFilter===g?'#f59e0b':'rgba(245,158,11,.1)'};color:${rankingFilter===g?'#fff':'#f59e0b'}">🏆 ${g}</button>`).join('')}
+      <button onclick="rankingFilter='school';render()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${rankingFilter==='school'?'var(--accent)':'rgba(6,182,212,.1)'};color:${rankingFilter==='school'?'#fff':'var(--textm)'}"><i data-lucide="school" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Todo el Colegio</button>
+      ${allGrades.map(g=>`<button onclick="rankingFilter='${g}';render()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${rankingFilter===g?'#f59e0b':'rgba(245,158,11,.1)'};color:${rankingFilter===g?'#fff':'#f59e0b'}"><i data-lucide="trophy" style="width:16px;height:16px;display:inline-block;vertical-align:middle;color:#f59e0b"></i> ${g}</button>`).join('')}
     </div>
     ${ranked.length===0?emptyState('award','No hay grupos con evidencias aún','Crea grupos de aseo y sube evidencias para ver el ranking'):
     `<div class="grid gap-4 sm:grid-cols-3 mb-5">
@@ -823,13 +823,13 @@ function rAnalytics(){
             <td style="text-align:center;font-size:${i<3?'18':'13'}px">${i<3?medals[i]:`<span style="color:var(--textm);font-weight:700">#${i+1}</span>`}</td>
             <td><div style="display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:50%;background:${g.color||'#06b6d4'}"></div><span style="font-weight:600">${g.name}</span></div></td>
             <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px">${g.grade||'—'}</span></td>
-            <td style="text-align:center"><span class="badge-bien">${g.completed}</span></td>
-            <td style="text-align:center"><span class="badge-mal">${g.total-g.completed}</span></td>
+            <td style="text-align:center"><span class="badge-pill badge-pill-green">${g.completed}</span></td>
+            <td style="text-align:center"><span class="badge-pill badge-pill-red">${g.total-g.completed}</span></td>
             <td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px">
               <div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" style="width:${g.score}%;background:${bc}"></div></div>
               <span style="font-weight:700;color:${bc};font-size:13px">${g.score}%</span>
             </div></td>
-            <td style="text-align:center">${g.score>=70?`<span class="badge-bien">BIEN</span>`:g.total===0?`<span style="font-size:11px;color:var(--textm)">—</span>`:`<span class="badge-mal">MAL</span>`}</td>
+            <td style="text-align:center">${g.score>=70?`<span class="badge-pill badge-pill-green">BIEN</span>`:g.total===0?`<span style="font-size:11px;color:var(--textm)">—</span>`:`<span class="badge-pill badge-pill-red">MAL</span>`}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -842,9 +842,9 @@ function rAnalytics(){
     <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <h3 class="font-bold flex items-center gap-2"><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--accent)"></i>Registro de Cumplimiento</h3>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <span class="badge-bien">${completed} BIEN</span>
-        <span class="badge-mal">${rejected} MAL</span>
-        <span class="badge-pendiente">${pending} Pendiente</span>
+        <span class="badge-pill badge-pill-green">${completed} BIEN</span>
+        <span class="badge-pill badge-pill-red">${rejected} MAL</span>
+        <span class="badge-pill badge-pill-amber">${pending} Pendiente</span>
         ${isStudent()?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(6,182,212,.1);border-radius:8px;font-size:11px;color:var(--accent);font-weight:600"><i data-lucide="eye" style="width:11px;height:11px"></i> Solo lectura</span>`:''}
       </div>
     </div>
@@ -944,7 +944,7 @@ function rUsers(){
     <h3 class="font-bold mb-3 flex items-center gap-2">
       <i data-lucide="layout-grid" style="width:15px;height:15px;color:var(--accent)"></i>
       Distribución por Grado
-      ${usersGradeFilter?`<button class="btn btn-s" style="font-size:11px;padding:3px 10px" onclick="usersGradeFilter=null;render()">✕ Quitar filtro</button>`:''}
+      ${usersGradeFilter?`<button class="pill pill-ghost" style="font-size:11px;padding:3px 10px" onclick="usersGradeFilter=null;render()">✕ Quitar filtro</button>`:''}
     </h3>
     <div class="grid gap-3 sm:grid-cols-3">
       ${gradeDistrib.map(g=>`
@@ -1062,10 +1062,10 @@ function rEvidence(){
       <p style="color:var(--textm);font-size:13px">Toma la foto de la limpieza directamente desde la app</p>
     </div>
     ${(()=>{
-      if(!isStudent()) return myGroups.length>0?`<button class="btn btn-p flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
+      if(!isStudent()) return myGroups.length>0?`<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
       const myGroup=D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
       if(!myGroup) return `<span style="font-size:13px;color:var(--textm);font-style:italic">No estás en ningún grupo</span>`;
-      return `<button class="btn btn-p flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
+      return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
     })()}
   </div>
 
@@ -1106,7 +1106,7 @@ function rEvidence(){
         <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.observation}</p>
       </div>`:''}
       ${(isStudent()&&e.student===currentSession?.name&&e.status==='Pendiente')||isAdmin()?`
-      <button class="btn btn-d w-full mt-2" style="font-size:12px;padding:6px" onclick="deleteEvidenceFromApp(${e.id},'${e.image||''}')"><i data-lucide="trash-2" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Eliminar</button>`:''}
+      <button class="pill pill-danger w-full mt-2" style="font-size:12px;padding:6px" onclick="deleteEvidenceFromApp(${e.id},'${e.image||''}')"><i data-lucide="trash-2" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Eliminar</button>`:''}
     </div>`).join(''):`
     <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
       <i data-lucide="camera" style="width:44px;height:44px;opacity:.35;margin:0 auto 14px;display:block"></i>
@@ -1149,7 +1149,7 @@ function openCameraModal(){
           <i data-lucide="camera" style="width:18px;height:18px;color:var(--accent)"></i>
           Subir Evidencia de Aseo
         </h2>
-        <button onclick="closeCameraModal()" class="btn btn-s" style="padding:5px">
+        <button onclick="closeCameraModal()" class="pill pill-ghost" style="padding:5px">
           <i data-lucide="x" style="width:17px;height:17px"></i>
         </button>
       </div>
@@ -1178,15 +1178,15 @@ function openCameraModal(){
 
       <!-- Botones -->
       <div id="camBtns" class="flex gap-3">
-        <button id="btnCapture" class="btn btn-p w-full flex items-center justify-center gap-2" onclick="capturePhoto()">
+        <button id="btnCapture" class="pill pill-primary w-full flex items-center justify-center gap-2" onclick="capturePhoto()">
           <i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto
         </button>
       </div>
       <div id="camRetakeBtns" style="display:none" class="flex gap-3">
-        <button class="btn btn-s flex-1" onclick="retakePhoto()">
+        <button class="pill pill-ghost flex-1" onclick="retakePhoto()">
           <i data-lucide="rotate-ccw" style="width:15px;height:15px;display:inline;margin-right:5px"></i>Retomar
         </button>
-        <button class="btn btn-p flex-1" onclick="saveEvidence()">
+        <button class="pill pill-primary flex-1" onclick="saveEvidence()">
           <i data-lucide="check" style="width:15px;height:15px;display:inline;margin-right:5px"></i>Guardar Evidencia
         </button>
       </div>
@@ -1361,15 +1361,15 @@ function rRooms(){
   const rows=filterByGrade(D.rooms);
   return `<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
     <div><h1 class="text-2xl font-bold">${t('rooms')}</h1></div>
-    ${isAdmin()?`<button class="btn btn-p flex items-center gap-1" onclick="openModal('add','rooms')"><i data-lucide="plus" style="width:15px;height:15px"></i>${t('add')}</button>`:''}
+    ${isAdmin()?`<button class="pill pill-primary flex items-center gap-1" onclick="openModal('add','rooms')"><i data-lucide="plus" style="width:15px;height:15px"></i>${t('add')}</button>`:''}
   </div>
   <div class="card overflow-x-auto" style="background:var(--surface);padding:0">
     <table class="tbl">
       <thead><tr><th>Salón</th><th>Capacidad</th><th>Grado</th>${isAdmin()?`<th style="width:100px">${t('actions')}</th>`:''}</tr></thead>
       <tbody>${rows.map(r=>`<tr><td>${r.name}</td><td>${r.capacity}</td><td>${r.grade}</td>
         ${isAdmin()?`<td><div class="flex gap-1">
-          <button class="btn btn-s" style="padding:5px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
-          <button class="btn btn-d" style="padding:5px" onclick="del('rooms',${r.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+          <button class="pill pill-ghost" style="padding:5px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
+          <button class="pill pill-danger" style="padding:5px" onclick="del('rooms',${r.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
         </div></td>`:''}
       </tr>`).join('')}</tbody>
     </table>
@@ -1395,7 +1395,7 @@ function rClean(){
     <div class="flex gap-2 flex-wrap">
       <button class="btn ${assignmentMode==='daily'?'btn-p':'btn-s'} flex items-center gap-1" onclick="changeAssignmentMode('daily')" style="font-size:12px"><i data-lucide="calendar" style="width:14px;height:14px"></i>${t('dailyMode')}</button>
       <button class="btn ${assignmentMode==='weekly'?'btn-p':'btn-s'} flex items-center gap-1" onclick="changeAssignmentMode('weekly')" style="font-size:12px"><i data-lucide="repeat" style="width:14px;height:14px"></i>${t('weeklyMode')}</button>
-      ${canCreate?`<button class="btn btn-p flex items-center gap-1" onclick="openModal('add','cleanGroups')"><i data-lucide="plus" style="width:15px;height:15px"></i>${t('newGroup')}</button>`:''}
+      ${canCreate?`<button class="pill pill-primary flex items-center gap-1" onclick="openModal('add','cleanGroups')"><i data-lucide="plus" style="width:15px;height:15px"></i>${t('newGroup')}</button>`:''}
     </div>
   </div>
   <div class="grid gap-6">
@@ -1434,8 +1434,8 @@ function rClean(){
               <h4 class="font-bold">${g.name}</h4>
             </div>
             ${canCreate?`<div class="flex gap-1">
-              <button class="btn btn-s" style="padding:5px" onclick="openModal('edit','cleanGroups',${g.id})"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
-              <button class="btn btn-d" style="padding:5px" onclick="del('cleanGroups',${g.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+              <button class="pill pill-ghost" style="padding:5px" onclick="openModal('edit','cleanGroups',${g.id})"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
+              <button class="pill pill-danger" style="padding:5px" onclick="del('cleanGroups',${g.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
             </div>`:''}
           </div>
           <p class="badge mb-3" style="background:${g.color||'#06b6d4'}20;color:${g.color||'#06b6d4'}">Lun – Vie (Toda la semana)</p>
@@ -1450,7 +1450,7 @@ function rClean(){
       <i data-lucide="calendar" style="width:48px;height:48px;color:rgba(6,182,212,.4);margin:0 auto 16px;display:block"></i>
       <h3 class="font-bold text-lg" style="margin-bottom:8px">${t('noGroupsCreated')}</h3>
       <p style="color:var(--textm);margin-bottom:16px">${canCreate?'Crea el primer grupo de aseo para tu grado.':'El docente aún no ha creado grupos de aseo para tu grado.'}</p>
-      ${canCreate?`<button class="btn btn-p flex items-center justify-center gap-2 mx-auto" onclick="openModal('add','cleanGroups')"><i data-lucide="plus" style="width:16px;height:16px"></i>${t('createFirstGroup')}</button>`:''}
+      ${canCreate?`<button class="pill pill-primary flex items-center justify-center gap-2 mx-auto" onclick="openModal('add','cleanGroups')"><i data-lucide="plus" style="width:16px;height:16px"></i>${t('createFirstGroup')}</button>`:''}
     </div>`:''}
     ${allGroups.length>0?`<div class="grid gap-3 sm:grid-cols-3">
       <div class="card" style="background:var(--surface)"><p style="font-size:12px;color:var(--textm)">Total de Grupos</p><p class="text-2xl font-bold" style="color:var(--accent)">${allGroups.length}</p></div>
@@ -1518,10 +1518,10 @@ function rValidation(){
               <div>
                 <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Decisión</label>
                 <div class="flex gap-2">
-                  <button class="btn flex-1 validation-btn" data-action="approve" data-id="${e.id}" style="background:rgba(16,185,129,.1);color:#10b981;border:2px solid rgba(16,185,129,.3);padding:12px;border-radius:8px;font-weight:600">
+                  <button class="pill pill-ghost flex-1 validation-btn" data-action="approve" data-id="${e.id}" style="background:rgba(16,185,129,.1);color:#10b981;border:2px solid rgba(16,185,129,.3);padding:12px;border-radius:8px;font-weight:600">
                     <i data-lucide="check-circle" style="width:16px;height:16px;margin-right:6px;display:inline"></i>Aprobar
                   </button>
-                  <button class="btn flex-1 validation-btn" data-action="reject" data-id="${e.id}" style="background:rgba(239,68,68,.1);color:#ef4444;border:2px solid rgba(239,68,68,.3);padding:12px;border-radius:8px;font-weight:600">
+                  <button class="pill pill-ghost flex-1 validation-btn" data-action="reject" data-id="${e.id}" style="background:rgba(239,68,68,.1);color:#ef4444;border:2px solid rgba(239,68,68,.3);padding:12px;border-radius:8px;font-weight:600">
                     <i data-lucide="x-circle" style="width:16px;height:16px;margin-right:6px;display:inline"></i>Rechazar
                   </button>
                 </div>
@@ -1554,7 +1554,7 @@ function rValidation(){
         <td><span class="badge" style="background:${e.status==='Completado'?'#d1fae5;color:#059669':'#fee2e2;color:#dc2626'}">${e.status}</span></td>
         <td style="font-size:12px;color:var(--textm)">${e.reviewed_by||'—'}</td>
         <td style="font-size:12px;color:var(--textm)">${e.observation?e.observation.substring(0,40)+'...':'—'}</td>
-        <td><button class="btn btn-s" style="padding:5px" onclick="viewReviewDetail(${e.id})"><i data-lucide="eye" style="width:14px;height:14px"></i></button></td>
+        <td><button class="pill pill-ghost" style="padding:5px" onclick="viewReviewDetail(${e.id})"><i data-lucide="eye" style="width:14px;height:14px"></i></button></td>
       </tr>`).join('')}</tbody>
     </table>`:`<p style="text-align:center;padding:40px;color:var(--textm)">Sin evidencias revisadas aún</p>`}
   </div>`;
@@ -1636,18 +1636,18 @@ function rIncidents(){
             <div class="flex items-start justify-between mb-2">
               <h4 class="font-bold text-sm">${inc.type}</h4>
               <div class="flex gap-1">
-                <button class="btn btn-s" style="padding:4px" onclick="openModal('edit','incidents',${inc.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
-                <button class="btn btn-d" style="padding:4px" onclick="del('incidents',${inc.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+                <button class="pill pill-ghost" style="padding:4px" onclick="openModal('edit','incidents',${inc.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+                <button class="pill pill-danger" style="padding:4px" onclick="del('incidents',${inc.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
               </div>
             </div>
             <span class="badge" style="background:${pc[inc.priority]||'#888'}20;color:${pc[inc.priority]||'#888'};font-size:10px;margin-bottom:8px;display:inline-block">${inc.priority}</span>
             <p style="font-size:12px;color:var(--textm);margin-bottom:6px;line-height:1.4">${inc.description}</p>
             <div style="background:rgba(6,182,212,.06);padding:8px;border-radius:6px">
-              <p style="font-size:11px;color:var(--textm)">📍 ${inc.location}</p>
-              <p style="font-size:11px;color:var(--textm);margin-top:2px">👤 ${inc.reporter}</p>
-              <p style="font-size:11px;color:var(--textm);margin-top:2px">📅 ${inc.date}</p>
+              <p style="font-size:11px;color:var(--textm)"><i data-lucide="map-pin" style="width:13px;height:13px;display:inline-block;vertical-align:middle"></i> ${inc.location}</p>
+              <p style="font-size:11px;color:var(--textm);margin-top:2px"> ${inc.reporter}</p>
+              <p style="font-size:11px;color:var(--textm);margin-top:2px"><i data-lucide="calendar" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> ${inc.date}</p>
             </div>
-            <button class="btn btn-p w-full flex items-center justify-center gap-1 mt-3" style="padding:8px;font-size:12px" onclick="openIncidentDetail(${inc.id})">
+            <button class="pill pill-primary w-full flex items-center justify-center gap-1 mt-3" style="padding:8px;font-size:12px" onclick="openIncidentDetail(${inc.id})">
               <i data-lucide="eye" style="width:13px;height:13px"></i>Ver Detalles
             </button>
           </div>`).join(''):`<div style="text-align:center;padding:20px;color:var(--textm);border:2px dashed var(--border);border-radius:8px"><p style="font-size:12px">Sin incidentes</p></div>`}
@@ -1669,8 +1669,8 @@ function rIncidents(){
           <td style="font-size:12px;color:var(--textm)">${i.reporter}</td>
           <td style="font-size:12px;color:var(--textm)">${i.date}</td>
           <td><div class="flex gap-1">
-            <button class="btn btn-s" style="padding:4px" onclick="openModal('edit','incidents',${i.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
-            <button class="btn btn-d" style="padding:4px" onclick="del('incidents',${i.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
+            <button class="pill pill-ghost" style="padding:4px" onclick="openModal('edit','incidents',${i.id})"><i data-lucide="edit" style="width:13px;height:13px"></i></button>
+            <button class="pill pill-danger" style="padding:4px" onclick="del('incidents',${i.id})"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
           </div></td>
         </tr>`).join('')}</tbody>
       </table>
@@ -1691,7 +1691,7 @@ function rReportIncident(){
       <h1 class="text-2xl font-bold">Reportar Incidente</h1>
       <p style="color:var(--textm)" class="text-sm">Reporta cualquier problema o daño en el salón al docente</p>
     </div>
-    <button class="btn btn-p flex items-center gap-1" onclick="openModal('add','incidents')">
+    <button class="pill pill-primary flex items-center gap-1" onclick="openModal('add','incidents')">
       <i data-lucide="plus" style="width:15px;height:15px"></i>Nuevo Reporte
     </button>
   </div>
@@ -1708,7 +1708,7 @@ function rReportIncident(){
         <span class="badge" style="background:${sc[i.status]||'#888'}15;color:${sc[i.status]||'#888'};font-size:10px">${i.status}</span>
       </div>
       <p style="font-size:12px;color:var(--textm);margin-bottom:6px">${i.description}</p>
-      <p style="font-size:11px;color:var(--textm)">📍 ${i.location} · 📅 ${i.date}</p>
+      <p style="font-size:11px;color:var(--textm)"><i data-lucide="map-pin" style="width:13px;height:13px;display:inline-block;vertical-align:middle"></i> ${i.location} · <i data-lucide="calendar" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> ${i.date}</p>
       <span class="badge" style="background:${pc[i.priority]||'#888'}15;color:${pc[i.priority]||'#888'};font-size:10px;margin-top:6px;display:inline-block">${i.priority}</span>
       ${i.image?`<img src="${i.image}" onclick="openImageFullscreen('${i.image}')" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-top:8px;cursor:pointer">`:''}
 
@@ -1720,7 +1720,7 @@ function rReportIncident(){
   </div>`:`<div style="text-align:center;padding:40px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
     <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 12px;opacity:.5;display:block"></i>
     <p>Aún no has reportado ningún incidente</p>
-    <button class="btn btn-p flex items-center gap-2 mx-auto mt-4" onclick="openModal('add','incidents')">
+    <button class="pill pill-primary flex items-center gap-2 mx-auto mt-4" onclick="openModal('add','incidents')">
       <i data-lucide="plus" style="width:15px;height:15px"></i>Crear primer reporte
     </button>
   </div>`}`;
@@ -1818,7 +1818,7 @@ function rSettings(){
     department:'Dirección Académica',
     phone:'+57 300 123 4567',
     joinDate:'2024-01-15',
-    avatar:'👨‍💼'
+    avatar:'‍<i data-lucide="briefcase" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i>'
   };
   if(!D._settings) D._settings={
     notifications:true,
@@ -1856,7 +1856,7 @@ function rSettings(){
           </div>
           <!-- Botón cambiar foto -->
           <label style="display:inline-block;margin-bottom:12px;cursor:pointer">
-            <span class="btn btn-s" style="font-size:12px;padding:5px 12px">
+            <span class="pill pill-ghost" style="font-size:12px;padding:5px 12px">
               <i data-lucide="camera" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Cambiar foto
             </span>
             <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileImage(this)">
@@ -1865,7 +1865,7 @@ function rSettings(){
           <p style="color:var(--accent);font-size:13px;font-weight:600;margin:4px 0">${currentUser.role}</p>
           <p style="color:var(--textm);font-size:12px;margin-bottom:12px">${currentUser.department}</p>
           
-          <button class="btn btn-p w-full flex items-center justify-center gap-2 mt-4" onclick="openEditProfileModal()">
+          <button class="pill pill-primary w-full flex items-center justify-center gap-2 mt-4" onclick="openEditProfileModal()">
             <i data-lucide="edit" style="width:14px;height:14px"></i>Editar Perfil
           </button>
         </div>
@@ -2171,7 +2171,7 @@ function showEarlyExitModal() {
   d.onclick = e => { if(e.target===d) d.remove(); };
   d.innerHTML = `
     <div style="background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:400px;border:1px solid rgba(6,182,212,.2)">
-      <h3 style="font-weight:700;font-size:16px;margin-bottom:16px">🚪 Agregar Salida Temprana</h3>
+      <h3 style="font-weight:700;font-size:16px;margin-bottom:16px"><i data-lucide="door-open" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Agregar Salida Temprana</h3>
       
       <div style="margin-bottom:12px">
         <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">¿Para quién?</label>
@@ -2216,8 +2216,8 @@ function showEarlyExitModal() {
       </div>
 
       <div style="display:flex;gap:8px">
-        <button class="btn btn-s flex-1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
-        <button class="btn btn-p flex-1" onclick="saveEarlyExit()">Guardar</button>
+        <button class="pill pill-ghost flex-1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
+        <button class="pill pill-primary flex-1" onclick="saveEarlyExit()">Guardar</button>
       </div>
     </div>`;
   document.body.appendChild(d);
@@ -2270,7 +2270,7 @@ function markNoClassModal(scope) {
   d.onclick = e => { if(e.target===d) d.remove(); };
   d.innerHTML = `
     <div style="background:var(--surface);border-radius:16px;padding:24px;width:100%;max-width:400px;border:1px solid rgba(6,182,212,.2)">
-      <h3 style="font-weight:700;font-size:16px;margin-bottom:16px">📅 Marcar Día Sin Clase</h3>
+      <h3 style="font-weight:700;font-size:16px;margin-bottom:16px"><i data-lucide="calendar" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Marcar Día Sin Clase</h3>
       
       <div style="margin-bottom:12px">
         <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Fecha</label>
@@ -2298,8 +2298,8 @@ function markNoClassModal(scope) {
       </div>`:''}
 
       <div style="display:flex;gap:8px">
-        <button class="btn btn-s flex-1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
-        <button class="btn btn-p flex-1" onclick="saveNoClassDay('${scope}')">Marcar</button>
+        <button class="pill pill-ghost flex-1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
+        <button class="pill pill-primary flex-1" onclick="saveNoClassDay('${scope}')">Marcar</button>
       </div>
     </div>`;
   document.body.appendChild(d);

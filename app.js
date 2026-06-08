@@ -37,7 +37,7 @@ function openEditProfileModal(){
     <div class="modal fade-in" style="max-width:500px">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-bold text-lg">Editar Perfil</h2>
-        <button onclick="closeModal()" class="btn btn-s" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        <button onclick="closeModal()" class="pill pill-ghost" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
       </div>
       <form id="editProfileForm" class="flex flex-col gap-3">
         <div><label class="text-sm font-medium" style="color:var(--textm)">Nombre Completo</label>
@@ -47,8 +47,8 @@ function openEditProfileModal(){
         <div><label class="text-sm font-medium" style="color:var(--textm)">Teléfono</label>
           <input type="tel" name="phone" class="inp mt-1" value="${u.phone||''}"></div>
         <div class="flex gap-2 mt-3">
-          <button type="button" class="btn btn-s flex-1" onclick="closeModal()">Cancelar</button>
-          <button type="submit" class="btn btn-p flex-1">Guardar Cambios</button>
+          <button type="button" class="pill pill-ghost flex-1" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="pill pill-primary flex-1">Guardar Cambios</button>
         </div>
       </form>
     </div>
@@ -75,7 +75,7 @@ function openWeeklyAssignmentModal(){
     <div class="modal fade-in" style="max-width:460px">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-bold text-lg">Cómo funciona la rotación</h2>
-        <button onclick="closeModal()" class="btn btn-s" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        <button onclick="closeModal()" class="pill pill-ghost" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
       </div>
       <div class="flex flex-col gap-4">
         <div style="background:rgba(6,182,212,.08);padding:16px;border-radius:8px;border-left:4px solid var(--accent)">
@@ -87,7 +87,7 @@ function openWeeklyAssignmentModal(){
           <p style="font-size:13px;color:var(--textm)">Un grupo limpia <strong>toda la semana completa</strong> (Lun–Vie), rotando cada semana.</p>
         </div>
       </div>
-      <button class="btn btn-p w-full mt-6" onclick="closeModal()">Entendido</button>
+      <button class="pill pill-primary w-full mt-6" onclick="closeModal()">Entendido</button>
     </div>
   </div>`;
   const d=document.createElement('div');d.id='modalWrap';d.innerHTML=html;document.body.appendChild(d);
@@ -103,7 +103,7 @@ function openIncidentDetail(id){
     <div class="modal fade-in" style="max-width:500px">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-bold text-lg">Detalle del Incidente</h2>
-        <button onclick="closeModal()" class="btn btn-s" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        <button onclick="closeModal()" class="pill pill-ghost" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
       </div>
       <div class="flex flex-col gap-4">
         <div class="flex items-start justify-between">
@@ -125,8 +125,8 @@ function openIncidentDetail(id){
         </div>
         ${incident.notes?`<div style="background:rgba(59,130,246,.08);padding:12px;border-radius:8px;border-left:3px solid #3b82f6"><p style="font-size:11px;color:var(--textm);margin-bottom:6px">NOTAS</p><p style="font-size:13px;color:var(--text);line-height:1.5">${incident.notes}</p></div>`:''}
         <div class="flex gap-2 pt-4" style="border-top:1px solid var(--border)">
-          ${(isAdmin()||isTeacher())?`<button class="btn btn-p flex-1 flex items-center justify-center gap-1" onclick="closeModal();openModal('edit','incidents',${incident.id})"><i data-lucide="edit" style="width:14px;height:14px"></i>Actualizar</button>`:''}
-          <button class="btn btn-s flex-1 flex items-center justify-center gap-1" onclick="closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i>Cerrar</button>
+          ${(isAdmin()||isTeacher())?`<button class="pill pill-primary flex-1 flex items-center justify-center gap-1" onclick="closeModal();openModal('edit','incidents',${incident.id})"><i data-lucide="edit" style="width:14px;height:14px"></i>Actualizar</button>`:''}
+          <button class="pill pill-ghost flex-1 flex items-center justify-center gap-1" onclick="closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i>Cerrar</button>
         </div>
       </div>
     </div>
@@ -142,7 +142,7 @@ function viewReviewDetail(id){
     <div class="modal fade-in">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-bold text-lg">Detalle de Revisión</h2>
-        <button onclick="closeModal()" class="btn btn-s" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        <button onclick="closeModal()" class="pill pill-ghost" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
       </div>
       <div class="flex flex-col gap-4">
         <div><p style="font-size:12px;color:var(--textm);margin-bottom:4px">Grupo</p><p class="font-medium">${evidence.group}</p></div>
@@ -414,7 +414,7 @@ function showEmailModal(){
     <div class="modal fade-in" style="max-width:350px">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-bold text-lg">Mi Cuenta</h2>
-        <button onclick="closeEmailModal()" class="btn btn-s" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        <button onclick="closeEmailModal()" class="pill pill-ghost" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
       </div>
       <div class="flex flex-col gap-4">
         <div style="background:var(--border);padding:12px;border-radius:8px;text-align:center">
@@ -426,7 +426,7 @@ function showEmailModal(){
           ${currentSession?.grade?`<p style="color:var(--textm);font-size:12px;margin-top:4px">Grado: ${currentSession.grade}</p>`:''}
           <p style="color:var(--textm);font-size:12px;margin-top:4px;word-break:break-all">${currentSession?.email||''}</p>
         </div>
-        <button class="btn btn-d w-full flex items-center justify-center gap-2" onclick="confirmLogout()">
+        <button class="pill pill-danger w-full flex items-center justify-center gap-2" onclick="confirmLogout()">
           <i data-lucide="log-out" style="width:16px;height:16px"></i>Cerrar Sesión
         </button>
       </div>
@@ -445,8 +445,8 @@ function confirmLogout(){
       <h2 class="font-bold text-lg mb-2">¿Cerrar Sesión?</h2>
       <p style="color:var(--textm);font-size:14px;margin-bottom:6px">¿Estás seguro de que deseas cerrar sesión?</p>
       <div class="flex gap-2 mt-4">
-        <button class="btn btn-s flex-1" onclick="closeLogoutModal()">Cancelar</button>
-        <button class="btn btn-d flex-1" onclick="performLogout()">Cerrar Sesión</button>
+        <button class="pill pill-ghost flex-1" onclick="closeLogoutModal()">Cancelar</button>
+        <button class="pill pill-danger flex-1" onclick="performLogout()">Cerrar Sesión</button>
       </div>
     </div>
   </div>`;

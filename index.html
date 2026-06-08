@@ -139,8 +139,9 @@
       <nav class="flex flex-col gap-1" id="nav"></nav>
 
       <div class="mt-6 pt-4" style="border-top:1px solid var(--border)">
-        <button id="btnNotif" onclick="toggleNotifications()" style="width:100%;padding:9px;border-radius:8px;background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.3);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer">
-          🔔 Activar notificaciones
+        <button id="btnNotif" onclick="toggleNotifications()" class="notif-pill-btn">
+          <i data-lucide="bell" style="width:15px;height:15px"></i>
+          Activar notificaciones
         </button>
       </div>
 
