@@ -798,13 +798,70 @@ async function initNotifications() {
   if (window._fcmMessaging) {
     window._fcmMessaging.onMessage(payload => {
       const { title, body } = payload.notification || {};
-      const n = document.createElement('div');
-      n.style.cssText = 'position:fixed;top:20px;right:20px;background:var(--accent);color:#fff;padding:16px 20px;border-radius:12px;z-index:9999;font-weight:600;font-size:14px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,.4)';
-      n.innerHTML = `<strong>${title||'🧹 CleanClass'}</strong><br><span style="font-weight:400;font-size:13px">${body||'¡Es hora del aseo!'}</span>`;
-      document.body.appendChild(n);
-      setTimeout(() => n.remove(), 6000);
+      showCleanNotification(title, body);
     });
   }
+}
+
+function showCleanNotification(title, body) {
+  // Remover notificación anterior si existe
+  document.getElementById('cleanNotif')?.remove();
+
+  const n = document.createElement('div');
+  n.id = 'cleanNotif';
+  n.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
+    background:linear-gradient(135deg,#1e293b,#0f172a);
+    border:1.5px solid rgba(6,182,212,.4);
+    color:#f1f5f9;padding:16px 24px;border-radius:20px;z-index:9999;
+    font-size:14px;max-width:360px;width:90%;
+    box-shadow:0 12px 40px rgba(0,0,0,.6),0 0 0 1px rgba(6,182,212,.1);
+    transition:transform .5s cubic-bezier(.175,.885,.32,1.275),opacity .5s;
+    opacity:0;
+  `;
+  n.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div id="broomWrap" style="font-size:28px;animation:broomSweep 1s ease-in-out infinite alternate">🧹</div>
+      <div>
+        <p style="font-weight:700;font-size:15px;color:#06b6d4">${title||'¡Hora del Aseo!'}</p>
+        <p style="font-size:13px;color:#cbd5e1;margin-top:2px">${body||'Es hora de limpiar el salón'}</p>
+      </div>
+      <button onclick="document.getElementById('cleanNotif').remove()" 
+        style="margin-left:auto;background:transparent;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:4px;border-radius:50%;flex-shrink:0">✕</button>
+    </div>
+    <div style="width:100%;height:3px;background:rgba(6,182,212,.15);border-radius:2px;overflow:hidden">
+      <div id="notifBar" style="height:100%;background:linear-gradient(90deg,#06b6d4,#8b5cf6);border-radius:2px;width:100%;transition:width 6s linear"></div>
+    </div>
+    <style>
+      @keyframes broomSweep {
+        0%   { transform: rotate(-20deg) translateX(-4px); }
+        100% { transform: rotate(20deg)  translateX(4px);  }
+      }
+    </style>
+  `;
+  document.body.appendChild(n);
+
+  // Animar entrada
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      n.style.transform = 'translateX(-50%) translateY(0)';
+      n.style.opacity = '1';
+      // Iniciar barra de progreso
+      setTimeout(() => {
+        const bar = document.getElementById('notifBar');
+        if(bar) bar.style.width = '0%';
+      }, 100);
+    });
+  });
+
+  // Auto cerrar después de 6s
+  setTimeout(() => {
+    if(document.getElementById('cleanNotif')) {
+      n.style.transform = 'translateX(-50%) translateY(100px)';
+      n.style.opacity = '0';
+      setTimeout(() => n.remove(), 500);
+    }
+  }, 6000);
 }
 
 // ---- TOGGLE NOTIFICACIONES ----

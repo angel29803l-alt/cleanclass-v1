@@ -1,44 +1,30 @@
-const CACHE_NAME = 'cleanclass-v1';
+const CACHE_NAME = 'cleanclass-v2';
 
-// Instalación del service worker
-self.addEventListener('install', e => {
-  self.skipWaiting();
-});
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
-});
-
-// Manejar notificaciones push
+// Notificación del sistema cuando app está cerrada
 self.addEventListener('push', e => {
   const data = e.data?.json() || {};
-  const title = data.title || 'CleanClass';
-  const options = {
-    body: data.body || '¡Es hora del aseo!',
+  e.waitUntil(self.registration.showNotification(data.title || '🧹 ¡Hora del Aseo!', {
+    body: data.body || 'Es hora de limpiar el salón',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
-    data: data,
-    actions: [
-      { action: 'open', title: 'Ver turno' },
-      { action: 'close', title: 'Cerrar' }
-    ]
-  };
-  e.waitUntil(self.registration.showNotification(title, options));
+    vibrate: [200, 100, 200, 100, 200],
+    tag: 'aseo',
+    data
+  }));
 });
 
-// Al hacer clic en la notificación
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  if (e.action === 'open' || !e.action) {
-    e.waitUntil(clients.openWindow('/'));
-  }
+  e.waitUntil(clients.openWindow('/'));
 });
 
-// Notificaciones programadas localmente
+// Notificación programada localmente
 self.addEventListener('message', e => {
   if (e.data?.type === 'SCHEDULE_NOTIFICATION') {
-    const { time, title, body, grade } = e.data;
+    const { time, title, body } = e.data;
     const now = new Date();
     const [h, m] = time.split(':').map(Number);
     const target = new Date(now);
@@ -47,12 +33,12 @@ self.addEventListener('message', e => {
     const delay = target - now;
 
     setTimeout(() => {
-      self.registration.showNotification(title, {
-        body,
+      self.registration.showNotification(title || '🧹 ¡Hora del Aseo!', {
+        body: body || 'Es hora de limpiar el salón',
         icon: '/icon-192.png',
         badge: '/icon-192.png',
-        vibrate: [200, 100, 200],
-        tag: `aseo-${grade}`
+        vibrate: [200, 100, 200, 100, 200],
+        tag: 'aseo'
       });
     }, delay);
   }
