@@ -300,13 +300,13 @@ async function doLogin(){
     render();
     if (typeof initRealtime === 'function') initRealtime();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
-    // Verificar si el usuario tiene notificaciones activas
-    if(currentSession?.fcm_token) {
-      setTimeout(initNotifications, 1500);
-      setTimeout(updateNotifBtn, 1600);
-    } else {
-      setTimeout(updateNotifBtn, 500);
-    }
+    // Siempre intentar programar notificación si hay permiso
+    setTimeout(async () => {
+      if(Notification.permission === 'granted') {
+        await scheduleLocalNotification();
+      }
+      updateNotifBtn();
+    }, 1500);
   });
 }
 
@@ -887,12 +887,13 @@ async function toggleNotifications() {
 function updateNotifBtn() {
   const btn = document.getElementById('btnNotif');
   if (!btn) return;
-  const isActive = Notification.permission === 'granted' && currentSession?.fcm_token;
+  const isActive = Notification.permission === 'granted';
   btn.innerHTML = isActive 
-    ? '<i data-lucide="bell-off" style="width:15px;height:15px"></i> Notificaciones activas'
-    : '<i data-lucide="bell" style="width:15px;height:15px"></i> Activar notificaciones';
-  btn.style.background = isActive ? 'rgba(34,197,94,.15)' : '';
-  btn.style.borderColor = isActive ? 'rgba(34,197,94,.3)' : '';
-  btn.style.color = isActive ? '#16a34a' : '';
+    ? '<i data-lucide="bell-off" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Notificaciones activas'
+    : '<i data-lucide="bell" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Activar notificaciones';
+  btn.style.background = isActive ? 'rgba(34,197,94,.15)' : 'rgba(6,182,212,.12)';
+  btn.style.borderColor = isActive ? 'rgba(34,197,94,.3)' : 'rgba(6,182,212,.3)';
+  btn.style.color = isActive ? '#16a34a' : 'var(--accent)';
+  btn.style.animation = isActive ? 'none' : '';
   if(typeof lucide !== 'undefined') lucide.createIcons();
 }
