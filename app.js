@@ -775,10 +775,12 @@ async function scheduleLocalNotification() {
   if (dow === 0 || dow === 6) return;
   const isNoClass = (D.noClassDays || []).some(x => x.date === todayStr);
   if (isNoClass) return;
-  const schedule = D.schedules?.find(s => s.grade === grade) || D.schedules?.[0];
+  // Si no hay grado (admin) usar el primer horario disponible
+  const schedule = (grade ? D.schedules?.find(s => s.grade === grade) : null) || D.schedules?.[0];
   if (!schedule) return;
   const dayNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const hasEarlyExit = schedule.early_exit_days?.includes(dayNames[dow]);
+  // Verificar salida temprana por fecha
+  const hasEarlyExit = schedule.early_exit_time && schedule.early_exit_date === todayStr;
   const notifTime = hasEarlyExit ? (schedule.early_exit_time || schedule.clean_time) : schedule.clean_time;
   if (!notifTime) return;
   if (window._swReg?.active) {
