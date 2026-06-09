@@ -300,20 +300,12 @@ async function doLogin(){
     render();
     if (typeof initRealtime === 'function') initRealtime();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
-    // Siempre intentar programar notificación si hay permiso
-    // Esperar a que el SW esté listo antes de programar
-    const trySchedule = async (attempts=0) => {
-      // Actualizar botón después del render
-      setTimeout(updateNotifBtn, 100);
-      if(Notification.permission !== 'granted') return;
-      if(window._swReg?.active) {
-        await scheduleLocalNotification();
-        console.log('✅ Notificación auto-programada al entrar');
-      } else if(attempts < 5) {
-        setTimeout(() => trySchedule(attempts+1), 1000);
+    setTimeout(() => {
+      updateNotifBtn();
+      if(Notification.permission === 'granted') {
+        scheduleLocalNotification().then(() => {});
       }
-    };
-    setTimeout(trySchedule, 1500);
+    }, 800);
   });
 }
 
@@ -631,8 +623,15 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       checkResp();
       await loadAllData();
       render();
-      // Activar actualización en tiempo real
       if (typeof initRealtime === 'function') initRealtime();
+      if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
+      // Botón de notificaciones — actualizar estado real
+      setTimeout(() => {
+        updateNotifBtn();
+        if(Notification.permission === 'granted') {
+          scheduleLocalNotification().then(() => {});
+        }
+      }, 800);
     } catch(e) {
       console.error('Error entrando a la app:', e);
     }
