@@ -308,6 +308,10 @@ function initRealtime() {
       async () => { await loadIncidents(); render(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },
       async () => { await loadAllData(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'no_class_days' },
+      async () => { await loadNoClassDays(); render(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' },
+      async () => { await loadSchedules(); render(); })
     .subscribe();
   console.log('✅ Realtime activado');
 }
