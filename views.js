@@ -1062,6 +1062,10 @@ function rEvidence(){
       <p style="color:var(--textm);font-size:13px">Toma la foto de la limpieza directamente desde la app</p>
     </div>
     ${(()=>{
+      // Verificar si hoy es día sin clase
+      const todayStr2 = new Date().toISOString().split('T')[0];
+      const isTodayNoClass = (D.noClassDays||[]).some(x=>x.date===todayStr2);
+      if(isTodayNoClass) return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="calendar-x" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Hoy no hay clase</span>`;
       if(!isStudent()) return myGroups.length>0?`<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
       const myGroup=D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
       if(!myGroup) return `<span style="font-size:13px;color:var(--textm);font-style:italic">No estás en ningún grupo</span>`;
@@ -2256,6 +2260,8 @@ async function saveEarlyExit() {
   await loadSchedules();
   document.querySelector('[style*=fixed]')?.remove();
   render();
+  // Reprogramar notificación con nueva hora
+  if(typeof scheduleLocalNotification === 'function') scheduleLocalNotification();
 }
 
 async function removeEarlyExit(grade) {
