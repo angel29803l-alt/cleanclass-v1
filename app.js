@@ -303,7 +303,8 @@ async function doLogin(){
     // Siempre intentar programar notificación si hay permiso
     // Esperar a que el SW esté listo antes de programar
     const trySchedule = async (attempts=0) => {
-      updateNotifBtn();
+      // Actualizar botón después del render
+      setTimeout(updateNotifBtn, 100);
       if(Notification.permission !== 'granted') return;
       if(window._swReg?.active) {
         await scheduleLocalNotification();
