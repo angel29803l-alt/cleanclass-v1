@@ -301,12 +301,18 @@ async function doLogin(){
     if (typeof initRealtime === 'function') initRealtime();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
     // Siempre intentar programar notificación si hay permiso
-    setTimeout(async () => {
-      if(Notification.permission === 'granted') {
-        await scheduleLocalNotification();
-      }
+    // Esperar a que el SW esté listo antes de programar
+    const trySchedule = async (attempts=0) => {
       updateNotifBtn();
-    }, 1500);
+      if(Notification.permission !== 'granted') return;
+      if(window._swReg?.active) {
+        await scheduleLocalNotification();
+        console.log('✅ Notificación auto-programada al entrar');
+      } else if(attempts < 5) {
+        setTimeout(() => trySchedule(attempts+1), 1000);
+      }
+    };
+    setTimeout(trySchedule, 1500);
   });
 }
 
