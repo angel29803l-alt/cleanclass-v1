@@ -2228,7 +2228,7 @@ function updateEarlyGradeList() {
 async function saveEarlyExit() {
   const scope = document.getElementById('earlyScope')?.value;
   const time = document.getElementById('earlyTime')?.value;
-  const days = [...document.querySelectorAll('.earlyDayCheck:checked')].map(c=>c.value);
+  const earlyDate = document.getElementById('earlyDate')?.value || new Date().toISOString().split('T')[0];
   if(!time) return alert('Selecciona una hora');
 
   let gradesToSave = [];
@@ -2239,22 +2239,31 @@ async function saveEarlyExit() {
   } else {
     gradesToSave = [document.getElementById('earlyOneSelect')?.value];
   }
-  if(!gradesToSave.length) return alert('Selecciona al menos un grado');
+  if(!gradesToSave.filter(Boolean).length) return alert('Selecciona al menos un grado');
 
   for(const grade of gradesToSave) {
+    if(!grade) continue;
     const existing = D.schedules?.find(s=>s.grade===grade);
-    const schedule = { grade, clean_time: existing?.clean_time||'15:00', early_exit_time: time, early_exit_days: days.length ? days : null };
-    if(existing?.id) schedule.id = existing.id;
-    await saveSchedule(schedule);
+    const payload = { early_exit_time: time, early_exit_date: earlyDate };
+    if(existing?.id) {
+      const { error } = await sb.from('schedules').update(payload).eq('id', existing.id);
+      if(error) console.error('Error update:', error.message);
+    } else {
+      const { error } = await sb.from('schedules').insert({ grade, clean_time: '15:00', ...payload });
+      if(error) console.error('Error insert:', error.message);
+    }
   }
+  await loadSchedules();
   document.querySelector('[style*=fixed]')?.remove();
   render();
 }
 
 async function removeEarlyExit(grade) {
   const existing = D.schedules?.find(s=>s.grade===grade);
-  if(!existing) return;
-  await saveSchedule({...existing, early_exit_time: null, early_exit_days: null});
+  if(!existing?.id) return;
+  const { error } = await sb.from('schedules').update({ early_exit_time: null, early_exit_date: null }).eq('id', existing.id);
+  if(error) console.error('Error remove early exit:', error.message);
+  await loadSchedules();
   render();
 }
 
