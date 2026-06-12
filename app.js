@@ -609,7 +609,8 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
         department: localUser.department || '—',
         phone: localUser.phone || '—',
         joinDate: localUser.created_at || '2024-01-15',
-        avatar: localUser.avatar || '👤'
+        avatar: localUser.avatar || '👤',
+        fcm_token: localUser.fcm_token || null
       };
       if (isAdmin()) cur = 'adminPanel';
       else cur = 'dash';
@@ -876,28 +877,33 @@ function showCleanNotification(title, body) {
 // ---- TOGGLE NOTIFICACIONES ----
 async function toggleNotifications() {
   const btn = document.getElementById('btnNotif');
-  if (Notification.permission === 'granted') {
-    // Desactivar — no hay forma de revocar permiso via JS, guiar al usuario
-    if(btn) btn.textContent = '🔕 Notificaciones activas';
-    alert('Para desactivar las notificaciones, ve a Configuración del sitio en tu navegador.');
+  const isActive = Notification.permission === 'granted' && D._user?.fcm_token;
+
+  if (isActive) {
+    // DESACTIVAR — borrar token de la base de datos
+    if(btn){ btn.textContent = '⏳ Desactivando...'; btn.disabled = true; }
+    await sb.from('users').update({ fcm_token: null }).eq('id', currentSession?.id);
+    if (D._user) D._user.fcm_token = null;
+    updateNotifBtn();
+    if(btn) btn.disabled = false;
     return;
   }
+
+  // ACTIVAR
   if(btn){ btn.textContent = '⏳ Activando...'; btn.disabled = true; }
   await initNotifications();
-  if (Notification.permission === 'granted') {
-    if(btn){ btn.textContent = '🔕 Desactivar notificaciones'; btn.disabled = false; }
-  } else {
-    if(btn){ btn.textContent = '🔔 Activar notificaciones'; btn.disabled = false; }
-  }
+  if (D._user) D._user.fcm_token = await getFCMToken();
+  updateNotifBtn();
+  if(btn) btn.disabled = false;
 }
 
 // Actualizar estado del botón al cargar
 function updateNotifBtn() {
   const btn = document.getElementById('btnNotif');
   if (!btn) return;
-  const isActive = Notification.permission === 'granted';
+  const isActive = Notification.permission === 'granted' && !!D._user?.fcm_token;
   btn.innerHTML = isActive 
-    ? '<i data-lucide="bell-off" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Notificaciones activas'
+    ? '<i data-lucide="bell-off" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Desactivar notificaciones'
     : '<i data-lucide="bell" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Activar notificaciones';
   btn.style.background = isActive ? 'rgba(34,197,94,.15)' : 'rgba(6,182,212,.12)';
   btn.style.borderColor = isActive ? 'rgba(34,197,94,.3)' : 'rgba(6,182,212,.3)';
