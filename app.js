@@ -297,6 +297,12 @@ async function doLogin(){
   isLoggedOut=false;
   checkResp();
   loadAllData().then(async ()=>{
+    // Si el usuario es estudiante y no tiene grado (tabla users no tiene grade),
+    // buscarlo en D.students por email
+    if(currentSession && !currentSession.grade && currentSession.role!=='admin'){
+      const st = D.students.find(s=>s.email===currentSession.email);
+      if(st) currentSession.grade = st.grade;
+    }
     // Si se abrió desde la notificación de aseo, ir directo a Evidencias
     try{
       const params = new URLSearchParams(window.location.search);
@@ -632,6 +638,10 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       isLoggedOut = false;
       checkResp();
       await loadAllData();
+      if(currentSession && !currentSession.grade && currentSession.role!=='admin'){
+        const st = D.students.find(s=>s.email===currentSession.email);
+        if(st) currentSession.grade = st.grade;
+      }
       render();
       if (typeof initRealtime === 'function') initRealtime();
       if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
