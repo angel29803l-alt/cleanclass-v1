@@ -297,6 +297,8 @@ async function deleteTeacherDb(id) {
 
 // ---- REALTIME — actualización automática para todos los usuarios ----
 function initRealtime() {
+  if (window._realtimeInitialized) return;
+  window._realtimeInitialized = true;
   sb.channel('db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'students' },
       async () => { await loadStudents(); render(); })
