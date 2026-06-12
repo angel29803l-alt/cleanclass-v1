@@ -464,6 +464,35 @@ function rAdminPanel(){
         </div>
       </div>
 
+      <!-- BLOQUE 1.5: UBICACIÓN DEL COLEGIO -->
+      <div style="margin-top:20px">
+        <h2 class="font-bold text-base mb-3"><i data-lucide="map-pin" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Ubicación del Colegio</h2>
+        <div class="card" style="background:var(--surface);padding:16px">
+          <p style="font-size:12px;color:var(--textm);margin-bottom:10px">
+            Define la ubicación del colegio para validar el check-in de asistencia al aseo (GPS).
+          </p>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="auth-label">Latitud</label>
+              <input type="number" step="any" class="inp" id="schoolLat" value="${D.schoolConfig?.lat ?? ''}" placeholder="Ej: 4.6097">
+            </div>
+            <div>
+              <label class="auth-label">Longitud</label>
+              <input type="number" step="any" class="inp" id="schoolLng" value="${D.schoolConfig?.lng ?? ''}" placeholder="Ej: -74.0817">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="auth-label">Radio permitido (metros)</label>
+            <input type="number" class="inp" id="schoolRadius" value="${D.schoolConfig?.radius_meters ?? 150}" placeholder="150">
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill pill-ghost" style="font-size:12px" onclick="useMyLocationForSchool()"><i data-lucide="crosshair" style="width:14px;height:14px"></i> Usar mi ubicación actual</button>
+            <button class="pill pill-primary" style="font-size:12px" onclick="saveSchoolLocationFromForm()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
+          </div>
+          <p id="schoolLocMsg" style="font-size:12px;color:#22c55e;margin-top:8px;display:none"></p>
+        </div>
+      </div>
+
       <!-- BLOQUE 2: DÍAS SIN CLASE -->
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -513,6 +542,42 @@ function rAdminPanel(){
    DASHBOARD — docentes y estudiantes
    ============================================================ */
 let calendarOffset=0;
+// ---- TARJETA DE CHECK-IN DE ASISTENCIA AL ASEO ----
+function renderCheckinCard(myGroups, myGrade){
+  if(isAdmin()) return '';
+  const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const todayName = DAYS_ES[new Date().getDay()];
+  const myName = currentSession?.name;
+
+  const myTodayGroup = myGroups.find(g =>
+    g.members?.includes(myName) &&
+    (g.frequency==='weekly' || (g.frequency==='daily' && g.day===todayName))
+  );
+  if(!myTodayGroup) return '';
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const already = (D.checkins||[]).find(c=>c.student===myName && c.date===todayStr);
+
+  if(already){
+    return `<div class="card" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);margin-bottom:16px">
+      <p style="font-size:13px;font-weight:600;color:#16a34a"><i data-lucide="check-circle" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Asistencia registrada hoy — Grupo: ${myTodayGroup.name}</p>
+    </div>`;
+  }
+
+  return `<div class="card" style="background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);margin-bottom:16px">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <p style="font-size:13px;font-weight:700">🧹 Hoy te toca aseo — ${myTodayGroup.name}</p>
+        <p style="font-size:12px;color:var(--textm)">Marca tu asistencia desde el colegio (requiere GPS)</p>
+      </div>
+      <button class="pill pill-primary" style="font-size:12px" onclick="doCheckin('${myTodayGroup.name}')">
+        <i data-lucide="map-pin" style="width:14px;height:14px"></i> Marcar Presente
+      </button>
+    </div>
+    <p id="checkinMsg" style="font-size:12px;margin-top:8px;display:none"></p>
+  </div>`;
+}
+
 function rDash(){
   const myGrade=getCurrentGrade();
   const myGroups=D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
@@ -540,7 +605,7 @@ function rDash(){
   const weekly=myGroups.filter(g=>g.frequency==='weekly');
 
   let calDays='';
-  const noClassSet=new Set((D.noClassDays||[]).map(x=>x.date));
+  const noClassSet=new Set((D.noClassDays||[]).filter(x=>!x.grade||x.grade===myGrade).map(x=>x.date));
   for(let i=0;i<firstDay;i++)calDays+=`<div></div>`;
   for(let d=1;d<=daysInMonth;d++){
     const dow=new Date(year,month,d).getDay();
@@ -584,6 +649,7 @@ function rDash(){
     <div><h1 class="text-3xl font-bold">CleanClass</h1>${myGrade?`<p style="color:var(--accent);font-size:13px;font-weight:600">Grado ${myGrade}</p>`:''}</div>
     ${emailBtn}
   </div>
+  ${renderCheckinCard(myGroups, myGrade)}
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     ${stats.map(s=>`<div class="card" style="background:var(--surface)">
       <div style="width:36px;height:36px;border-radius:10px;background:${s.color}15;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
@@ -1064,7 +1130,7 @@ function rEvidence(){
     ${(()=>{
       // Verificar si hoy es día sin clase
       const todayStr2 = new Date().toISOString().split('T')[0];
-      const isTodayNoClass = (D.noClassDays||[]).some(x=>x.date===todayStr2);
+      const isTodayNoClass = (D.noClassDays||[]).some(x=>x.date===todayStr2 && (!x.grade||x.grade===myGrade));
       if(isTodayNoClass) return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="calendar-x" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Hoy no hay clase</span>`;
       if(!isStudent()) return myGroups.length>0?`<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
       const myGroup=D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
@@ -1321,6 +1387,15 @@ async function saveEvidence(){
   if(!group){if(err){err.textContent='Selecciona un grupo';err.style.display='block';}return;}
   if(!student){if(err){err.textContent='Ingresa tu nombre';err.style.display='block';}return;}
   if(!_capturedDataUrl){if(err){err.textContent='Toma o sube una foto primero';err.style.display='block';}return;}
+
+  // Bloquear si hoy es día sin clase (para el grado del usuario o global)
+  const todayStrCheck = new Date().toISOString().split('T')[0];
+  const userGrade = getCurrentGrade();
+  const isNoClassToday = (D.noClassDays||[]).some(x => x.date===todayStrCheck && (!x.grade || x.grade===userGrade));
+  if(isNoClassToday){
+    if(err){err.textContent='Hoy no hay clases — no se puede subir evidencia';err.style.display='block';}
+    return;
+  }
 
   if(btn){btn.textContent='Guardando...';btn.disabled=true;}
 

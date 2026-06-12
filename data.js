@@ -54,7 +54,9 @@ async function loadAllData() {
     loadRooms(),
     loadUsers(),
     loadNoClassDays(),
-    loadSchedules()
+    loadSchedules(),
+    loadSchoolConfig(),
+    loadTodayCheckins()
   ]);
   console.log('✅ Datos cargados desde Supabase');
 }
@@ -125,6 +127,8 @@ const D={
   usersProfiles:[],
   noClassDays:[],
   schedules:[],
+  schoolConfig:{lat:null,lng:null,radius_meters:150},
+  checkins:[],
 
   // Estudiantes — se cargan desde Supabase
   students:[],
@@ -325,4 +329,42 @@ async function loadSchedules() {
 async function saveSchedule(schedule) {
   const { error } = await sb.from('schedules').upsert(schedule);
   if (!error) await loadSchedules();
+}
+
+// ---- CONFIGURACIÓN UBICACIÓN DEL COLEGIO ----
+async function loadSchoolConfig() {
+  const { data, error } = await sb.from('school_config').select('*').eq('id', 1).maybeSingle();
+  if (!error && data) D.schoolConfig = data;
+}
+
+async function saveSchoolConfig(lat, lng, radius_meters) {
+  const { error } = await sb.from('school_config').upsert({ id: 1, lat, lng, radius_meters });
+  if (!error) await loadSchoolConfig();
+  return !error;
+}
+
+// Distancia en metros entre dos coordenadas (fórmula Haversine)
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ---- CHECK-IN DE ASISTENCIA AL ASEO ----
+async function loadTodayCheckins() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await sb.from('attendance_checkins').select('*').eq('date', today);
+  if (!error && data) D.checkins = data;
+}
+
+async function saveCheckin(student, grade, groupName, lat, lng, distance_m) {
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await sb.from('attendance_checkins').insert({
+    student, grade, group_name: groupName, date: today, lat, lng, distance_m
+  });
+  if (!error) await loadTodayCheckins();
+  return !error;
 }

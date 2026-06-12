@@ -911,3 +911,83 @@ function updateNotifBtn() {
   btn.style.animation = isActive ? 'none' : '';
   if(typeof lucide !== 'undefined') lucide.createIcons();
 }
+
+// ============================================================
+// CHECK-IN GPS DE ASISTENCIA AL ASEO
+// ============================================================
+
+// Admin: usar ubicación actual del navegador para el colegio
+function useMyLocationForSchool(){
+  const msg = document.getElementById('schoolLocMsg');
+  if(!navigator.geolocation){
+    if(msg){msg.style.display='block';msg.style.color='#ef4444';msg.textContent='Geolocalización no disponible en este navegador.';}
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    document.getElementById('schoolLat').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('schoolLng').value = pos.coords.longitude.toFixed(6);
+    if(msg){msg.style.display='block';msg.style.color='#22c55e';msg.textContent='Ubicación obtenida. Ahora haz clic en "Guardar".';}
+  }, err=>{
+    if(msg){msg.style.display='block';msg.style.color='#ef4444';msg.textContent='No se pudo obtener la ubicación: '+err.message;}
+  }, {enableHighAccuracy:true, timeout:10000});
+}
+
+// Admin: guardar ubicación del colegio
+async function saveSchoolLocationFromForm(){
+  const lat = parseFloat(document.getElementById('schoolLat').value);
+  const lng = parseFloat(document.getElementById('schoolLng').value);
+  const radius = parseInt(document.getElementById('schoolRadius').value) || 150;
+  const msg = document.getElementById('schoolLocMsg');
+  if(isNaN(lat) || isNaN(lng)){
+    if(msg){msg.style.display='block';msg.style.color='#ef4444';msg.textContent='Ingresa latitud y longitud válidas.';}
+    return;
+  }
+  const ok = await saveSchoolConfig(lat, lng, radius);
+  if(msg){
+    msg.style.display='block';
+    msg.style.color = ok ? '#22c55e' : '#ef4444';
+    msg.textContent = ok ? 'Ubicación guardada correctamente.' : 'Error al guardar.';
+  }
+}
+
+// Estudiante/Docente: marcar presente (check-in con GPS)
+function doCheckin(groupName){
+  const msg = document.getElementById('checkinMsg');
+  const myName = currentSession?.name;
+  const myGrade = getCurrentGrade();
+
+  if(!navigator.geolocation){
+    if(msg){msg.style.display='block';msg.style.color='#ef4444';msg.textContent='Tu dispositivo no soporta GPS.';}
+    return;
+  }
+
+  if(msg){msg.style.display='block';msg.style.color='var(--textm)';msg.textContent='📍 Obteniendo tu ubicación...';}
+
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:lat, longitude:lng} = pos.coords;
+    const sc = D.schoolConfig;
+
+    if(!sc || sc.lat==null || sc.lng==null){
+      if(msg){msg.style.color='#ef4444';msg.textContent='El colegio aún no ha configurado su ubicación. Avisa al administrador.';}
+      return;
+    }
+
+    const dist = distanceMeters(lat, lng, sc.lat, sc.lng);
+    const radius = sc.radius_meters || 150;
+
+    if(dist > radius){
+      if(msg){msg.style.color='#ef4444';msg.textContent=`Estás a ${Math.round(dist)}m del colegio. Debes estar dentro de ${radius}m para marcar presente.`;}
+      return;
+    }
+
+    const ok = await saveCheckin(myName, myGrade, groupName, lat, lng, dist);
+    if(ok){
+      if(msg){msg.style.color='#22c55e';msg.textContent=`✅ Asistencia registrada (a ${Math.round(dist)}m del colegio)`;}
+      setTimeout(()=>render(), 1200);
+    } else {
+      if(msg){msg.style.color='#ef4444';msg.textContent='Error al guardar la asistencia. Intenta de nuevo.';}
+    }
+  }, err=>{
+    if(msg){msg.style.color='#ef4444';msg.textContent='No se pudo obtener tu ubicación: '+err.message;}
+  }, {enableHighAccuracy:true, timeout:15000});
+}
