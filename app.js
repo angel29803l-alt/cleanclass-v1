@@ -297,9 +297,18 @@ async function doLogin(){
   isLoggedOut=false;
   checkResp();
   loadAllData().then(async ()=>{
+    // Si se abrió desde la notificación de aseo, ir directo a Evidencias
+    try{
+      const params = new URLSearchParams(window.location.search);
+      if(params.get('goto')==='evidence'){
+        cur = 'evidence';
+        history.replaceState({}, '', window.location.pathname);
+      }
+    }catch(e){}
     render();
     if (typeof initRealtime === 'function') initRealtime();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
+    if (typeof syncPendingCheckins === 'function') syncPendingCheckins();
     setTimeout(() => {
       updateNotifBtn();
       if(Notification.permission === 'granted') {
@@ -951,10 +960,40 @@ async function saveSchoolLocationFromForm(){
 }
 
 // Estudiante/Docente: marcar presente (check-in con GPS)
+// Cola local de check-ins pendientes por falta de internet
+function getPendingCheckins(){
+  try { return JSON.parse(localStorage.getItem('pendingCheckins')||'[]'); } catch(e){ return []; }
+}
+function savePendingCheckins(list){
+  localStorage.setItem('pendingCheckins', JSON.stringify(list));
+}
+
+// Intenta sincronizar los check-ins guardados localmente
+async function syncPendingCheckins(){
+  const pending = getPendingCheckins();
+  if(!pending.length) return;
+  const remaining = [];
+  for(const c of pending){
+    try{
+      const ok = await saveCheckin(c.student, c.grade, c.groupName, c.lat, c.lng, c.distance_m);
+      if(!ok) remaining.push(c);
+    }catch(e){ remaining.push(c); }
+  }
+  savePendingCheckins(remaining);
+  if(remaining.length < pending.length){
+    console.log(`✅ ${pending.length - remaining.length} check-in(s) offline sincronizados`);
+    if(typeof render==='function') render();
+  }
+}
+
+// Reintentar al recuperar conexión y al cargar la app
+window.addEventListener('online', syncPendingCheckins);
+
 function doCheckin(groupName){
   const msg = document.getElementById('checkinMsg');
   const myName = currentSession?.name;
   const myGrade = getCurrentGrade();
+  const todayStr = new Date().toISOString().split('T')[0];
 
   if(!navigator.geolocation){
     if(msg){msg.style.display='block';msg.style.color='#ef4444';msg.textContent='Tu dispositivo no soporta GPS.';}
@@ -963,9 +1002,16 @@ function doCheckin(groupName){
 
   if(msg){msg.style.display='block';msg.style.color='var(--textm)';msg.textContent='📍 Obteniendo tu ubicación...';}
 
+  // Cache local de la ubicación del colegio (para funcionar sin internet)
+  let sc = D.schoolConfig;
+  if(!sc || sc.lat==null){
+    try{ sc = JSON.parse(localStorage.getItem('schoolConfigCache')||'null'); }catch(e){}
+  } else {
+    localStorage.setItem('schoolConfigCache', JSON.stringify(sc));
+  }
+
   navigator.geolocation.getCurrentPosition(async pos=>{
     const {latitude:lat, longitude:lng} = pos.coords;
-    const sc = D.schoolConfig;
 
     if(!sc || sc.lat==null || sc.lng==null){
       if(msg){msg.style.color='#ef4444';msg.textContent='El colegio aún no ha configurado su ubicación. Avisa al administrador.';}
@@ -980,12 +1026,35 @@ function doCheckin(groupName){
       return;
     }
 
-    const ok = await saveCheckin(myName, myGrade, groupName, lat, lng, dist);
+    const record = {student:myName, grade:myGrade, groupName, lat, lng, distance_m:dist, date:todayStr};
+
+    // Sin conexión → guardar localmente para sincronizar después
+    if(!navigator.onLine){
+      const pending = getPendingCheckins();
+      pending.push(record);
+      savePendingCheckins(pending);
+      D.checkins = D.checkins||[];
+      D.checkins.push({...record, group_name:groupName, _pending:true});
+      if(msg){msg.style.color='#f59e0b';msg.textContent=`⏳ Sin internet — asistencia guardada en tu dispositivo (a ${Math.round(dist)}m). Se enviará automáticamente cuando recuperes conexión.`;}
+      setTimeout(()=>render(), 1500);
+      return;
+    }
+
+    let ok = false;
+    try{ ok = await saveCheckin(myName, myGrade, groupName, lat, lng, dist); }catch(e){ ok = false; }
+
     if(ok){
       if(msg){msg.style.color='#22c55e';msg.textContent=`✅ Asistencia registrada (a ${Math.round(dist)}m del colegio)`;}
       setTimeout(()=>render(), 1200);
     } else {
-      if(msg){msg.style.color='#ef4444';msg.textContent='Error al guardar la asistencia. Intenta de nuevo.';}
+      // Error de red al guardar → encolar para reintento
+      const pending = getPendingCheckins();
+      pending.push(record);
+      savePendingCheckins(pending);
+      D.checkins = D.checkins||[];
+      D.checkins.push({...record, group_name:groupName, _pending:true});
+      if(msg){msg.style.color='#f59e0b';msg.textContent='⏳ No se pudo conectar — se guardó en tu dispositivo y se enviará automáticamente.';}
+      setTimeout(()=>render(), 1500);
     }
   }, err=>{
     if(msg){msg.style.color='#ef4444';msg.textContent='No se pudo obtener tu ubicación: '+err.message;}

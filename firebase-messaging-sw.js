@@ -27,5 +27,5 @@ messaging.onBackgroundMessage(payload => {
 // Al hacer clic en la notificación
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.openWindow('/'));
+  e.waitUntil(clients.openWindow('/?goto=evidence'));
 });

@@ -559,8 +559,11 @@ function renderCheckinCard(myGroups, myGrade){
   const already = (D.checkins||[]).find(c=>c.student===myName && c.date===todayStr);
 
   if(already){
+    const pendingTag = already._pending
+      ? `<span class="badge-pill badge-pill-amber" style="margin-left:6px">⏳ Pendiente de sincronizar</span>`
+      : '';
     return `<div class="card" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);margin-bottom:16px">
-      <p style="font-size:13px;font-weight:600;color:#16a34a"><i data-lucide="check-circle" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Asistencia registrada hoy — Grupo: ${myTodayGroup.name}</p>
+      <p style="font-size:13px;font-weight:600;color:#16a34a"><i data-lucide="check-circle" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Asistencia registrada hoy — Grupo: ${myTodayGroup.name}${pendingTag}</p>
     </div>`;
   }
 
@@ -649,7 +652,6 @@ function rDash(){
     <div><h1 class="text-3xl font-bold">CleanClass</h1>${myGrade?`<p style="color:var(--accent);font-size:13px;font-weight:600">Grado ${myGrade}</p>`:''}</div>
     ${emailBtn}
   </div>
-  ${renderCheckinCard(myGroups, myGrade)}
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     ${stats.map(s=>`<div class="card" style="background:var(--surface)">
       <div style="width:36px;height:36px;border-radius:10px;background:${s.color}15;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
@@ -1109,6 +1111,38 @@ function rUsers(){
 // ============================================================
 // EVIDENCIAS — cámara directa con sello de fecha/hora/día
 // ============================================================
+// ---- Lista de asistencia GPS para una evidencia (grupo + fecha) ----
+function renderAttendanceList(groupName, dateStr){
+  const group = D.cleanGroups.find(g=>g.name===groupName);
+  if(!group || !group.members?.length) return '';
+  const checkins = (D.checkins||[]).filter(c=>c.group_name===groupName && c.date===dateStr);
+  const myName = currentSession?.name;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isToday = dateStr===todayStr;
+
+  return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+    <p style="font-size:10px;color:var(--textm);font-weight:600;margin-bottom:4px">ASISTENCIA (GPS)</p>
+    ${group.members.map(name=>{
+      const c = checkins.find(x=>x.student===name);
+      if(c){
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#16a34a;padding:2px 0">
+          <i data-lucide="check-circle" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(${Math.round(c.distance_m)}m)</span>
+        </div>`;
+      }
+      // Si es el propio usuario y aún no marcó, puede tocar su nombre para registrar
+      if(name===myName && isToday){
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#f59e0b;padding:2px 0;cursor:pointer;text-decoration:underline" onclick="doCheckin('${groupName}')">
+          <i data-lucide="map-pin" style="width:12px;height:12px"></i> ${name} — Toca para registrar tu asistencia
+        </div>`;
+      }
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#ef4444;padding:2px 0">
+        <i data-lucide="x-circle" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(no registró)</span>
+      </div>`;
+    }).join('')}
+    <p id="checkinMsg" style="font-size:11px;margin-top:4px;display:none"></p>
+  </div>`;
+}
+
 function rEvidence(){
   const myGrade   = getCurrentGrade();
   const myGroups  = D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
@@ -1135,6 +1169,29 @@ function rEvidence(){
       if(!isStudent()) return myGroups.length>0?`<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
       const myGroup=D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
       if(!myGroup) return `<span style="font-size:13px;color:var(--textm);font-style:italic">No estás en ningún grupo</span>`;
+
+      // ---- VENTANA DE ASEO (check-in GPS + evidencia) ----
+      const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      const todayName2 = DAYS_ES[new Date().getDay()];
+      const isMyTurnToday = myGroup.frequency==='weekly' || (myGroup.frequency==='daily' && myGroup.day===todayName2);
+
+      if(!isMyTurnToday) return `<span style="font-size:13px;color:var(--textm);font-style:italic">Hoy no te toca aseo</span>`;
+
+      const sch = (D.schedules||[]).find(s=>s.grade===myGrade);
+      const cleanTime = sch?.clean_time?.substring(0,5);
+
+      if(!cleanTime){
+        return `<span style="font-size:13px;color:var(--textm);font-style:italic">Horario de aseo no configurado</span>`;
+      }
+
+      const now2 = new Date();
+      const currentHM = now2.getHours()*60 + now2.getMinutes();
+      const [nh,nm] = cleanTime.split(':').map(Number);
+      const cleanHM = nh*60+nm;
+
+      if(currentHM < cleanHM){
+        return `<span style="font-size:13px;color:var(--textm);font-style:italic"><i data-lucide="clock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>El aseo es a las ${cleanTime}</span>`;
+      }
       return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
     })()}
   </div>
@@ -1171,6 +1228,7 @@ function rEvidence(){
       </div>
       <p style="font-size:12px;color:var(--textm)">${e.student}</p>
       <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.date}${e.time?' · '+e.time:''}</p>
+      ${renderAttendanceList(e.group, e.date)}
       ${e.reviewed_by&&e.observation?`<div style="margin-top:8px;padding:8px;background:rgba(6,182,212,.07);border-radius:7px;border-left:3px solid var(--accent)">
         <p style="font-size:11px;color:var(--accent);font-weight:600">${e.reviewed_by}:</p>
         <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.observation}</p>
@@ -1591,6 +1649,7 @@ function rValidation(){
               <div style="background:rgba(6,182,212,.08);padding:10px;border-radius:6px">
                 <p style="font-size:11px;color:var(--textm)"><strong>Estudiante:</strong> ${e.student}</p>
                 ${group?`<p style="font-size:11px;color:var(--textm);margin-top:4px"><strong>Miembros:</strong> ${group.members.join(', ')}</p>`:''}
+                ${renderAttendanceList(e.group, e.date)}
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:12px">
