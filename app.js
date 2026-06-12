@@ -742,15 +742,17 @@ async function saveAllSchedules() {
     const cleanEl = document.getElementById(`clean_${gid}`);
     if(!cleanEl) continue;
     const cleanTime = cleanEl.value || '15:00';
+    const windowEl = document.getElementById(`window_${gid}`);
+    const windowMin = parseInt(windowEl?.value) || 30;
     const existing = D.schedules?.find(s=>s.grade===grade);
     
     if(existing) {
       // Update
-      const { error } = await sb.from('schedules').update({ clean_time: cleanTime }).eq('id', existing.id);
+      const { error } = await sb.from('schedules').update({ clean_time: cleanTime, evidence_window_min: windowMin }).eq('id', existing.id);
       if(error) console.error('Error actualizando horario:', error.message);
     } else {
       // Insert
-      const { error } = await sb.from('schedules').insert({ grade, clean_time: cleanTime });
+      const { error } = await sb.from('schedules').insert({ grade, clean_time: cleanTime, evidence_window_min: windowMin });
       if(error) console.error('Error insertando horario:', error.message);
     }
   }

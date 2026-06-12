@@ -435,9 +435,13 @@ function rAdminPanel(){
             const gid=grade.replace(/[°\s]/g,'_');
             const sch=D.schedules?.find(s=>s.grade===grade)||{};
             return `<div class="card" style="background:var(--surface);padding:14px">
-              <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                 <span style="font-weight:700;font-size:14px;color:var(--accent)">Grado ${grade}</span>
-                <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}" style="width:120px;padding:6px 10px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}" style="width:110px;padding:6px 10px">
+                  <input type="number" min="5" max="180" class="inp" id="window_${gid}" value="${sch.evidence_window_min||30}" title="Minutos para subir evidencia" style="width:64px;padding:6px 8px;text-align:center">
+                  <span style="font-size:11px;color:var(--textm)">min</span>
+                </div>
               </div>
             </div>`;
           }).join('')}
@@ -1195,7 +1199,16 @@ function rEvidence(){
       if(currentHM < cleanHM){
         return `<span style="font-size:13px;color:var(--textm);font-style:italic"><i data-lucide="clock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>El aseo es a las ${cleanTime}</span>`;
       }
-      return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
+
+      const windowMin = sch?.evidence_window_min || 30;
+      const closeHM = cleanHM + windowMin;
+      const hasEvidenceToday = D.evidence.some(e=>e.group===myGroup.name && e.date===todayStr2);
+
+      if(currentHM <= closeHM){
+        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
+      }
+      if(hasEvidenceToday) return '';
+      return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>⏰ Ventana cerrada — no se subió evidencia</span>`;
     })()}
   </div>
 
@@ -1603,6 +1616,28 @@ function rClean(){
 /* ============================================================
    EVIDENCIAS — estudiantes suben, docentes ven todas las de su grado
    ============================================================ */
+// Grupos que ya pasó su ventana de aseo hoy y no subieron evidencia
+function getGroupsMissingEvidence(myGrade){
+  const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const todayName = DAYS_ES[new Date().getDay()];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const currentHM = now.getHours()*60+now.getMinutes();
+
+  const groups = D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
+  return groups.filter(g=>{
+    const isTurn = g.frequency==='weekly' || (g.frequency==='daily' && g.day===todayName);
+    if(!isTurn) return false;
+    const sch = (D.schedules||[]).find(s=>s.grade===g.grade);
+    const cleanTime = sch?.clean_time?.substring(0,5);
+    if(!cleanTime) return false;
+    const [nh,nm]=cleanTime.split(':').map(Number);
+    const closeHM = nh*60+nm + (sch?.evidence_window_min||30);
+    if(currentHM <= closeHM) return false; // aún no cierra
+    return !D.evidence.some(e=>e.group===g.name && e.date===todayStr);
+  });
+}
+
 function rValidation(){
   const myGrade=getCurrentGrade();
   const pending=D.evidence.filter(e=>{
@@ -1616,10 +1651,16 @@ function rValidation(){
     return !myGrade||!g||g.grade===myGrade;
   });
 
+  const missingGroups = getGroupsMissingEvidence(myGrade);
+
   return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div><h1 class="text-2xl font-bold">${t('validation')}${myGrade?' — '+myGrade:''}</h1>
     <p style="color:var(--textm)" class="text-sm">Revisión y aprobación de evidencias de aseo</p></div>
   </div>
+  ${missingGroups.length>0?`<div class="card mb-4" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);padding:14px">
+    <p style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:4px"><i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Grupos sin evidencia hoy</p>
+    ${missingGroups.map(g=>`<p style="font-size:12px;color:var(--textm)">⏰ ${g.name} (Grado ${g.grade}) — no subió evidencia en la ventana asignada</p>`).join('')}
+  </div>`:''}
   <div class="card mb-6" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.05));border:1px solid rgba(6,182,212,.3);padding:16px">
     <div class="flex items-center gap-3">
       <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--accent)"></i>
