@@ -1147,7 +1147,10 @@ function rEvidence(){
   const myGrade   = getCurrentGrade();
   const myGroups  = D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
   const myEvidence= isStudent()
-    ? D.evidence.filter(e=>e.student===currentSession.name)
+    ? D.evidence.filter(e=>{
+        const g=D.cleanGroups.find(cg=>cg.name===e.group);
+        return g?.members?.includes(currentSession.name) || e.student===currentSession.name;
+      })
     : D.evidence.filter(e=>{ const g=D.cleanGroups.find(cg=>cg.name===e.group); return !myGrade||!g||g.grade===myGrade; });
   const completed = myEvidence.filter(e=>e.compliant||e.status==='Completado').length;
   const pending   = myEvidence.filter(e=>e.status==='Pendiente').length;
