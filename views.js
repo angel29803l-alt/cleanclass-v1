@@ -2303,11 +2303,16 @@ function showGroupMembers(groupId){
       </div>
       <p style="font-size:12px;color:var(--textm);margin-bottom:12px">${g.grade} · ${g.members.length} integrantes</p>
       <div style="display:flex;flex-direction:column;gap:8px">
-        ${g.members.map(m=>`
+        ${g.members.map(m=>{
+          const student = D.students.find(s=>s.name===m);
+          const profile = student ? D.usersProfiles?.find(u=>u.email===student.email) : null;
+          const av = profile?.avatar_url;
+          return `
           <div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.1)">
-            <div style="width:32px;height:32px;border-radius:50%;background:${g.color||'#06b6d4'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${m.charAt(0)}</div>
+            <div style="width:32px;height:32px;border-radius:50%;background:${g.color||'#06b6d4'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden">${av?`<img src="${av}" style="width:100%;height:100%;object-fit:cover">`:m.charAt(0)}</div>
             <span style="font-size:13px;font-weight:500">${m}</span>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
   document.body.appendChild(d);
