@@ -615,11 +615,11 @@ function updateProfileImage(input){
 
     try{
       const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
-      const fileName = `avatar_${currentSession?.id||Date.now()}.${ext}`;
+      const fileName = `avatar_${currentSession?.id||'u'}_${Date.now()}.${ext}`;
       const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, file, { upsert:true });
       if(upErr) throw upErr;
       const { data:pub } = sb.storage.from('evidencias').getPublicUrl(fileName);
-      const url = pub.publicUrl;
+      const url = pub.publicUrl + '?t=' + Date.now();
 
       const { error: dbErr } = await sb.from('users').update({ avatar_url: url }).eq('id', currentSession?.id);
       if(dbErr) throw dbErr;
