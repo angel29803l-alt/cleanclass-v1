@@ -44,8 +44,6 @@ function openEditProfileModal(){
           <input type="text" name="name" class="inp mt-1" value="${u.name}" required></div>
         <div><label class="text-sm font-medium" style="color:var(--textm)">Email</label>
           <input type="email" name="email" class="inp mt-1" value="${u.email}" required></div>
-        <div><label class="text-sm font-medium" style="color:var(--textm)">Teléfono</label>
-          <input type="tel" name="phone" class="inp mt-1" value="${u.phone||''}"></div>
         <div class="flex gap-2 mt-3">
           <button type="button" class="pill pill-ghost flex-1" onclick="closeModal()">Cancelar</button>
           <button type="submit" class="pill pill-primary flex-1">Guardar Cambios</button>
@@ -60,14 +58,14 @@ function openEditProfileModal(){
     const fd=new FormData(e.target);
     const newName = fd.get('name');
     const newEmail = fd.get('email');
-    const newPhone = fd.get('phone');
+    const oldName = u.name;
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if(submitBtn){submitBtn.textContent='Guardando...';submitBtn.disabled=true;}
 
     // Guardar en Supabase (tabla users)
     const { error } = await sb.from('users').update({
-      name: newName, email: newEmail, phone: newPhone
+      name: newName, email: newEmail
     }).eq('id', currentSession?.id);
 
     if(error){
@@ -77,15 +75,19 @@ function openEditProfileModal(){
       return;
     }
 
+    // Si el nombre cambió, sincronizar referencias en students y clean_groups
+    if(newName !== oldName){
+      await syncNameChange(oldName, newName, currentSession?.email);
+    }
+
     D._user.name=newName;
     D._user.email=newEmail;
-    D._user.phone=newPhone;
     if(currentSession){
       currentSession.name=newName;
       currentSession.email=newEmail;
-      currentSession.phone=newPhone;
     }
 
+    await loadAllData();
     closeModal();render();
     const n=document.createElement('div');
     n.style.cssText='position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:16px 20px;border-radius:8px;z-index:100;font-weight:600';
@@ -93,6 +95,48 @@ function openEditProfileModal(){
     document.body.appendChild(n);
     setTimeout(()=>n.remove(),3000);
   };
+}
+
+// Sincroniza el cambio de nombre en students.name y clean_groups.members
+async function syncNameChange(oldName, newName, email){
+  if(!oldName || !newName || oldName===newName) return;
+
+  // 1. Actualizar students.name (buscando por email)
+  if(email){
+    const { error: errStudent } = await sb.from('students')
+      .update({ name: newName })
+      .eq('email', email);
+    if(errStudent) console.error('Error sincronizando students:', errStudent.message);
+  }
+
+  // 2. Actualizar clean_groups.members (reemplazar el nombre viejo por el nuevo en cada array)
+  const { data: groups } = await sb.from('clean_groups').select('id, members');
+  if(groups){
+    for(const g of groups){
+      const members = Array.isArray(g.members) ? g.members : JSON.parse(g.members||'[]');
+      if(members.includes(oldName)){
+        const updated = members.map(m => m===oldName ? newName : m);
+        const { error: errGroup } = await sb.from('clean_groups')
+          .update({ members: updated })
+          .eq('id', g.id);
+        if(errGroup) console.error('Error sincronizando clean_groups:', errGroup.message);
+      }
+    }
+  }
+
+  // 3. Actualizar evidence.student (si el nombre coincide)
+  const { error: errEvidence } = await sb.from('evidence')
+    .update({ student: newName })
+    .eq('student', oldName);
+  if(errEvidence) console.error('Error sincronizando evidence:', errEvidence.message);
+
+  // 4. Actualizar attendance_checkins.student
+  const { error: errCheckin } = await sb.from('attendance_checkins')
+    .update({ student: newName })
+    .eq('student', oldName);
+  if(errCheckin) console.error('Error sincronizando attendance_checkins:', errCheckin.message);
+
+  console.log(`✅ Nombre sincronizado: "${oldName}" → "${newName}"`);
 }
 
 function openWeeklyAssignmentModal(){
