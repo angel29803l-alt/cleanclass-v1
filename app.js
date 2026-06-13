@@ -593,7 +593,7 @@ function updateProfileImage(input){
   const file=input.files[0];
   if(!file)return;
   const reader=new FileReader();
-  reader.onload=()=>{
+  reader.onload=async ()=>{
     D._profileImage=reader.result;
     const img=document.getElementById('profileAvatarImg');
     const emoji=document.getElementById('profileAvatarEmoji');
@@ -606,10 +606,35 @@ function updateProfileImage(input){
     }
     const emailBtn=document.getElementById('emailBtn');
     if(emailBtn)emailBtn.innerHTML=`<img src="${D._profileImage}" style="width:100%;height:100%;object-fit:cover">`;
+
+    // Subir a Supabase Storage y guardar URL en users.avatar_url
     const n=document.createElement('div');
-    n.style.cssText='position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
-    n.textContent='✓ Foto de perfil actualizada';
+    n.style.cssText='position:fixed;top:20px;right:20px;background:#0891b2;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
+    n.textContent='⏳ Subiendo foto...';
     document.body.appendChild(n);
+
+    try{
+      const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+      const fileName = `avatar_${currentSession?.id||Date.now()}.${ext}`;
+      const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, file, { upsert:true });
+      if(upErr) throw upErr;
+      const { data:pub } = sb.storage.from('evidencias').getPublicUrl(fileName);
+      const url = pub.publicUrl;
+
+      const { error: dbErr } = await sb.from('users').update({ avatar_url: url }).eq('id', currentSession?.id);
+      if(dbErr) throw dbErr;
+
+      if(currentSession) currentSession.avatar_url = url;
+      D._profileImage = url;
+      await loadAllData();
+      n.style.background='#10b981';
+      n.textContent='✓ Foto de perfil actualizada';
+      render();
+    }catch(err){
+      console.error('Error subiendo avatar:', err.message);
+      n.style.background='#7f1d1d';
+      n.textContent='⚠ No se pudo guardar la foto';
+    }
     setTimeout(()=>n.remove(),2500);
   };
   reader.readAsDataURL(file);
