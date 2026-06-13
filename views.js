@@ -624,14 +624,13 @@ function rDash(){
     const isNoClass=noClassSet.has(dateStr);
     let group=null;
     if(isWD&&!isNoClass){
-      if(assignmentMode==='daily'){
-        const cands=byDay[dname]||[];
-        if(cands.length>0){
-          const dd=Math.round((new Date(year,month,d)-EPOCH)/(864e5));
-          const idx=((Math.floor(dd/7)%cands.length)+cands.length)%cands.length;
-          group=cands[idx];
-        }
-      }else if(weekly.length>0){
+      // Primero revisar grupos diarios (tienen prioridad si el día coincide)
+      const cands=byDay[dname]||[];
+      if(cands.length>0){
+        const dd=Math.round((new Date(year,month,d)-EPOCH)/(864e5));
+        const idx=((Math.floor(dd/7)%cands.length)+cands.length)%cands.length;
+        group=cands[idx];
+      } else if(weekly.length>0){
         const gw=globalWeekAtStart+Math.floor((d-1+firstDay)/7);
         group=weekly[((gw%weekly.length)+weekly.length)%weekly.length];
       }
@@ -1992,15 +1991,16 @@ function rReports(){
    PERFIL / CONFIGURACIÓN
    ============================================================ */
 function rSettings(){
-  // Datos persistentes en D para que no se pierdan al re-renderizar
+  // D._user se llena en login (app.js). Si por algún motivo no existe aún,
+  // usar los datos de currentSession como respaldo (sin valores ficticios).
   if(!D._user) D._user={
-    name:'Admin Sistema',
-    email:'admin@cleanclass.edu',
-    role:'Administrador',
-    department:'Dirección Académica',
-    phone:'+57 300 123 4567',
-    joinDate:'2024-01-15',
-    avatar:'‍<i data-lucide="briefcase" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i>'
+    name: currentSession?.name || '—',
+    email: currentSession?.email || '—',
+    role: isAdmin()?t('roleAdmin'):isTeacher()?t('roleTeacher'):t('roleStudent'),
+    department: currentSession?.department || '—',
+    phone: currentSession?.phone || '',
+    joinDate: currentSession?.created_at || '—',
+    avatar: currentSession?.avatar || '👤'
   };
   if(!D._settings) D._settings={
     notifications:true,

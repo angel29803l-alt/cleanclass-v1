@@ -55,12 +55,37 @@ function openEditProfileModal(){
   </div>`;
   const d=document.createElement('div');d.id='modalWrap';d.innerHTML=html;document.body.appendChild(d);
   lucide.createIcons();
-  document.getElementById('editProfileForm').onsubmit=e=>{
+  document.getElementById('editProfileForm').onsubmit=async e=>{
     e.preventDefault();
     const fd=new FormData(e.target);
-    D._user.name=fd.get('name');
-    D._user.email=fd.get('email');
-    D._user.phone=fd.get('phone');
+    const newName = fd.get('name');
+    const newEmail = fd.get('email');
+    const newPhone = fd.get('phone');
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if(submitBtn){submitBtn.textContent='Guardando...';submitBtn.disabled=true;}
+
+    // Guardar en Supabase (tabla users)
+    const { error } = await sb.from('users').update({
+      name: newName, email: newEmail, phone: newPhone
+    }).eq('id', currentSession?.id);
+
+    if(error){
+      console.error('❌ Error guardando perfil:', error.message);
+      if(submitBtn){submitBtn.textContent='Guardar Cambios';submitBtn.disabled=false;}
+      showDbError('perfil', error.message);
+      return;
+    }
+
+    D._user.name=newName;
+    D._user.email=newEmail;
+    D._user.phone=newPhone;
+    if(currentSession){
+      currentSession.name=newName;
+      currentSession.email=newEmail;
+      currentSession.phone=newPhone;
+    }
+
     closeModal();render();
     const n=document.createElement('div');
     n.style.cssText='position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:16px 20px;border-radius:8px;z-index:100;font-weight:600';
@@ -335,7 +360,12 @@ async function doRegistro(){
   const errEl=document.getElementById('regError');
 
   function showRegError(msg){
-    if(errEl){errEl.textContent=msg;errEl.style.display='block';}
+    if(errEl){
+      errEl.textContent=msg;errEl.style.display='block';
+      document.querySelectorAll('#screen-registro input').forEach(inp=>{
+        inp.addEventListener('input', ()=>{ errEl.style.display='none'; }, {once:true});
+      });
+    }
     if(btn){btn.textContent='Registrarse';btn.disabled=false;}
   }
 
@@ -389,6 +419,24 @@ async function doRegistro(){
   setTimeout(()=>{
     if(btn){btn.textContent='Registrarse';btn.classList.remove('auth-success');btn.disabled=false;}
     showScreen('login');
+
+    // Limpiar estado previo del login y prellenar con el correo recién registrado
+    const loginScreen=document.getElementById('screen-login');
+    if(loginScreen){
+      const oldErr=loginScreen.querySelector('.login-error');
+      if(oldErr) oldErr.remove();
+      const inputs=loginScreen.querySelectorAll('input');
+      if(inputs[0]) inputs[0].value=emailVal;
+      if(inputs[1]) inputs[1].value='';
+
+      // Mensaje de confirmación de registro exitoso
+      const successMsg=document.createElement('p');
+      successMsg.className='login-success-msg';
+      successMsg.style.cssText='color:#22c55e;font-size:13px;text-align:center;margin-bottom:8px;font-weight:600';
+      successMsg.textContent='✓ Cuenta creada correctamente. Ahora inicia sesión.';
+      loginScreen.querySelector('.auth-sub')?.insertAdjacentElement('afterend', successMsg);
+      setTimeout(()=>successMsg.remove(), 6000);
+    }
   },2000);
 }
 
