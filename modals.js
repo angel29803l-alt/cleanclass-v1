@@ -275,6 +275,7 @@ function openModal(mode,col,id){
             _incidentPhotoFile = null;
             if(mode==='add'){obj.id=nid();D[col].push(obj);}
             saveIncident(obj);
+            notifyTeacher('incident', { grade: getCurrentGrade(), student: obj.reporter, description: obj.description });
             closeModal(); render();
           })();
           return;
@@ -307,7 +308,7 @@ function openModal(mode,col,id){
     // Guardar en Supabase
     if(col==='cleanGroups') saveCleanGroup(obj);
     else if(col==='evidence') saveEvidence(obj);
-    else if(col==='incidents') saveIncident(obj);
+    else if(col==='incidents') { saveIncident(obj); if(mode==='add') notifyTeacher('incident', { grade: getCurrentGrade(), student: obj.reporter, description: obj.description }); }
     else if(col==='rooms') saveRoom(obj);
     closeModal(); render();
   };

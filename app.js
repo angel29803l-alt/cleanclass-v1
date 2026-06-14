@@ -1197,3 +1197,21 @@ function doCheckin(groupName){
     if(msg){msg.style.color='#ef4444';msg.textContent='No se pudo obtener tu ubicación: '+err.message;}
   }, {enableHighAccuracy:true, timeout:15000});
 }
+
+// ============================================================
+// NOTIFICACIÓN INSTANTÁNEA AL DOCENTE
+// ============================================================
+function notifyTeacher(type, data) {
+  // Llamar a la Edge Function en segundo plano (no bloquea al usuario)
+  fetch('https://etschfdwbvxsbdmcsrai.supabase.co/functions/v1/send-notifications', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_KEY
+    },
+    body: JSON.stringify({ type, ...data })
+  })
+  .then(r => r.json())
+  .then(d => console.log('✅ Notificación al docente enviada:', d))
+  .catch(e => console.error('Error notificando al docente:', e));
+}

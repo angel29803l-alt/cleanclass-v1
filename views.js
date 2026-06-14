@@ -1186,28 +1186,8 @@ function rEvidence(){
       const sch = (D.schedules||[]).find(s=>s.grade===myGrade);
       const cleanTime = sch?.clean_time?.substring(0,5);
 
-      if(!cleanTime){
-        return `<span style="font-size:13px;color:var(--textm);font-style:italic">Horario de aseo no configurado</span>`;
-      }
-
-      const now2 = new Date();
-      const currentHM = now2.getHours()*60 + now2.getMinutes();
-      const [nh,nm] = cleanTime.split(':').map(Number);
-      const cleanHM = nh*60+nm;
-
-      if(currentHM < cleanHM){
-        return `<span style="font-size:13px;color:var(--textm);font-style:italic"><i data-lucide="clock" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>El aseo es a las ${cleanTime}</span>`;
-      }
-
-      const windowMin = sch?.evidence_window_min || 30;
-      const closeHM = cleanHM + windowMin;
-      const hasEvidenceToday = D.evidence.some(e=>e.group===myGroup.name && e.date===todayStr2);
-
-      if(currentHM <= closeHM){
-        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
-      }
-      if(hasEvidenceToday) return '';
-      return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>⏰ Ventana cerrada — no se subió evidencia</span>`;
+      // TODO: restaurar restricción de hora después de pruebas
+      return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
     })()}
   </div>
 
@@ -1491,6 +1471,8 @@ async function saveEvidence(){
     if(ok){
       closeCameraModal();
       render();
+      // Notificación instantánea al docente
+      notifyTeacher('evidence', { grade: getCurrentGrade(), group, student });
     } else {
       if(err){err.textContent='Error al guardar. Intenta de nuevo.';err.style.display='block';}
       if(btn){btn.textContent='Guardar Evidencia';btn.disabled=false;}
