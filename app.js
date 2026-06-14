@@ -366,11 +366,15 @@ async function doLogin(){
   isLoggedOut=false;
   checkResp();
   loadAllData().then(async ()=>{
-    // Si el usuario es estudiante y no tiene grado (tabla users no tiene grade),
-    // buscarlo en D.students por email
+    // Si el usuario no tiene grado (tabla users no tiene grade),
+    // buscarlo en D.students o D.teachers por email
     if(currentSession && !currentSession.grade && currentSession.role!=='admin'){
       const st = D.students.find(s=>s.email===currentSession.email);
       if(st) currentSession.grade = st.grade;
+      if(!currentSession.grade){
+        const tc = D.teachers.find(t=>t.email===currentSession.email);
+        if(tc) currentSession.grade = tc.grade;
+      }
     }
     // Si se abrió desde la notificación de aseo, ir directo a Evidencias
     try{
@@ -758,6 +762,10 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       if(currentSession && !currentSession.grade && currentSession.role!=='admin'){
         const st = D.students.find(s=>s.email===currentSession.email);
         if(st) currentSession.grade = st.grade;
+        if(!currentSession.grade){
+          const tc = D.teachers.find(t=>t.email===currentSession.email);
+          if(tc) currentSession.grade = tc.grade;
+        }
       }
       render();
       if (typeof initRealtime === 'function') initRealtime();
