@@ -186,6 +186,10 @@ function openIncidentDetail(id){
           <p style="font-size:11px;color:var(--textm);margin-bottom:6px">DESCRIPCIÓN</p>
           <p style="font-size:13px;color:var(--text);line-height:1.5">${incident.description}</p>
         </div>
+        ${incident.image?`<div style="width:100%;border-radius:8px;overflow:hidden;cursor:pointer" onclick="openImageFullscreen('${incident.image}')">
+          <img src="${incident.image}" style="width:100%;max-height:250px;object-fit:cover;border-radius:8px">
+          <p style="font-size:10px;color:var(--textm);text-align:center;margin-top:4px">Toca para ampliar</p>
+        </div>`:''}
         <div class="grid grid-cols-2 gap-3">
           <div><p style="font-size:11px;color:var(--textm);margin-bottom:4px">UBICACIÓN</p><p class="font-medium text-sm">${incident.location}</p></div>
           <div><p style="font-size:11px;color:var(--textm);margin-bottom:4px">REPORTADO POR</p><p class="font-medium text-sm">${incident.reporter}</p></div>
