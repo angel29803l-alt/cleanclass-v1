@@ -7,7 +7,8 @@ function render(){
   const m=document.getElementById('main');
   if(!m)return;
   const map={
-    adminPanel:rAdminPanel,
+    dashboard:rDashboardAdmin,
+    adminPanel:rDashboardAdmin,
     dash:rDash,
     rooms:rRooms,
     clean:rClean,
@@ -16,7 +17,8 @@ function render(){
     myvalidations:rMyValidations,
     incidents:rIncidents,
     reportIncident:rReportIncident,
-    reports:rReports,
+    reports:isAdmin()?rReportsAdmin:rReports,
+    config:rConfig,
     settings:rSettings,
     analytics:rAnalytics,
     users:rUsers
@@ -36,6 +38,484 @@ function render(){
 let adminTab='overview';
 function setAdminTab(tab){adminTab=tab;render();}
 
+// ============================================================
+// DASHBOARD ADMIN — Resumen del día para la coordinadora
+// ============================================================
+function rDashboardAdmin(){
+  const allGrades=[...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
+  const todayStr = new Date().toISOString().split('T')[0];
+  const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const todayName = DAYS_ES[new Date().getDay()];
+  const completionRate = D.evidence.length>0 ? Math.round((D.evidence.filter(e=>e.status==='Completado').length/D.evidence.length)*100) : 0;
+  const openInc = D.incidents.filter(i=>i.status==='Abierto').length;
+  const pendEv = D.evidence.filter(e=>e.status==='Pendiente').length;
+  const todayEvidence = D.evidence.filter(e=>e.date===todayStr);
+
+  // Estado de aseo por grado hoy
+  const gradeStatus = allGrades.map(grade=>{
+    const groups = D.cleanGroups.filter(g=>g.grade===grade&&(g.frequency==='weekly'||(g.frequency==='daily'&&g.day===todayName)));
+    const ev = todayEvidence.filter(e=>{ const g=D.cleanGroups.find(cg=>cg.name===e.group); return g&&g.grade===grade; });
+    const checkins = (D.checkins||[]).filter(c=>c.grade===grade&&c.date===todayStr);
+    const totalMembers = groups.reduce((sum,g)=>(g.members?sum+g.members.length:sum),0);
+    const hasEvidence = ev.length>0;
+    const approvedEv = ev.filter(e=>e.status==='Completado').length;
+    return { grade, groups:groups.length, hasEvidence, evidenceCount:ev.length, approvedEv, checkins:checkins.length, totalMembers };
+  });
+
+  const gradesWithEvidence = gradeStatus.filter(g=>g.hasEvidence).length;
+  const gradesWithoutEvidence = gradeStatus.filter(g=>g.groups>0&&!g.hasEvidence).length;
+
+  return `
+  <div style="background:linear-gradient(135deg,rgba(6,182,212,.18),rgba(37,99,235,.12));border:1px solid rgba(6,182,212,.3);border-radius:16px;padding:24px;margin-bottom:24px">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#06b6d4,#2563eb);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="layout-dashboard" style="width:24px;height:24px;color:#fff"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold">Dashboard</h1>
+            <p style="color:var(--accent);font-size:13px;font-weight:600">${todayName} ${todayStr} — CleanClass</p>
+          </div>
+        </div>
+        <p style="color:var(--textm);font-size:13px">Bienvenido, <strong style="color:var(--text)">${currentSession?.name||'Administrador'}</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+    ${[
+      {icon:'users',      label:'Estudiantes',     val:D.students.length, color:'#2563eb'},
+      {icon:'book-open',  label:'Docentes',        val:D.teachers.length, color:'#7c3aed'},
+      {icon:'door-open',  label:'Salones',         val:D.rooms.length,    color:'#059669'},
+      {icon:'sparkles',   label:'Grupos Aseo',     val:D.cleanGroups.length, color:'#ea580c'},
+      {icon:'trending-up',label:'Cumplimiento',    val:completionRate+'%',color:'#06b6d4'}
+    ].map(s=>`
+      <div class="card" style="background:var(--surface);text-align:center;padding:16px">
+        <div style="width:40px;height:40px;border-radius:12px;background:${s.color}18;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">
+          <i data-lucide="${s.icon}" style="width:20px;height:20px;color:${s.color}"></i>
+        </div>
+        <p class="text-2xl font-bold">${s.val}</p>
+        <p style="color:var(--textm);font-size:12px">${s.label}</p>
+      </div>`).join('')}
+  </div>
+
+  <!-- Estado de Aseo HOY por grado -->
+  <div class="card mb-6" style="background:var(--surface)">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-lg"><i data-lucide="calendar-check" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Estado de Aseo — Hoy</h3>
+      <div class="flex gap-2">
+        <span class="badge-pill badge-pill-green">${gradesWithEvidence} cumplieron</span>
+        <span class="badge-pill badge-pill-red">${gradesWithoutEvidence} sin evidencia</span>
+      </div>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      ${gradeStatus.map(g=>{
+        if(g.groups===0) return '';
+        const status = g.hasEvidence ? (g.approvedEv>0?'approved':'pending') : 'missing';
+        const colors = {approved:'#10b981',pending:'#f59e0b',missing:'#ef4444'};
+        const labels = {approved:'✅ Completado',pending:'⏳ Pendiente de validar',missing:'❌ Sin evidencia'};
+        const icons = {approved:'check-circle',pending:'clock',missing:'x-circle'};
+        return `<div style="padding:14px;border-radius:10px;border-left:4px solid ${colors[status]};background:${colors[status]}08">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold">${g.grade}</span>
+            <span class="badge-pill" style="background:${colors[status]}15;color:${colors[status]};font-size:10px"><i data-lucide="${icons[status]}" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px"></i>${labels[status]}</span>
+          </div>
+          <p style="font-size:11px;color:var(--textm)">${g.groups} grupo(s) · ${g.checkins}/${g.totalMembers} asistencia GPS · ${g.evidenceCount} evidencia(s)</p>
+        </div>`;
+      }).filter(Boolean).join('')}
+      ${gradeStatus.every(g=>g.groups===0)?'<p style="color:var(--textm);text-align:center;padding:20px">No hay grupos de aseo asignados</p>':''}
+    </div>
+  </div>
+
+  <!-- Dos columnas: Evidencias Hoy + Estado del Sistema -->
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="card" style="background:var(--surface)">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-lg">Evidencias de Hoy</h3>
+        <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${todayEvidence.length} total</span>
+      </div>
+      ${todayEvidence.length>0?`
+      <div class="flex flex-col gap-3">
+        ${todayEvidence.sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date)).map(e=>`
+          <div style="display:flex;gap:10px;padding:10px;background:rgba(6,182,212,.05);border-radius:8px">
+            ${e.image?`<img src="${e.image}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="openImageFullscreen('${e.image}')">`:'<div style="width:60px;height:60px;border-radius:8px;background:rgba(6,182,212,.1);display:flex;align-items:center;justify-content:center"><i data-lucide="image" style="width:24px;height:24px;color:rgba(6,182,212,.4)"></i></div>'}
+            <div style="flex:1">
+              <p style="font-size:13px;font-weight:600">${e.group}</p>
+              <p style="font-size:11px;color:var(--textm)">${e.student} · ${e.time||''}</p>
+              <span class="badge" style="font-size:10px;background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span>
+            </div>
+          </div>`).join('')}
+      </div>`:`<p style="color:var(--textm);text-align:center;padding:30px">Sin evidencias hoy</p>`}
+    </div>
+
+    <div class="card" style="background:var(--surface)">
+      <h3 class="font-bold text-lg mb-4">Estado del Sistema</h3>
+      <div class="flex flex-col gap-3">
+        <div style="padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border-left:4px solid #ef4444;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="font-size:12px;color:var(--textm)">Incidentes abiertos</p><p class="font-bold text-lg" style="color:#ef4444">${openInc}</p></div>
+          <i data-lucide="alert-circle" style="width:28px;height:28px;color:#ef4444;opacity:.7"></i>
+        </div>
+        <div style="padding:14px;background:rgba(245,158,11,.08);border-radius:10px;border-left:4px solid #f59e0b;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="font-size:12px;color:var(--textm)">Evidencias pendientes</p><p class="font-bold text-lg" style="color:#f59e0b">${pendEv}</p></div>
+          <i data-lucide="clock" style="width:28px;height:28px;color:#f59e0b;opacity:.7"></i>
+        </div>
+        <div style="padding:14px;background:rgba(16,185,129,.08);border-radius:10px;border-left:4px solid #10b981;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="font-size:12px;color:var(--textm)">Tasa de cumplimiento</p><p class="font-bold text-lg" style="color:#10b981">${completionRate}%</p></div>
+          <i data-lucide="trending-up" style="width:28px;height:28px;color:#10b981;opacity:.7"></i>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// CONFIGURACIÓN — Horarios, GPS, Días sin clase, Salones
+// ============================================================
+function rConfig(){
+  const allGrades=[...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
+  if(typeof window._configTab==='undefined') window._configTab='schedules';
+  const ct=window._configTab;
+
+  const tabBtn=(key,label,icon)=>`<button onclick="window._configTab='${key}';render()"
+    style="display:flex;align-items:center;gap:8px;padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+    background:${ct===key?'var(--accent)':'rgba(6,182,212,.08)'};color:${ct===key?'#fff':'var(--textm)'}">
+    <i data-lucide="${icon}" style="width:15px;height:15px"></i>${label}
+  </button>`;
+
+  let html=`
+  <div style="margin-bottom:20px">
+    <h1 class="text-2xl font-bold mb-1"><i data-lucide="settings" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Configuración</h1>
+    <p style="color:var(--textm);font-size:13px">Horarios, ubicación GPS, días sin clase y salones</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+    ${tabBtn('schedules','Horarios','clock')}
+    ${tabBtn('rooms','Salones','door-open')}
+  </div>`;
+
+  // ── TAB: HORARIOS (extraído de rAdminPanel) ──
+  if(ct==='schedules'){
+    // Reutilizar el bloque de horarios del adminPanel
+    html+=renderSchedulesConfig(allGrades);
+  }
+
+  // ── TAB: SALONES ──
+  if(ct==='rooms'){
+    html+=renderRoomsConfig();
+  }
+
+  return html;
+}
+
+// Helper: renderiza config de horarios (extraído de adminPanel)
+function renderSchedulesConfig(grades){
+  const today = new Date();
+  const noClassSet = new Set((D.noClassDays||[]).map(x=>x.date));
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const firstDay = (new Date(year,month,1).getDay()+6)%7;
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const dayNames2 = ['L','M','X','J','V','S','D'];
+
+  let calHtml = '';
+  for(let d=1;d<=daysInMonth;d++){
+    const dow=(firstDay+d-1)%7;
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isNoClass=noClassSet.has(dateStr);
+    const isToday=d===today.getDate()&&month===today.getMonth();
+    const isWknd=dow>=5;
+    calHtml+=`${d===1?'<div></div>'.repeat(firstDay):''}
+      <div style="text-align:center;padding:6px 2px;border-radius:8px;font-size:12px;font-weight:${isToday?'700':'500'};
+        background:${isNoClass?'rgba(239,68,68,.15)':isToday?'rgba(6,182,212,.15)':'transparent'};
+        color:${isNoClass?'#ef4444':isWknd?'var(--textm)':'var(--text)'};
+        cursor:pointer;border:${isToday?'1.5px solid var(--accent)':'1px solid transparent'}"
+        onclick="toggleNoClassDay('${dateStr}')" title="${isNoClass?'Quitar día sin clase':'Marcar día sin clase'}">
+        ${d}${isNoClass?'<div style=\\"width:4px;height:4px;background:#ef4444;border-radius:50%;margin:2px auto 0\\"></div>':''}
+      </div>`;
+  }
+
+  return `
+  <!-- BLOQUE 1: HORARIOS -->
+  <div>
+    <h2 class="font-bold text-base mb-3"><i data-lucide="clock" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Horarios de Aseo por Grado</h2>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${grades.map(grade=>{
+        const gid=grade.replace(/[°\\s]/g,'_');
+        const sch=D.schedules?.find(s=>s.grade===grade)||{};
+        return `<div class="card" style="background:var(--surface);padding:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span style="font-weight:700;font-size:14px;color:var(--accent)">Grado ${grade}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}" style="width:110px;padding:6px 10px">
+              <input type="number" min="5" max="180" class="inp" id="window_${gid}" value="${sch.evidence_window_min||30}" title="Minutos para subir evidencia" style="width:64px;padding:6px 8px;text-align:center">
+              <span style="font-size:11px;color:var(--textm)">min</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Salidas tempranas -->
+    <div style="margin-top:16px">
+      <h3 class="font-bold text-sm mb-2"><i data-lucide="log-out" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i> Salidas Tempranas</h3>
+      <div class="card" style="background:var(--surface);padding:14px">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div><label class="auth-label">Grado</label>
+            <select class="inp" id="earlyGrade">${grades.map(g=>`<option value="${g}">${g}</option>`).join('')}</select></div>
+          <div><label class="auth-label">Hora de salida</label>
+            <input type="time" class="inp" id="earlyTime"></div>
+          <div><label class="auth-label">Fecha</label>
+            <input type="date" class="inp" id="earlyDate"></div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="pill pill-primary w-full" onclick="saveEarlyExit()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <p style="font-size:12px;color:var(--textm);margin-bottom:6px">Salidas programadas:</p>
+          ${(D.schedules||[]).filter(s=>s.early_exit_time).map(s=>`
+            <div class="card" style="background:var(--surface);padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <span style="font-weight:600;color:var(--accent)">${s.grade}</span>
+                  <span style="color:var(--textm);font-size:12px;margin-left:8px">${s.early_exit_time} — ${s.early_exit_date||'Sin fecha'}</span>
+                </div>
+              </div>
+            </div>`).join('') || `<p style="font-size:12px;color:var(--textm)">No hay salidas tempranas configuradas</p>`}
+        </div>
+      </div>
+    </div>
+
+    <button class="pill pill-primary mt-4" onclick="saveAllSchedules()"><i data-lucide="save" style="width:15px;height:15px"></i> Guardar Horarios</button>
+  </div>
+
+  <!-- BLOQUE 1.5: UBICACIÓN DEL COLEGIO -->
+  <div style="margin-top:20px">
+    <h2 class="font-bold text-base mb-3"><i data-lucide="map-pin" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Ubicación del Colegio</h2>
+    <div class="card" style="background:var(--surface);padding:16px">
+      <p style="font-size:12px;color:var(--textm);margin-bottom:10px">
+        Define la ubicación del colegio para validar el check-in de asistencia al aseo (GPS).
+      </p>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="auth-label">Latitud</label>
+          <input type="number" step="any" class="inp" id="schoolLat" value="${D.schoolConfig?.lat ?? ''}" placeholder="Ej: 4.6097">
+        </div>
+        <div>
+          <label class="auth-label">Longitud</label>
+          <input type="number" step="any" class="inp" id="schoolLng" value="${D.schoolConfig?.lng ?? ''}" placeholder="Ej: -74.0817">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="auth-label">Radio permitido (metros)</label>
+        <input type="number" class="inp" id="schoolRadius" value="${D.schoolConfig?.radius_meters ?? 150}" placeholder="150">
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="pill pill-ghost" style="font-size:12px" onclick="useMyLocationForSchool()"><i data-lucide="crosshair" style="width:14px;height:14px"></i> Usar mi ubicación actual</button>
+        <button class="pill pill-primary" style="font-size:12px" onclick="saveSchoolLocationFromForm()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
+      </div>
+      <p id="schoolLocMsg" style="font-size:12px;color:#22c55e;margin-top:8px;display:none"></p>
+    </div>
+  </div>
+
+  <!-- BLOQUE 2: DÍAS SIN CLASE -->
+  <div style="margin-top:20px">
+    <h2 class="font-bold text-base mb-3"><i data-lucide="calendar-x" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Días sin Clase — ${monthNames[month]} ${year}</h2>
+    <div class="card" style="background:var(--surface);padding:16px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">
+        ${dayNames2.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:var(--textm)">${d}</div>`).join('')}
+        ${calHtml}
+      </div>
+      <p style="font-size:11px;color:var(--textm);margin-top:8px">Clic en un día para marcarlo/desmarcarlo como día sin clase. Los días en <span style="color:#ef4444">rojo</span> no tendrán aseo.</p>
+    </div>
+  </div>`;
+}
+
+// Helper: renderiza config de salones
+function renderRoomsConfig(){
+  return `
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-base"><i data-lucide="door-open" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Gestión de Salones</h2>
+      <button class="pill pill-primary" onclick="openModal('add','rooms')"><i data-lucide="plus" style="width:14px;height:14px"></i> Nuevo Salón</button>
+    </div>
+    ${D.rooms.length>0?`
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th>Salón</th><th>Grado</th><th>Capacidad</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${D.rooms.map(r=>`<tr>
+            <td style="font-weight:600">${r.name||'—'}</td>
+            <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px">${r.grade||'—'}</span></td>
+            <td>${r.capacity||'—'}</td>
+            <td>
+              <div class="flex gap-1">
+                <button class="pill pill-ghost" style="padding:4px 8px;font-size:11px" onclick="openModal('edit','rooms',${r.id})"><i data-lucide="pencil" style="width:12px;height:12px"></i></button>
+                <button class="pill pill-danger" style="padding:4px 8px;font-size:11px" onclick="if(confirm('¿Eliminar este salón?'))deleteRoom(${r.id}).then(()=>render())"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+              </div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">Sin salones registrados</p>`}
+  </div>`;
+}
+
+// ============================================================
+// REPORTES ADMIN — Para la coordinadora
+// ============================================================
+function rReportsAdmin(){
+  if(typeof window._reportTab==='undefined') window._reportTab='daily';
+  const rt=window._reportTab;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const todayName = DAYS_ES[new Date().getDay()];
+  const allGrades=[...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
+
+  const tabBtn=(key,label,icon)=>`<button onclick="window._reportTab='${key}';render()"
+    style="display:flex;align-items:center;gap:8px;padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+    background:${rt===key?'var(--accent)':'rgba(6,182,212,.08)'};color:${rt===key?'#fff':'var(--textm)'}">
+    <i data-lucide="${icon}" style="width:15px;height:15px"></i>${label}
+  </button>`;
+
+  let html=`
+  <div style="margin-bottom:20px">
+    <h1 class="text-2xl font-bold mb-1"><i data-lucide="file-bar-chart" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Reportes</h1>
+    <p style="color:var(--textm);font-size:13px">Informes detallados para la coordinación</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+    ${tabBtn('daily','Reporte Diario','calendar')}
+    ${tabBtn('ranking','Ranking Incumplimiento','award')}
+    ${tabBtn('evidence','Evidencias del Día','camera')}
+  </div>`;
+
+  // ── TAB: REPORTE DIARIO ──
+  if(rt==='daily'){
+    const gradeRows = allGrades.map(grade=>{
+      const groups = D.cleanGroups.filter(g=>g.grade===grade&&(g.frequency==='weekly'||(g.frequency==='daily'&&g.day===todayName)));
+      const ev = D.evidence.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade&&e.date===todayStr;});
+      const checkins = (D.checkins||[]).filter(c=>c.grade===grade&&c.date===todayStr);
+      const totalMembers = groups.reduce((sum,g)=>(g.members?sum+g.members.length:sum),0);
+      const absentNames = [];
+      groups.forEach(g=>{
+        (g.members||[]).forEach(name=>{
+          if(!checkins.some(c=>c.student===name)) absentNames.push(name);
+        });
+      });
+      return { grade, groups:groups.length, hasEvidence:ev.length>0, status:ev.length>0?(ev.some(e=>e.status==='Completado')?'Completado':'Pendiente'):'Sin evidencia', checkins:checkins.length, totalMembers, absentNames };
+    }).filter(g=>g.groups>0);
+
+    html+=`
+    <div class="card" style="background:var(--surface)">
+      <h3 class="font-bold text-lg mb-4">Reporte del ${todayName} ${todayStr}</h3>
+      ${gradeRows.length>0?`
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Grado</th><th>Estado</th><th>Asistencia GPS</th><th>Ausentes</th></tr></thead>
+          <tbody>
+            ${gradeRows.map(g=>{
+              const sc={Completado:'#10b981',Pendiente:'#f59e0b','Sin evidencia':'#ef4444'};
+              return `<tr>
+                <td class="font-bold">${g.grade}</td>
+                <td><span class="badge" style="background:${sc[g.status]}15;color:${sc[g.status]};font-size:11px">${g.status}</span></td>
+                <td style="font-size:12px">${g.checkins}/${g.totalMembers}</td>
+                <td style="font-size:12px;color:${g.absentNames.length>0?'#ef4444':'#10b981'}">${g.absentNames.length>0?g.absentNames.join(', '):'Todos presentes'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">No hay grupos con turno hoy</p>`}
+    </div>`;
+  }
+
+  // ── TAB: RANKING DE INCUMPLIMIENTO ──
+  if(rt==='ranking'){
+    // Contar ausencias por estudiante (últimos 30 días)
+    const thirtyDaysAgo = new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+    const allMembers = {};
+    D.cleanGroups.forEach(g=>{
+      (g.members||[]).forEach(name=>{
+        if(!allMembers[name]) allMembers[name]={name, grade:g.grade, absences:0, total:0};
+      });
+    });
+
+    // Para cada día de los últimos 30, verificar quién no hizo check-in
+    const checkins30 = (D.checkins||[]).filter(c=>c.date>=thirtyDaysAgo);
+    D.cleanGroups.forEach(g=>{
+      (g.members||[]).forEach(name=>{
+        if(allMembers[name]){
+          // Contar días que le tocaba aseo (simplificación: contar evidencias del grupo)
+          const groupEvs = D.evidence.filter(e=>e.group===g.name&&e.date>=thirtyDaysAgo);
+          const daysWithDuty = groupEvs.length || 1;
+          const daysCheckedIn = checkins30.filter(c=>c.student===name&&c.group_name===g.name).length;
+          allMembers[name].total += daysWithDuty;
+          allMembers[name].absences += Math.max(0, daysWithDuty - daysCheckedIn);
+        }
+      });
+    });
+
+    const ranking = Object.values(allMembers).filter(m=>m.absences>0).sort((a,b)=>b.absences-a.absences);
+
+    html+=`
+    <div class="card" style="background:var(--surface)">
+      <h3 class="font-bold text-lg mb-4">Ranking de Incumplimiento (Últimos 30 días)</h3>
+      ${ranking.length>0?`
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Faltas</th></tr></thead>
+          <tbody>
+            ${ranking.slice(0,20).map((m,i)=>`<tr style="background:${i<3?'rgba(239,68,68,.05)':''}">
+              <td style="font-weight:700;color:${i<3?'#ef4444':'var(--text)'}">${i+1}</td>
+              <td style="font-weight:600">${m.name}</td>
+              <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:11px">${m.grade||'—'}</span></td>
+              <td style="font-weight:700;color:#ef4444">${m.absences}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">Sin datos de incumplimiento</p>`}
+    </div>`;
+  }
+
+  // ── TAB: EVIDENCIAS DEL DÍA ──
+  if(rt==='evidence'){
+    const todayEvidence = [...D.evidence.filter(e=>e.date===todayStr)].sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date));
+
+    html+=`
+    <div class="card" style="background:var(--surface)">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-lg">Evidencias — ${todayStr}</h3>
+        <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${todayEvidence.length} foto(s)</span>
+      </div>
+      ${todayEvidence.length>0?`
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        ${todayEvidence.map(e=>{
+          const group = D.cleanGroups.find(g=>g.name===e.group);
+          return `<div class="card" style="background:var(--surface);padding:0;overflow:hidden">
+            <div style="height:180px;background:rgba(6,182,212,.08);cursor:pointer" onclick="openImageFullscreen('${e.image||''}')">
+              ${e.image?`<img src="${e.image}" style="width:100%;height:100%;object-fit:cover">`:'<div style="display:flex;align-items:center;justify-content:center;height:100%"><i data-lucide="image" style="width:36px;height:36px;color:rgba(6,182,212,.3)"></i></div>'}
+            </div>
+            <div style="padding:12px">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-sm">${e.group}</span>
+                <span class="badge" style="font-size:10px;background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span>
+              </div>
+              <p style="font-size:11px;color:var(--textm)">${e.student} · ${group?.grade||''}</p>
+              ${e.image?`<a href="${e.image}" download style="font-size:11px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block"><i data-lucide="download" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"></i>Descargar</a>`:''}
+              ${renderAttendanceList(e.group, e.date)}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`:`<p style="color:var(--textm);text-align:center;padding:30px">Sin evidencias hoy</p>`}
+    </div>`;
+  }
+
+  return html;
+}
+
+// ============================================================
+// ADMIN PANEL (legacy — redirige al dashboard)
+// ============================================================
 function rAdminPanel(){
   if(typeof window.adminGradeFilter==='undefined') window.adminGradeFilter=null;
   const allGrades=[...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].sort();

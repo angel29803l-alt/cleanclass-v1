@@ -6,14 +6,14 @@
 function getModules(){
   if(isAdmin()){
     return [
-      {key:'adminPanel', icon:'shield',          label:'Panel Admin'},
-      {key:'users',      icon:'users',            label:'Módulo de Usuarios'},
-      {key:'analytics',  icon:'bar-chart-2',      label:'Analíticas y Gráficos'},
+      {key:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
+      {key:'users',      icon:'users',            label:'Usuarios'},
       {key:'clean',      icon:'sparkles',         label:'Turnos de Aseo'},
       {key:'evidence',   icon:'camera',           label:'Evidencias'},
       {key:'validation', icon:'check-square',     label:'Validación'},
       {key:'incidents',  icon:'alert-circle',     label:'Incidentes'},
-      {key:'reports',    icon:'file-text',        label:'Reportes'},
+      {key:'reports',    icon:'file-bar-chart',   label:'Reportes'},
+      {key:'config',     icon:'settings',         label:'Configuración'},
       {key:'settings',   icon:'user-circle',      label:'Mi Cuenta'}
     ];
   } else if(isTeacher()){
@@ -47,7 +47,7 @@ let sidebarCollapsed=false;
 function buildNav(){
   const nav=document.getElementById('nav');
   const modules=getModules();
-  if(isAdmin()&&(cur==='dash'||cur===''))cur='adminPanel';
+  if(isAdmin()&&(cur==='dash'||cur==='adminPanel'||cur===''))cur='dashboard';
 
   nav.innerHTML=modules.map(m=>`
     <div>
