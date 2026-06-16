@@ -896,6 +896,36 @@ async function saveAllSchedules() {
   initNotifications();
 }
 
+// Guardar horario universal (una misma hora para todos los grados)
+async function saveUniversalSchedule() {
+  const cleanTime = document.getElementById('clean_universal')?.value || '15:00';
+  const windowMin = parseInt(document.getElementById('window_universal')?.value) || 30;
+  const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))];
+
+  if(!grades.length){
+    alert('No hay salones/grados creados. Crea al menos un salón primero.');
+    return;
+  }
+
+  for(const grade of grades) {
+    const existing = D.schedules?.find(s=>s.grade===grade);
+    if(existing) {
+      const { error } = await sb.from('schedules').update({ clean_time: cleanTime, evidence_window_min: windowMin }).eq('id', existing.id);
+      if(error) console.error('Error actualizando horario:', error.message);
+    } else {
+      const { error } = await sb.from('schedules').insert({ grade, clean_time: cleanTime, evidence_window_min: windowMin });
+      if(error) console.error('Error insertando horario:', error.message);
+    }
+  }
+  await loadSchedules();
+  const n = document.createElement('div');
+  n.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
+  n.textContent = `✅ Horario ${cleanTime} guardado para ${grades.length} grado(s)`;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(), 3000);
+  initNotifications();
+}
+
 // ---- SISTEMA DE NOTIFICACIONES FCM ----
 const VAPID_KEY = 'BE-B5i3Vyu89wcEhORXlKe9jH2Pia94LGWoWmMCjfDO4H5kmp6lkuRc_1CZz1b23Q0yodiemNBSs7RmtoWN04v4';
 

@@ -237,58 +237,63 @@ function renderSchedulesConfig(grades){
   }
 
   return `
-  <!-- BLOQUE 1: HORARIOS -->
+  <!-- BLOQUE 1: HORARIO UNIVERSAL -->
   <div>
-    <h2 class="font-bold text-base mb-3"><i data-lucide="clock" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Horarios de Aseo por Grado</h2>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      ${grades.map(grade=>{
-        const gid=grade.replace(/[°\\s]/g,'_');
-        const sch=D.schedules?.find(s=>s.grade===grade)||{};
-        return `<div class="card" style="background:var(--surface);padding:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <span style="font-weight:700;font-size:14px;color:var(--accent)">Grado ${grade}</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="time" class="inp" id="clean_${gid}" value="${sch.clean_time||'15:00'}" style="width:110px;padding:6px 10px">
-              <input type="number" min="5" max="180" class="inp" id="window_${gid}" value="${sch.evidence_window_min||30}" title="Minutos para subir evidencia" style="width:64px;padding:6px 8px;text-align:center">
-              <span style="font-size:11px;color:var(--textm)">min</span>
-            </div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-
-    <!-- Salidas tempranas -->
-    <div style="margin-top:16px">
-      <h3 class="font-bold text-sm mb-2"><i data-lucide="log-out" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i> Salidas Tempranas</h3>
-      <div class="card" style="background:var(--surface);padding:14px">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="auth-label">Grado</label>
-            <select class="inp" id="earlyGrade">${grades.map(g=>`<option value="${g}">${g}</option>`).join('')}</select></div>
-          <div><label class="auth-label">Hora de salida</label>
-            <input type="time" class="inp" id="earlyTime"></div>
-          <div><label class="auth-label">Fecha</label>
-            <input type="date" class="inp" id="earlyDate"></div>
-          <div style="display:flex;align-items:flex-end">
-            <button class="pill pill-primary w-full" onclick="saveEarlyExit()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
+    <h2 class="font-bold text-base mb-1"><i data-lucide="clock" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Horario de Aseo</h2>
+    <p style="font-size:12px;color:var(--textm);margin-bottom:12px">Esta hora aplica para <strong>todos los grados</strong>. A esta hora se envía la notificación y se abre la ventana para subir evidencias.</p>
+    <div class="card" style="background:var(--surface);padding:16px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <label class="auth-label">Hora del aseo</label>
+          <input type="time" class="inp" id="clean_universal" value="${(D.schedules&&D.schedules[0]?.clean_time)||'15:00'}" style="width:130px;padding:8px 12px;font-size:16px">
+        </div>
+        <div>
+          <label class="auth-label">Ventana para subir evidencia</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" min="5" max="180" class="inp" id="window_universal" value="${(D.schedules&&D.schedules[0]?.evidence_window_min)||30}" style="width:70px;padding:8px;text-align:center;font-size:16px">
+            <span style="font-size:13px;color:var(--textm)">minutos</span>
           </div>
         </div>
-        <div style="margin-top:12px">
-          <p style="font-size:12px;color:var(--textm);margin-bottom:6px">Salidas programadas:</p>
-          ${(D.schedules||[]).filter(s=>s.early_exit_time).map(s=>`
-            <div class="card" style="background:var(--surface);padding:14px">
-              <div style="display:flex;align-items:center;justify-content:space-between">
-                <div>
-                  <span style="font-weight:600;color:var(--accent)">${s.grade}</span>
-                  <span style="color:var(--textm);font-size:12px;margin-left:8px">${s.early_exit_time} — ${s.early_exit_date||'Sin fecha'}</span>
-                </div>
-              </div>
-            </div>`).join('') || `<p style="font-size:12px;color:var(--textm)">No hay salidas tempranas configuradas</p>`}
+        <div style="display:flex;align-items:flex-end">
+          <button class="pill pill-primary" onclick="saveUniversalSchedule()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
         </div>
       </div>
+      <p style="font-size:11px;color:var(--textm);margin-top:10px">Ejemplo: Si pones 14:00 con 30 min, los estudiantes podrán subir evidencia entre las 2:00 PM y las 2:30 PM.</p>
     </div>
-
-    <button class="pill pill-primary mt-4" onclick="saveAllSchedules()"><i data-lucide="save" style="width:15px;height:15px"></i> Guardar Horarios</button>
   </div>
+
+  <!-- Salidas tempranas -->
+  <div style="margin-top:16px">
+    <h3 class="font-bold text-sm mb-1"><i data-lucide="log-out" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></i> Salidas Tempranas</h3>
+    <p style="font-size:12px;color:var(--textm);margin-bottom:8px">Si un grado sale antes de la hora normal, programa aquí su hora especial para ese día.</p>
+    <div class="card" style="background:var(--surface);padding:14px">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div><label class="auth-label">Grado</label>
+          <select class="inp" id="earlyGrade">${grades.map(g=>`<option value="${g}">${g}</option>`).join('')}</select></div>
+        <div><label class="auth-label">Hora de salida</label>
+          <input type="time" class="inp" id="earlyTime"></div>
+        <div><label class="auth-label">Fecha</label>
+          <input type="date" class="inp" id="earlyDate"></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="pill pill-primary w-full" onclick="saveEarlyExit()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <p style="font-size:12px;color:var(--textm);margin-bottom:6px">Salidas programadas:</p>
+        ${(D.schedules||[]).filter(s=>s.early_exit_time).map(s=>`
+          <div class="card" style="background:var(--surface);padding:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <span style="font-weight:600;color:var(--accent)">${s.grade}</span>
+                <span style="color:var(--textm);font-size:12px;margin-left:8px">${s.early_exit_time} — ${s.early_exit_date||'Sin fecha'}</span>
+              </div>
+            </div>
+          </div>`).join('') || `<p style="font-size:12px;color:var(--textm)">No hay salidas tempranas configuradas</p>`}
+      </div>
+    </div>
+  </div>
+
+  <button class="pill pill-primary mt-4" onclick="saveUniversalSchedule()"><i data-lucide="save" style="width:15px;height:15px"></i> Guardar Horarios</button>
 
   <!-- BLOQUE 1.5: UBICACIÓN DEL COLEGIO -->
   <div style="margin-top:20px">
@@ -1627,6 +1632,100 @@ function renderAttendanceList(groupName, dateStr){
 }
 
 function rEvidence(){
+  // ── ADMIN: galería de evidencias con filtro por grado ──
+  if(isAdmin()){
+    if(typeof window._evGradeFilter==='undefined') window._evGradeFilter=null;
+    const allGrades=[...new Set(D.cleanGroups.map(g=>g.grade).filter(Boolean))].sort();
+    const filtered = window._evGradeFilter
+      ? D.evidence.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===window._evGradeFilter;})
+      : D.evidence;
+    const sorted = [...filtered].sort((a,b)=>new Date(b.date+' '+(b.time||''))-new Date(a.date+' '+(a.time||'')));
+    const completed=filtered.filter(e=>e.status==='Completado').length;
+    const pending=filtered.filter(e=>e.status==='Pendiente').length;
+    const rejected=filtered.filter(e=>e.status==='Rechazado').length;
+    const total=filtered.length;
+    const rate=total?Math.round((completed/total)*100):0;
+
+    return `
+    <div style="margin-bottom:20px">
+      <h1 class="text-2xl font-bold mb-1"><i data-lucide="camera" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Evidencias de Aseo</h1>
+      <p style="color:var(--textm);font-size:13px">Aquí puedes ver todas las fotos que los estudiantes suben después del aseo. Toca una imagen para verla en grande.</p>
+    </div>
+
+    <!-- Filtro por grado — mini cards estéticas -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:12px;background:var(--surface);border-radius:12px;border:1px solid var(--border)">
+      <p style="font-size:11px;color:var(--textm);width:100%;margin-bottom:4px">Filtrar por grado:</p>
+      <button onclick="window._evGradeFilter=null;render()"
+        style="padding:8px 16px;border-radius:10px;border:1.5px solid ${!window._evGradeFilter?'var(--accent)':'var(--border)'};
+        background:${!window._evGradeFilter?'rgba(6,182,212,.15)':'transparent'};
+        color:${!window._evGradeFilter?'var(--accent)':'var(--textm)'};font-size:13px;font-weight:600;cursor:pointer;transition:all .2s">
+        📚 Todos <span style="background:rgba(6,182,212,.2);padding:1px 8px;border-radius:20px;font-size:11px;margin-left:4px">${D.evidence.length}</span>
+      </button>
+      ${allGrades.map(g=>{
+        const count=D.evidence.filter(e=>{const cg=D.cleanGroups.find(c=>c.name===e.group);return cg&&cg.grade===g;}).length;
+        const isActive=window._evGradeFilter===g;
+        return `<button onclick="window._evGradeFilter='${g}';render()"
+          style="padding:8px 16px;border-radius:10px;border:1.5px solid ${isActive?'var(--accent)':'var(--border)'};
+          background:${isActive?'rgba(6,182,212,.15)':'transparent'};
+          color:${isActive?'var(--accent)':'var(--textm)'};font-size:13px;font-weight:600;cursor:pointer;transition:all .2s">
+          ${g} <span style="background:${count>0?'rgba(6,182,212,.2)':'rgba(100,116,139,.15)'};padding:1px 8px;border-radius:20px;font-size:11px;margin-left:4px">${count}</span>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      ${[
+        {icon:'check-circle',label:'Aprobadas',   val:completed,color:'#10b981',bg:'rgba(16,185,129,.1)'},
+        {icon:'x-circle',    label:'Rechazadas',  val:rejected, color:'#ef4444',bg:'rgba(239,68,68,.1)'},
+        {icon:'clock',       label:'Pendientes',  val:pending,  color:'#f59e0b',bg:'rgba(245,158,11,.1)'},
+        {icon:'trending-up', label:'Cumplimiento',val:rate+'%', color:rate>=70?'#10b981':rate>=40?'#f59e0b':'#ef4444',bg:'rgba(6,182,212,.1)'}
+      ].map((s,i)=>`
+      <div class="kpi-card slide-up" style="animation-delay:${i*0.07}s">
+        <div style="width:38px;height:38px;border-radius:10px;background:${s.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+          <i data-lucide="${s.icon}" style="width:19px;height:19px;color:${s.color}"></i>
+        </div>
+        <p style="font-size:24px;font-weight:800;color:${s.color};line-height:1">${s.val}</p>
+        <p style="font-size:13px;color:var(--textm);margin-top:4px">${s.label}</p>
+      </div>`).join('')}
+    </div>
+
+    <!-- Galería de evidencias -->
+    <h3 class="font-bold text-lg mb-3">Evidencias ${window._evGradeFilter?'— Grado '+window._evGradeFilter:''}</h3>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      ${sorted.length>0?sorted.map((e,i)=>{
+        const group=D.cleanGroups.find(g=>g.name===e.group);
+        return `
+        <div class="card pop-in" style="background:var(--surface);padding:0;overflow:hidden;animation-delay:${i*0.04}s">
+          <div style="height:180px;background:rgba(6,182,212,.08);cursor:pointer;position:relative" onclick="openImageFullscreen('${e.image||''}')">
+            ${e.image?`<img src="${e.image}" style="width:100%;height:100%;object-fit:cover">`:'<div style="display:flex;align-items:center;justify-content:center;height:100%"><i data-lucide="image" style="width:36px;height:36px;color:rgba(6,182,212,.3)"></i></div>'}
+            <div style="position:absolute;top:8px;right:8px">
+              <span class="badge" style="font-size:10px;background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span>
+            </div>
+            ${e.image?`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.75));padding:8px 10px">
+              <p style="font-size:10px;color:#fff;font-weight:600">${e.date}${e.time?' · '+e.time:''}</p>
+            </div>`:''}
+          </div>
+          <div style="padding:12px">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-sm">${e.group}</span>
+              <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent);font-size:10px">${group?.grade||'—'}</span>
+            </div>
+            <p style="font-size:11px;color:var(--textm)">Subida por: ${e.student}</p>
+            ${renderAttendanceList(e.group, e.date)}
+            ${e.image?`<a href="${e.image}" download style="font-size:11px;color:var(--accent);text-decoration:none;margin-top:8px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="download" style="width:12px;height:12px"></i>Descargar foto</a>`:''}
+          </div>
+        </div>`;
+      }).join(''):`
+      <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
+        <i data-lucide="camera" style="width:44px;height:44px;opacity:.35;margin:0 auto 14px;display:block"></i>
+        <p class="font-medium">Sin evidencias</p>
+        <p style="font-size:13px;margin-top:4px">Las evidencias subidas por los estudiantes aparecerán aquí</p>
+      </div>`}
+    </div>`;
+  }
+
+  // ── ESTUDIANTE / DOCENTE: vista original ──
   const myGrade   = getCurrentGrade();
   const myGroups  = D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
   const myEvidence= isStudent()
@@ -2259,24 +2358,66 @@ function rMyValidations(){
    ============================================================ */
 function rIncidents(){
   const myGrade=getCurrentGrade();
-  const mine=D.incidents.filter(i=>!myGrade||!i.grade||i.grade===myGrade);
+
+  // ── Filtro por grado para admin ──
+  if(isAdmin()){
+    if(typeof window._incGradeFilter==='undefined') window._incGradeFilter=null;
+    const allGrades=[...new Set(D.incidents.map(i=>i.grade).filter(Boolean))].sort();
+    var mine = window._incGradeFilter
+      ? D.incidents.filter(i=>i.grade===window._incGradeFilter)
+      : D.incidents;
+  } else {
+    var mine=D.incidents.filter(i=>!myGrade||!i.grade||i.grade===myGrade);
+  }
+
   const statuses=['Abierto','En Proceso','Resuelto'];
   const pc={Alta:'#dc2626',Media:'#f59e0b',Baja:'#10b981'};
   const sc={Abierto:'#ef4444','En Proceso':'#f59e0b',Resuelto:'#10b981'};
 
-  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  let headerHtml = '';
+  if(isAdmin()){
+    const allGrades=[...new Set(D.incidents.map(i=>i.grade).filter(Boolean))].sort();
+    headerHtml = `
+    <div style="margin-bottom:20px">
+      <h1 class="text-2xl font-bold mb-1"><i data-lucide="alert-circle" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Gestión de Incidentes</h1>
+      <p style="color:var(--textm);font-size:13px">Aquí puedes ver y gestionar todos los incidentes reportados por los estudiantes. Usa el filtro para ver por grado.</p>
+    </div>
+    <!-- Filtro por grado -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:12px;background:var(--surface);border-radius:12px;border:1px solid var(--border)">
+      <p style="font-size:11px;color:var(--textm);width:100%;margin-bottom:4px">Filtrar por grado:</p>
+      <button onclick="window._incGradeFilter=null;render()"
+        style="padding:8px 16px;border-radius:10px;border:1.5px solid ${!window._incGradeFilter?'var(--accent)':'var(--border)'};
+        background:${!window._incGradeFilter?'rgba(6,182,212,.15)':'transparent'};
+        color:${!window._incGradeFilter?'var(--accent)':'var(--textm)'};font-size:13px;font-weight:600;cursor:pointer">
+        📋 Todos <span style="background:rgba(6,182,212,.2);padding:1px 8px;border-radius:20px;font-size:11px;margin-left:4px">${D.incidents.length}</span>
+      </button>
+      ${allGrades.map(g=>{
+        const count=D.incidents.filter(i=>i.grade===g).length;
+        const isActive=window._incGradeFilter===g;
+        return `<button onclick="window._incGradeFilter='${g}';render()"
+          style="padding:8px 16px;border-radius:10px;border:1.5px solid ${isActive?'var(--accent)':'var(--border)'};
+          background:${isActive?'rgba(6,182,212,.15)':'transparent'};
+          color:${isActive?'var(--accent)':'var(--textm)'};font-size:13px;font-weight:600;cursor:pointer">
+          ${g} <span style="background:${count>0?'rgba(239,68,68,.2)':'rgba(100,116,139,.15)'};padding:1px 8px;border-radius:20px;font-size:11px;margin-left:4px;color:${count>0?'#ef4444':'var(--textm)'}">${count}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+  } else {
+    headerHtml = `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
       <h1 class="text-2xl font-bold">Incidentes del Grado${myGrade?' — '+myGrade:''}</h1>
-      <p style="color:var(--textm)" class="text-sm">Incidentes reportados por estudiantes y seguimiento</p>
+      <p style="color:var(--textm)" class="text-sm">Incidentes reportados por estudiantes. Revisa, actualiza el estado y haz seguimiento.</p>
     </div>
   </div>
-  <!-- Banner informativo del docente -->
   <div class="card mb-6" style="background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.04));border:1px solid rgba(239,68,68,.25);padding:16px">
     <div class="flex items-center gap-3">
       <i data-lucide="alert-circle" style="width:20px;height:20px;color:#ef4444"></i>
       <div><p style="font-size:12px;color:var(--textm)">Director de Grado</p><p class="font-semibold">${currentSession?.name} · Grado ${myGrade||'—'}</p></div>
     </div>
-  </div>
+  </div>`;
+  }
+
+  return `${headerHtml}
   <div class="grid gap-4 sm:grid-cols-3 mb-6">
     <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#ef4444">${mine.filter(i=>i.status==='Abierto').length}</p><p style="color:var(--textm);font-size:13px">Abiertos</p></div>
     <div class="card" style="background:var(--surface)"><p class="text-2xl font-bold" style="color:#f59e0b">${mine.filter(i=>i.status==='En Proceso').length}</p><p style="color:var(--textm);font-size:13px">En Proceso</p></div>
