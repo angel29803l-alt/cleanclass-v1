@@ -231,7 +231,7 @@ function renderSchedulesConfig(grades){
         background:${isNoClass?'rgba(239,68,68,.15)':isToday?'rgba(6,182,212,.15)':'transparent'};
         color:${isNoClass?'#ef4444':isWknd?'var(--textm)':'var(--text)'};
         cursor:pointer;border:${isToday?'1.5px solid var(--accent)':'1px solid transparent'}"
-        onclick="toggleNoClassDay('${dateStr}')" title="${isNoClass?'Quitar día sin clase':'Marcar día sin clase'}">
+        onclick="toggleNoClassDay('${dateStr}',${isNoClass})" title="${isNoClass?'Quitar día sin clase':'Marcar día sin clase'}">
         ${d}${isNoClass?'<div style=\\"width:4px;height:4px;background:#ef4444;border-radius:50%;margin:2px auto 0\\"></div>':''}
       </div>`;
   }
@@ -1460,7 +1460,7 @@ function rUsers(){
           </div>
           Módulo de Usuarios
         </h1>
-        <p style="color:var(--textm);font-size:13px;margin-top:4px">${isAdmin()?'Todos los grados':myGrade?'Grado '+myGrade:'Sin grado asignado'}</p>
+        <p style="color:var(--textm);font-size:13px;margin-top:4px">${isAdmin()?'Aquí puedes ver, agregar y gestionar todos los estudiantes y docentes del colegio, organizados por grado.':myGrade?'Grado '+myGrade:'Sin grado asignado'}</p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <div style="position:relative">
@@ -1537,11 +1537,14 @@ function rUsers(){
   <div class="card slide-up" style="background:var(--surface);padding:0;overflow:hidden">
     <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <h3 class="font-bold">Estudiantes</h3>
-      <span class="badge" style="background:rgba(37,99,235,.15);color:#2563eb">${filteredStudents.length} registros</span>
+      <div class="flex gap-2 items-center">
+        <span class="badge" style="background:rgba(37,99,235,.15);color:#2563eb">${filteredStudents.length} registros</span>
+        ${isAdmin()?`<button class="pill pill-primary" style="font-size:12px;padding:6px 14px" onclick="openModal('add','students')"><i data-lucide="plus" style="width:13px;height:13px"></i> Agregar</button>`:''}
+      </div>
     </div>
     <div style="overflow-x:auto"><table class="tbl" style="margin:0">
       <thead><tr style="background:rgba(37,99,235,.04)">
-        <th style="width:36px">#</th><th>Nombre</th><th>Grado</th><th>Email</th><th>Grupo Aseo</th><th style="text-align:center">Cumplimiento</th>
+        <th style="width:36px">#</th><th>Nombre</th><th>Grado</th><th>Email</th><th>Grupo Aseo</th><th style="text-align:center">Cumplimiento</th>${isAdmin()?'<th>Acciones</th>':''}
       </tr></thead>
       <tbody>${filteredStudents.length>0?filteredStudents.map((s,i)=>{
         const group=D.cleanGroups.find(g=>g.members&&g.members.includes(s.name));
@@ -1561,6 +1564,10 @@ function rUsers(){
             <div style="width:50px;height:5px;border-radius:3px;background:rgba(6,182,212,.1);overflow:hidden"><div style="width:${comp}%;height:100%;background:${cc}"></div></div>
             <span style="font-size:12px;font-weight:700;color:${cc}">${comp}%</span>
           </div>`:`<span style="font-size:11px;color:var(--textm)">—</span>`}</td>
+          ${isAdmin()?`<td><div class="flex gap-1">
+            <button class="pill pill-ghost" style="padding:4px 8px;font-size:11px" onclick="openModal('edit','students',${s.id})"><i data-lucide="pencil" style="width:12px;height:12px"></i></button>
+            <button class="pill pill-danger" style="padding:4px 8px;font-size:11px" onclick="if(confirm('¿Eliminar a ${s.name}?'))deleteStudentDb(${s.id}).then(()=>render())"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+          </div></td>`:''}
         </tr>`;
       }).join(''):`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--textm)">Sin estudiantes</td></tr>`}
       </tbody>
@@ -1572,11 +1579,14 @@ function rUsers(){
   <div class="card slide-up" style="background:var(--surface);padding:0;overflow:hidden">
     <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <h3 class="font-bold">Docentes</h3>
-      <span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${filteredTeachers.length} registros</span>
+      <div class="flex gap-2 items-center">
+        <span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${filteredTeachers.length} registros</span>
+        ${isAdmin()?`<button class="pill pill-primary" style="font-size:12px;padding:6px 14px" onclick="openModal('add','teachers')"><i data-lucide="plus" style="width:13px;height:13px"></i> Agregar</button>`:''}
+      </div>
     </div>
     <div style="overflow-x:auto"><table class="tbl" style="margin:0">
       <thead><tr style="background:rgba(124,58,237,.04)">
-        <th style="width:36px">#</th><th>Nombre</th><th>Materia</th><th>Grado</th><th>Email</th>
+        <th style="width:36px">#</th><th>Nombre</th><th>Materia</th><th>Grado</th><th>Email</th>${isAdmin()?'<th>Acciones</th>':''}
       </tr></thead>
       <tbody>${filteredTeachers.length>0?filteredTeachers.map((tc,i)=>`
       <tr>
@@ -1588,8 +1598,11 @@ function rUsers(){
         <td style="font-size:13px">${tc.subject||'—'}</td>
         <td><span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed">${tc.grade||'—'}</span></td>
         <td style="font-size:12px;color:var(--textm)">${tc.email||'—'}</td>
-
-      </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--textm)">Sin docentes</td></tr>`}
+        ${isAdmin()?`<td><div class="flex gap-1">
+          <button class="pill pill-ghost" style="padding:4px 8px;font-size:11px" onclick="openModal('edit','teachers',${tc.id})"><i data-lucide="pencil" style="width:12px;height:12px"></i></button>
+          <button class="pill pill-danger" style="padding:4px 8px;font-size:11px" onclick="if(confirm('¿Eliminar a ${tc.name}?'))deleteTeacherDb(${tc.id}).then(()=>render())"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+        </div></td>`:''}
+      </tr>`).join(''):`<tr><td colspan="${isAdmin()?6:5}" style="text-align:center;padding:36px;color:var(--textm)">Sin docentes</td></tr>`}
       </tbody>
     </table></div>
   </div>`:''}

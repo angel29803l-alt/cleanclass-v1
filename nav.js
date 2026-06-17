@@ -8,7 +8,6 @@ function getModules(){
     return [
       {key:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
       {key:'users',      icon:'users',            label:'Usuarios'},
-      {key:'clean',      icon:'sparkles',         label:'Turnos de Aseo'},
       {key:'evidence',   icon:'camera',           label:'Evidencias'},
       {key:'validation', icon:'check-square',     label:'Validación'},
       {key:'incidents',  icon:'alert-circle',     label:'Incidentes'},
