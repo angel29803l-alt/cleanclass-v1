@@ -15,7 +15,7 @@ function switchValidationTab(tab){
 
 function switchReportTab(tab){
   document.querySelectorAll('.report-tab').forEach(t=>t.style.display='none');
-  const tabMap={students:'reportStudents',rooms:'reportRooms',history:'reportHistory'};
+  const tabMap={students:'reportStudents',history:'reportHistory'};
   const el=document.getElementById(tabMap[tab]);
   if(el)el.style.display='block';
   document.querySelectorAll('button.tab').forEach(t=>t.classList.remove('active'));
@@ -863,40 +863,12 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
   }
 });
 
-// ---- GUARDAR HORARIOS ----
-async function saveAllSchedules() {
-  const grades = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))];
-  for(const grade of grades) {
-    const gid = grade.replace(/[°\s]/g,'_');
-    const cleanEl = document.getElementById(`clean_${gid}`);
-    if(!cleanEl) continue;
-    const cleanTime = cleanEl.value || '15:00';
-    const windowEl = document.getElementById(`window_${gid}`);
-    const windowMin = parseInt(windowEl?.value) || 30;
-    const existing = D.schedules?.find(s=>s.grade===grade);
-    
-    if(existing) {
-      // Update
-      const { error } = await sb.from('schedules').update({ clean_time: cleanTime, evidence_window_min: windowMin }).eq('id', existing.id);
-      if(error) console.error('Error actualizando horario:', error.message);
-    } else {
-      // Insert
-      const { error } = await sb.from('schedules').insert({ grade, clean_time: cleanTime, evidence_window_min: windowMin });
-      if(error) console.error('Error insertando horario:', error.message);
-    }
-  }
-  await loadSchedules();
-  // Mostrar confirmación
-  const n = document.createElement('div');
-  n.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
-  n.textContent = '✅ Horarios guardados';
-  document.body.appendChild(n);
-  setTimeout(()=>n.remove(), 2500);
-  // Reprogramar notificaciones
-  initNotifications();
-}
+// ---- GUARDAR HORARIO UNIVERSAL ----
+// saveAllSchedules fue eliminado (código muerto).
+// Solo era llamado desde rAdminPanel (tab 'schedules'), que también fue eliminado.
+// La función activa es saveUniversalSchedule (usada en rConfig).
 
-// Guardar horario universal (una misma hora para todos los grados)
+
 async function saveUniversalSchedule() {
   const cleanTime = document.getElementById('clean_universal')?.value || '15:00';
   const windowMin = parseInt(document.getElementById('window_universal')?.value) || 30;
@@ -1232,13 +1204,8 @@ function doCheckin(groupName){
   }, {enableHighAccuracy:true, timeout:15000});
 }
 
-// ============================================================
-// NOTIFICACIÓN INSTANTÁNEA AL DOCENTE
-// ============================================================
-function notifyTeacher(type, data) {
-  sb.functions.invoke('send-notifications', {
-    body: { type, ...data }
-  })
-  .then(res => console.log('✅ Notificación al docente enviada:', res.data))
-  .catch(e => console.error('Error notificando al docente:', e));
-}
+// notifyTeacher fue eliminado (código muerto).
+// Las notificaciones al docente se manejan directamente desde
+// triggers en la DB (trg_notify_evidence, trg_notify_incident)
+// que llaman a la Edge Function send-notifications automáticamente.
+
