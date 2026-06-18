@@ -2505,383 +2505,296 @@ async function exportWeeklyExcel(){
     return;
   }
 
-  if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader" style="width:16px;height:16px"></i> Generando...';}
+  if(btn){btn.disabled=true;btn.innerHTML='⏳ Generando...';}
   if(msg){msg.style.display='none';}
 
   try {
+    // ── Helper: string seguro ──
+    const s = v => (v==null ? '' : String(v));
+
     const days  = _getWeekDates(input.value);
     const DAYS_LABELS = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
     const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    const allGrades = [...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
 
-    const weekEv  = D.evidence.filter(e => e && e.date && days.includes(e.date));
-    const weekInc = D.incidents.filter(i => i && i.date && days.includes(i.date));
-    const weekCk  = (D.checkins||[]).filter(c => c && c.date && days.includes(c.date));
+    const allGrades = [...new Set([
+      ...D.students.map(st=>st.grade),
+      ...D.rooms.map(r=>r.grade)
+    ])].filter(Boolean).map(s).sort();
+
+    // Filtros defensivos — descartar registros sin fecha o nulos
+    const weekEv  = (D.evidence  ||[]).filter(e => e && s(e.date) && days.includes(s(e.date)));
+    const weekInc = (D.incidents ||[]).filter(i => i && s(i.date) && days.includes(s(i.date)));
+    const weekCk  = (D.checkins  ||[]).filter(c => c && s(c.date) && days.includes(s(c.date)));
+
     const approved = weekEv.filter(e=>e.status==='Completado').length;
     const rejected = weekEv.filter(e=>e.status==='Rechazado').length;
     const pending  = weekEv.filter(e=>e.status==='Pendiente').length;
     const rate     = weekEv.length ? Math.round((approved/weekEv.length)*100) : 0;
+
     const weekLabel = new Date(days[0]).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})
                     + ' — ' + new Date(days[4]).toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
 
     const wb = XLSX.utils.book_new();
 
-    // ── Helpers de estilo ──────────────────────────────────────
-    // Estilo de celda encabezado principal (título de hoja)
+    // ── Estilos ────────────────────────────────────────────────
     const sTitulo = {
-      font:  { bold:true, sz:14, color:{rgb:'FFFFFF'} },
-      fill:  { fgColor:{rgb:'0F2A50'} },
-      alignment: { horizontal:'left', vertical:'center' }
+      font:{ bold:true, sz:14, color:{rgb:'FFFFFF'} },
+      fill:{ fgColor:{rgb:'0F2A50'} },
+      alignment:{ horizontal:'left', vertical:'center' }
     };
-    // Encabezado de sección (ej: "INDICADORES GENERALES")
     const sSeccion = {
-      font:  { bold:true, sz:11, color:{rgb:'FFFFFF'} },
-      fill:  { fgColor:{rgb:'1E3A5F'} },
-      alignment: { horizontal:'left', vertical:'center' }
+      font:{ bold:true, sz:11, color:{rgb:'FFFFFF'} },
+      fill:{ fgColor:{rgb:'1E3A5F'} },
+      alignment:{ horizontal:'left', vertical:'center' }
     };
-    // Encabezado de columna de tabla
     const sColHead = {
-      font:  { bold:true, sz:10, color:{rgb:'FFFFFF'} },
-      fill:  { fgColor:{rgb:'1B3A6B'} },
-      border: {
-        top:    {style:'thin', color:{rgb:'AAAAAA'}},
-        bottom: {style:'thin', color:{rgb:'AAAAAA'}},
-        left:   {style:'thin', color:{rgb:'AAAAAA'}},
-        right:  {style:'thin', color:{rgb:'AAAAAA'}}
+      font:{ bold:true, sz:10, color:{rgb:'FFFFFF'} },
+      fill:{ fgColor:{rgb:'1B3A6B'} },
+      border:{
+        top:{style:'thin',color:{rgb:'AAAAAA'}},
+        bottom:{style:'thin',color:{rgb:'AAAAAA'}},
+        left:{style:'thin',color:{rgb:'AAAAAA'}},
+        right:{style:'thin',color:{rgb:'AAAAAA'}}
       },
-      alignment: { horizontal:'center', vertical:'center', wrapText:true }
+      alignment:{ horizontal:'center', vertical:'center', wrapText:true }
     };
-    // Fila de dato — par (blanco)
-    const sDatoPar = {
-      font:  { sz:10 },
-      fill:  { fgColor:{rgb:'FFFFFF'} },
-      border: {
-        top:    {style:'thin', color:{rgb:'DDDDDD'}},
-        bottom: {style:'thin', color:{rgb:'DDDDDD'}},
-        left:   {style:'thin', color:{rgb:'DDDDDD'}},
-        right:  {style:'thin', color:{rgb:'DDDDDD'}}
-      },
-      alignment: { vertical:'center', wrapText:true }
+    const border = {
+      top:{style:'thin',color:{rgb:'DDDDDD'}},
+      bottom:{style:'thin',color:{rgb:'DDDDDD'}},
+      left:{style:'thin',color:{rgb:'DDDDDD'}},
+      right:{style:'thin',color:{rgb:'DDDDDD'}}
     };
-    // Fila de dato — impar (gris claro)
-    const sDatoImpar = {
-      ...sDatoPar,
-      fill: { fgColor:{rgb:'EEF2F7'} }
-    };
-    // Celda numérica centrada
-    const sNum = (par) => ({
-      ...(par ? sDatoPar : sDatoImpar),
-      alignment: { horizontal:'center', vertical:'center' }
-    });
-    // Celda de metadato (label)
-    const sMeta = {
-      font:  { bold:true, sz:10, color:{rgb:'1B3A6B'} },
-      fill:  { fgColor:{rgb:'F0F4F8'} },
-      alignment: { vertical:'center' }
-    };
-    // Celda de valor metadato
-    const sMetaVal = {
-      font:  { sz:10 },
-      fill:  { fgColor:{rgb:'F0F4F8'} },
-      alignment: { vertical:'center' }
-    };
-    // Badge de estado
-    const sBadge = (status) => {
-      const colors = {
-        'Completado': {bg:'C6EFCE', fg:'276221'},
-        'Aprobada':   {bg:'C6EFCE', fg:'276221'},
-        'Rechazado':  {bg:'FFCCCC', fg:'9C0006'},
-        'Pendiente':  {bg:'FFEB9C', fg:'9C5700'},
-        'Abierto':    {bg:'FFCCCC', fg:'9C0006'},
-        'En Proceso': {bg:'FFEB9C', fg:'9C5700'},
-        'Resuelto':   {bg:'C6EFCE', fg:'276221'},
-        'Alta':       {bg:'FFCCCC', fg:'9C0006'},
-        'Media':      {bg:'FFEB9C', fg:'9C5700'},
-        'Baja':       {bg:'C6EFCE', fg:'276221'},
+    const sDatoPar   = { font:{sz:10}, fill:{fgColor:{rgb:'FFFFFF'}},  border, alignment:{vertical:'center',wrapText:true} };
+    const sDatoImpar = { font:{sz:10}, fill:{fgColor:{rgb:'EEF2F7'}},  border, alignment:{vertical:'center',wrapText:true} };
+    const sMeta      = { font:{bold:true,sz:10,color:{rgb:'1B3A6B'}}, fill:{fgColor:{rgb:'F0F4F8'}}, alignment:{vertical:'center'} };
+    const sMetaVal   = { font:{sz:10}, fill:{fgColor:{rgb:'F0F4F8'}}, alignment:{vertical:'center'} };
+
+    const sNum = par => ({ ...(par?sDatoPar:sDatoImpar), alignment:{horizontal:'center',vertical:'center'} });
+
+    const sBadge = status => {
+      const map = {
+        'Completado':{bg:'C6EFCE',fg:'276221'},'Rechazado':{bg:'FFCCCC',fg:'9C0006'},
+        'Pendiente':{bg:'FFEB9C',fg:'9C5700'},'Abierto':{bg:'FFCCCC',fg:'9C0006'},
+        'En Proceso':{bg:'FFEB9C',fg:'9C5700'},'Resuelto':{bg:'C6EFCE',fg:'276221'},
+        'Alta':{bg:'FFCCCC',fg:'9C0006'},'Media':{bg:'FFEB9C',fg:'9C5700'},'Baja':{bg:'C6EFCE',fg:'276221'},
       };
-      const c = colors[status] || {bg:'EEEEEE', fg:'444444'};
-      return {
-        font:  { bold:true, sz:10, color:{rgb:c.fg} },
-        fill:  { fgColor:{rgb:c.bg} },
-        border: sDatoPar.border,
-        alignment: { horizontal:'center', vertical:'center' }
-      };
+      const c = map[status] || {bg:'EEEEEE',fg:'444444'};
+      return { font:{bold:true,sz:10,color:{rgb:c.fg}}, fill:{fgColor:{rgb:c.bg}}, border, alignment:{horizontal:'center',vertical:'center'} };
     };
 
-    // Helper: aplicar estilo a una celda por dirección (ej: 'A1')
-    function sc(ws, addr, style){
-      if(!ws[addr]) ws[addr] = {v:'', t:'s'};
-      ws[addr].s = style;
-    }
-    // Helper: escribir celda con valor y estilo
-    function wc(ws, addr, val, style, type){
-      const t = type || (typeof val === 'number' ? 'n' : 's');
-      ws[addr] = { v: val, t, s: style };
-    }
-    // Helper: dirección de celda por col (0-indexed) y fila (0-indexed)
-    function addr(col, row){ return XLSX.utils.encode_cell({c:col, r:row}); }
+    const wc   = (ws,addr,val,style,type) => { ws[addr]={v:val==null?'':val, t:type||(typeof val==='number'?'n':'s'), s:style}; };
+    const addr = (col,row) => XLSX.utils.encode_cell({c:col,r:row});
 
     // ──────────────────────────────────────────────────────────
     // HOJA 1: RESUMEN
     // ──────────────────────────────────────────────────────────
-    const ws1 = {};
-    let r = 0;
+    const ws1 = {}; ws1['!merges'] = []; let r = 0;
 
-    // Fila 0: título
-    wc(ws1, addr(0,r), 'REPORTE SEMANAL — CleanClass', sTitulo);
-    ws1['!merges'] = [{s:{r,c:0}, e:{r,c:6}}];
+    wc(ws1,addr(0,r),'REPORTE SEMANAL — CleanClass',sTitulo);
+    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
+    wc(ws1,addr(0,r),'Semana:',sMeta); wc(ws1,addr(1,r),weekLabel,sMetaVal); r++;
+    wc(ws1,addr(0,r),'Generado:',sMeta); wc(ws1,addr(1,r),new Date().toLocaleString('es-CO'),sMetaVal); r++;
     r++;
 
-    // Fila 1: semana
-    wc(ws1, addr(0,r), 'Semana:', sMeta);
-    wc(ws1, addr(1,r), weekLabel, sMetaVal);
-    r++;
+    wc(ws1,addr(0,r),'INDICADORES GENERALES',sSeccion);
+    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
+    wc(ws1,addr(0,r),'Métrica',sColHead); wc(ws1,addr(1,r),'Valor',sColHead); r++;
 
-    // Fila 2: generado
-    wc(ws1, addr(0,r), 'Generado:', sMeta);
-    wc(ws1, addr(1,r), new Date().toLocaleString('es-CO'), sMetaVal);
-    r++;
-    r++; // fila vacía
-
-    // Sección indicadores
-    wc(ws1, addr(0,r), 'INDICADORES GENERALES', sSeccion);
-    ws1['!merges'].push({s:{r,c:0}, e:{r,c:6}});
-    r++;
-
-    wc(ws1, addr(0,r), 'Métrica', sColHead);
-    wc(ws1, addr(1,r), 'Valor', sColHead);
-    r++;
-
-    const kpiRows = [
-      ['Total evidencias semana', weekEv.length],
-      ['Evidencias aprobadas',    approved],
-      ['Evidencias rechazadas',   rejected],
-      ['Evidencias pendientes',   pending],
-      ['Tasa de cumplimiento (%)',rate],
-      ['Total check-ins GPS',     weekCk.length],
-      ['Total incidentes',        weekInc.length],
-      ['Incidentes abiertos',     weekInc.filter(i=>i.status==='Abierto').length],
-    ];
-    kpiRows.forEach((row, i) => {
-      const par = i%2===0;
-      wc(ws1, addr(0,r), row[0], par ? sDatoPar : sDatoImpar);
-      wc(ws1, addr(1,r), row[1], sNum(par), 'n');
+    [['Total evidencias semana',weekEv.length],['Evidencias aprobadas',approved],
+     ['Evidencias rechazadas',rejected],['Evidencias pendientes',pending],
+     ['Tasa de cumplimiento (%)',rate],['Total check-ins GPS',weekCk.length],
+     ['Total incidentes',weekInc.length],['Incidentes abiertos',weekInc.filter(i=>i.status==='Abierto').length]
+    ].forEach(([label,val],i)=>{
+      const par=i%2===0;
+      wc(ws1,addr(0,r),label,par?sDatoPar:sDatoImpar);
+      wc(ws1,addr(1,r),val,sNum(par),'n');
       r++;
     });
     r++;
 
-    // Sección cumplimiento por grado
-    wc(ws1, addr(0,r), 'CUMPLIMIENTO POR GRADO', sSeccion);
-    ws1['!merges'].push({s:{r,c:0}, e:{r,c:6}});
-    r++;
+    wc(ws1,addr(0,r),'CUMPLIMIENTO POR GRADO',sSeccion);
+    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
+    ['Grado','Grupos activos','Evidencias','Aprobadas','Rechazadas','Pendientes','Cumplimiento (%)']
+      .forEach((h,c)=>wc(ws1,addr(c,r),h,sColHead)); r++;
 
-    const gradeHeads = ['Grado','Grupos activos','Evidencias','Aprobadas','Rechazadas','Pendientes','Cumplimiento (%)'];
-    gradeHeads.forEach((h,c) => wc(ws1, addr(c,r), h, sColHead));
-    r++;
-
-    allGrades.forEach((grade, i) => {
-      const gradeEv = weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade;});
-      const gg = D.cleanGroups.filter(g=>g.grade===grade).length;
+    allGrades.forEach((grade,i)=>{
+      const gradeEv = weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&s(g.grade)===grade;});
+      const gg = D.cleanGroups.filter(g=>s(g.grade)===grade).length;
       const ga = gradeEv.filter(e=>e.status==='Completado').length;
       const gr = gradeEv.filter(e=>e.status==='Rechazado').length;
       const gp = gradeEv.filter(e=>e.status==='Pendiente').length;
-      const grate = gradeEv.length ? Math.round((ga/gradeEv.length)*100) : 0;
-      const par = i%2===0;
-      const row = [grade, gg, gradeEv.length, ga, gr, gp, grate];
-      row.forEach((val, c) => {
-        wc(ws1, addr(c,r), val, c===0 ? (par?sDatoPar:sDatoImpar) : sNum(par), typeof val==='number'?'n':'s');
-      });
-      r++;
+      const grate = gradeEv.length?Math.round((ga/gradeEv.length)*100):0;
+      const par=i%2===0;
+      [grade,gg,gradeEv.length,ga,gr,gp,grate].forEach((val,c)=>{
+        wc(ws1,addr(c,r),val,c===0?(par?sDatoPar:sDatoImpar):sNum(par),typeof val==='number'?'n':'s');
+      }); r++;
     });
     r++;
 
-    // Top 10 faltas
-    wc(ws1, addr(0,r), 'TOP 10 — ESTUDIANTES CON MÁS FALTAS EN LA SEMANA', sSeccion);
-    ws1['!merges'].push({s:{r,c:0}, e:{r,c:6}});
-    r++;
+    wc(ws1,addr(0,r),'TOP 10 — ESTUDIANTES CON MÁS FALTAS EN LA SEMANA',sSeccion);
+    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
+    ['Estudiante','Grado','Faltas de asistencia'].forEach((h,c)=>wc(ws1,addr(c,r),h,sColHead)); r++;
 
-    ['Estudiante','Grado','Faltas de asistencia'].forEach((h,c) => wc(ws1, addr(c,r), h, sColHead));
-    r++;
-
-    const absences = {};
-    D.cleanGroups.forEach(g => {
-      (g.members||[]).forEach(name => {
-        const dutyDays = days.filter(d => {
-          const dow = new Date(d+'T00:00:00').getDay();
-          const dname = DAYS_ES[dow];
-          return g.frequency==='weekly' || (g.frequency==='daily' && g.day===dname);
+    const absences={};
+    (D.cleanGroups||[]).forEach(g=>{
+      (g.members||[]).forEach(name=>{
+        if(!name) return;
+        const dutyDays=days.filter(d=>{
+          const dow=new Date(d+'T00:00:00').getDay();
+          return g.frequency==='weekly'||(g.frequency==='daily'&&g.day===DAYS_ES[dow]);
         }).length;
-        const checkedIn = days.filter(d => weekCk.some(c=>c.student===name&&c.date===d)).length;
-        if(dutyDays > 0){
-          if(!absences[name]) absences[name]={name, grade:g.grade, faltas:0};
-          absences[name].faltas += Math.max(0, dutyDays - checkedIn);
+        const checkedIn=days.filter(d=>weekCk.some(c=>s(c.student)===name&&s(c.date)===d)).length;
+        if(dutyDays>0){
+          if(!absences[name]) absences[name]={name,grade:s(g.grade),faltas:0};
+          absences[name].faltas+=Math.max(0,dutyDays-checkedIn);
         }
       });
     });
     Object.values(absences).filter(a=>a.faltas>0).sort((a,b)=>b.faltas-a.faltas).slice(0,10)
-      .forEach((a,i) => {
-        const par = i%2===0;
-        wc(ws1, addr(0,r), a.name,   par?sDatoPar:sDatoImpar);
-        wc(ws1, addr(1,r), a.grade,  sNum(par));
-        wc(ws1, addr(2,r), a.faltas, sNum(par), 'n');
+      .forEach((a,i)=>{
+        const par=i%2===0;
+        wc(ws1,addr(0,r),s(a.name),par?sDatoPar:sDatoImpar);
+        wc(ws1,addr(1,r),s(a.grade),sNum(par));
+        wc(ws1,addr(2,r),a.faltas,sNum(par),'n');
         r++;
       });
 
-    ws1['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:r,c:6}});
-    ws1['!cols'] = [{wch:34},{wch:18},{wch:14},{wch:14},{wch:14},{wch:14},{wch:18}];
-    ws1['!rows'] = [{hpt:22}]; // altura fila 0
-    XLSX.utils.book_append_sheet(wb, ws1, 'Resumen');
+    ws1['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:6}});
+    ws1['!cols']=[{wch:34},{wch:18},{wch:14},{wch:14},{wch:14},{wch:14},{wch:18}];
+    XLSX.utils.book_append_sheet(wb,ws1,'Resumen');
 
     // ──────────────────────────────────────────────────────────
     // HOJA 2: ASISTENCIA
     // ──────────────────────────────────────────────────────────
-    const ws2 = {};
-    r = 0;
-    wc(ws2, addr(0,r), 'ASISTENCIA GPS — Semana: '+weekLabel, sTitulo);
-    ws2['!merges'] = [{s:{r,c:0}, e:{r,c:10}}];
-    r++; r++;
+    const ws2={}; ws2['!merges']=[]; r=0;
+    wc(ws2,addr(0,r),'ASISTENCIA GPS — Semana: '+weekLabel,sTitulo);
+    ws2['!merges'].push({s:{r,c:0},e:{r,c:10}}); r++; r++;
 
-    const asistHeads = ['Estudiante','Grado','Grupo',...DAYS_LABELS,'Total Asistencias','Total Posibles','Asistencia (%)'];
-    asistHeads.forEach((h,c) => wc(ws2, addr(c,r), h, sColHead));
-    r++;
+    ['Estudiante','Grado','Grupo',...DAYS_LABELS,'Total Asistencias','Total Posibles','Asistencia (%)']
+      .forEach((h,c)=>wc(ws2,addr(c,r),h,sColHead)); r++;
 
-    const studentGroups = {};
-    D.cleanGroups.forEach(g => {
-      (g.members||[]).forEach(name => {
-        if(!studentGroups[name]) studentGroups[name]={grade:g.grade, group:g.name, freq:g.frequency, day:g.day};
+    const studentGroups={};
+    (D.cleanGroups||[]).forEach(g=>{
+      (g.members||[]).forEach(name=>{
+        if(name && !studentGroups[name])
+          studentGroups[name]={grade:s(g.grade),group:s(g.name),freq:s(g.frequency),day:s(g.day)};
       });
     });
 
-    D.students.sort((a,b)=>(a.grade||'').localeCompare(b.grade||'')||(a.name||'').localeCompare(b.name||''))
-      .forEach((s,i) => {
-        const sg = studentGroups[s.name];
-        const par = i%2===0;
-        const dayChecks = days.map(d => weekCk.some(c=>c.student===s.name&&c.date===d) ? '✓' : '');
-        const totalAsist = dayChecks.filter(v=>v==='✓').length;
-        const totalPos   = sg ? days.filter(d=>{
+    // IMPORTANTE: usar slice() para no mutar D.students
+    [...(D.students||[])].sort((a,b)=>s(a.grade).localeCompare(s(b.grade))||s(a.name).localeCompare(s(b.name)))
+      .forEach((st,i)=>{
+        const sg=studentGroups[s(st.name)];
+        const par=i%2===0;
+        const dayChecks=days.map(d=>weekCk.some(c=>s(c.student)===s(st.name)&&s(c.date)===d)?'✓':'');
+        const totalAsist=dayChecks.filter(v=>v==='✓').length;
+        const totalPos=sg?days.filter(d=>{
           const dow=new Date(d+'T00:00:00').getDay();
-          const dname=DAYS_ES[dow];
-          return sg.freq==='weekly'||(sg.freq==='daily'&&sg.day===dname);
-        }).length : 0;
-        const pct = totalPos ? Math.round((totalAsist/totalPos)*100) : 0;
+          return sg.freq==='weekly'||(sg.freq==='daily'&&sg.day===DAYS_ES[dow]);
+        }).length:0;
+        const pct=totalPos?Math.round((totalAsist/totalPos)*100):0;
 
-        wc(ws2, addr(0,r), s.name,               par?sDatoPar:sDatoImpar);
-        wc(ws2, addr(1,r), s.grade,               sNum(par));
-        wc(ws2, addr(2,r), sg?sg.group:'Sin grupo',par?sDatoPar:sDatoImpar);
-        dayChecks.forEach((v,ci) => {
-          const stCheck = v==='✓' ? {
-            font:{bold:true,sz:11,color:{rgb:'276221'}},
-            fill:{fgColor:{rgb:par?'C6EFCE':'B8E8C0'}},
-            border:sDatoPar.border,
-            alignment:{horizontal:'center',vertical:'center'}
-          } : {
-            ...(par?sDatoPar:sDatoImpar),
-            alignment:{horizontal:'center',vertical:'center'}
-          };
-          wc(ws2, addr(3+ci,r), v, stCheck);
+        wc(ws2,addr(0,r),s(st.name),par?sDatoPar:sDatoImpar);
+        wc(ws2,addr(1,r),s(st.grade),sNum(par));
+        wc(ws2,addr(2,r),sg?sg.group:'Sin grupo',par?sDatoPar:sDatoImpar);
+        dayChecks.forEach((v,ci)=>{
+          const stl=v==='✓'
+            ? {font:{bold:true,sz:11,color:{rgb:'276221'}},fill:{fgColor:{rgb:par?'C6EFCE':'B8E8C0'}},border,alignment:{horizontal:'center',vertical:'center'}}
+            : {...(par?sDatoPar:sDatoImpar),alignment:{horizontal:'center',vertical:'center'}};
+          wc(ws2,addr(3+ci,r),v,stl);
         });
-        wc(ws2, addr(8,r),  totalAsist, sNum(par), 'n');
-        wc(ws2, addr(9,r),  totalPos,   sNum(par), 'n');
-        wc(ws2, addr(10,r), totalPos?pct+'%':'—', {
+        wc(ws2,addr(8,r),totalAsist,sNum(par),'n');
+        wc(ws2,addr(9,r),totalPos,sNum(par),'n');
+        wc(ws2,addr(10,r),totalPos?pct+'%':'—',{
           ...(par?sDatoPar:sDatoImpar),
-          font:{bold:true, sz:10, color:{rgb: pct>=80?'276221': pct>=50?'9C5700':'9C0006'}},
+          font:{bold:true,sz:10,color:{rgb:pct>=80?'276221':pct>=50?'9C5700':'9C0006'}},
           alignment:{horizontal:'center',vertical:'center'}
         });
         r++;
       });
 
-    ws2['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:r,c:10}});
-    ws2['!cols'] = [{wch:28},{wch:10},{wch:22},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:16},{wch:14},{wch:14}];
-    XLSX.utils.book_append_sheet(wb, ws2, 'Asistencia');
+    ws2['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:10}});
+    ws2['!cols']=[{wch:28},{wch:10},{wch:22},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:16},{wch:14},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws2,'Asistencia');
 
     // ──────────────────────────────────────────────────────────
     // HOJA 3: EVIDENCIAS
     // ──────────────────────────────────────────────────────────
-    const ws3 = {};
-    r = 0;
-    wc(ws3, addr(0,r), 'EVIDENCIAS DE ASEO — Semana: '+weekLabel, sTitulo);
-    ws3['!merges'] = [{s:{r,c:0}, e:{r,c:7}}];
-    r++; r++;
-
+    const ws3={}; ws3['!merges']=[]; r=0;
+    wc(ws3,addr(0,r),'EVIDENCIAS DE ASEO — Semana: '+weekLabel,sTitulo);
+    ws3['!merges'].push({s:{r,c:0},e:{r,c:7}}); r++; r++;
     ['Fecha','Día','Grupo','Grado','Subida por','Estado','Revisado por','Observaciones']
-      .forEach((h,c) => wc(ws3, addr(c,r), h, sColHead));
-    r++;
+      .forEach((h,c)=>wc(ws3,addr(c,r),h,sColHead)); r++;
 
-    if(weekEv.length === 0){
-      wc(ws3, addr(0,r), 'Sin evidencias en esta semana', sDatoPar);
-      r++;
+    const evSorted=[...weekEv].sort((a,b)=>s(a.date).localeCompare(s(b.date)));
+    if(evSorted.length===0){
+      wc(ws3,addr(0,r),'Sin evidencias en esta semana',sDatoPar); r++;
     } else {
-      [...weekEv].filter(e=>e&&e.date).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((e,i) => {
-        const par = i%2===0;
-        const group = D.cleanGroups.find(g=>g.name===e.group);
-        const dow = new Date(e.date+'T00:00:00').getDay();
-        wc(ws3, addr(0,r), e.date,               par?sDatoPar:sDatoImpar);
-        wc(ws3, addr(1,r), DAYS_ES[dow],          par?sDatoPar:sDatoImpar);
-        wc(ws3, addr(2,r), e.group,               par?sDatoPar:sDatoImpar);
-        wc(ws3, addr(3,r), group?.grade||'—',     sNum(par));
-        wc(ws3, addr(4,r), e.student,             par?sDatoPar:sDatoImpar);
-        wc(ws3, addr(5,r), e.status,              sBadge(e.status));
-        wc(ws3, addr(6,r), e.reviewed_by||'—',   par?sDatoPar:sDatoImpar);
-        wc(ws3, addr(7,r), e.observation||'—',   {...(par?sDatoPar:sDatoImpar), alignment:{wrapText:true,vertical:'center'}});
+      evSorted.forEach((e,i)=>{
+        const par=i%2===0;
+        const grp=D.cleanGroups.find(g=>g.name===e.group);
+        const dow=new Date(s(e.date)+'T00:00:00').getDay();
+        wc(ws3,addr(0,r),s(e.date),par?sDatoPar:sDatoImpar);
+        wc(ws3,addr(1,r),DAYS_ES[dow]||'',par?sDatoPar:sDatoImpar);
+        wc(ws3,addr(2,r),s(e.group),par?sDatoPar:sDatoImpar);
+        wc(ws3,addr(3,r),s(grp?.grade),sNum(par));
+        wc(ws3,addr(4,r),s(e.student),par?sDatoPar:sDatoImpar);
+        wc(ws3,addr(5,r),s(e.status),sBadge(e.status));
+        wc(ws3,addr(6,r),s(e.reviewed_by),par?sDatoPar:sDatoImpar);
+        wc(ws3,addr(7,r),s(e.observation),{...(par?sDatoPar:sDatoImpar),alignment:{wrapText:true,vertical:'center'}});
         r++;
       });
     }
-
-    ws3['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:r,c:7}});
-    ws3['!cols'] = [{wch:14},{wch:12},{wch:24},{wch:10},{wch:26},{wch:14},{wch:22},{wch:42}];
-    XLSX.utils.book_append_sheet(wb, ws3, 'Evidencias');
+    ws3['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:7}});
+    ws3['!cols']=[{wch:14},{wch:12},{wch:24},{wch:10},{wch:26},{wch:14},{wch:22},{wch:42}];
+    XLSX.utils.book_append_sheet(wb,ws3,'Evidencias');
 
     // ──────────────────────────────────────────────────────────
     // HOJA 4: INCIDENTES
     // ──────────────────────────────────────────────────────────
-    const ws4 = {};
-    r = 0;
-    wc(ws4, addr(0,r), 'INCIDENTES — Semana: '+weekLabel, sTitulo);
-    ws4['!merges'] = [{s:{r,c:0}, e:{r,c:9}}];
-    r++; r++;
-
+    const ws4={}; ws4['!merges']=[]; r=0;
+    wc(ws4,addr(0,r),'INCIDENTES — Semana: '+weekLabel,sTitulo);
+    ws4['!merges'].push({s:{r,c:0},e:{r,c:9}}); r++; r++;
     ['Fecha','Tipo','Grado','Prioridad','Estado','Ubicación','Reportado por','Descripción','Asignado a','Notas']
-      .forEach((h,c) => wc(ws4, addr(c,r), h, sColHead));
-    r++;
+      .forEach((h,c)=>wc(ws4,addr(c,r),h,sColHead)); r++;
 
-    if(weekInc.length === 0){
-      wc(ws4, addr(0,r), 'Sin incidentes en esta semana', sDatoPar);
-      r++;
+    const incSorted=[...weekInc].sort((a,b)=>s(a.date).localeCompare(s(b.date)));
+    if(incSorted.length===0){
+      wc(ws4,addr(0,r),'Sin incidentes en esta semana',sDatoPar); r++;
     } else {
-      [...weekInc].filter(i=>i&&i.date).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((i,idx) => {
-        const par = idx%2===0;
-        wc(ws4, addr(0,r), i.date,             par?sDatoPar:sDatoImpar);
-        wc(ws4, addr(1,r), i.type,             par?sDatoPar:sDatoImpar);
-        wc(ws4, addr(2,r), i.grade||'—',       sNum(par));
-        wc(ws4, addr(3,r), i.priority,         sBadge(i.priority));
-        wc(ws4, addr(4,r), i.status,           sBadge(i.status));
-        wc(ws4, addr(5,r), i.location,         par?sDatoPar:sDatoImpar);
-        wc(ws4, addr(6,r), i.reporter,         par?sDatoPar:sDatoImpar);
-        wc(ws4, addr(7,r), i.description,      {...(par?sDatoPar:sDatoImpar), alignment:{wrapText:true,vertical:'center'}});
-        wc(ws4, addr(8,r), i.assigned_to||'—', par?sDatoPar:sDatoImpar);
-        wc(ws4, addr(9,r), i.notes||'—',       {...(par?sDatoPar:sDatoImpar), alignment:{wrapText:true,vertical:'center'}});
+      incSorted.forEach((i,idx)=>{
+        const par=idx%2===0;
+        wc(ws4,addr(0,r),s(i.date),par?sDatoPar:sDatoImpar);
+        wc(ws4,addr(1,r),s(i.type),par?sDatoPar:sDatoImpar);
+        wc(ws4,addr(2,r),s(i.grade),sNum(par));
+        wc(ws4,addr(3,r),s(i.priority),sBadge(i.priority));
+        wc(ws4,addr(4,r),s(i.status),sBadge(i.status));
+        wc(ws4,addr(5,r),s(i.location),par?sDatoPar:sDatoImpar);
+        wc(ws4,addr(6,r),s(i.reporter),par?sDatoPar:sDatoImpar);
+        wc(ws4,addr(7,r),s(i.description),{...(par?sDatoPar:sDatoImpar),alignment:{wrapText:true,vertical:'center'}});
+        wc(ws4,addr(8,r),s(i.assigned_to),par?sDatoPar:sDatoImpar);
+        wc(ws4,addr(9,r),s(i.notes),{...(par?sDatoPar:sDatoImpar),alignment:{wrapText:true,vertical:'center'}});
         r++;
       });
     }
-
-    ws4['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:r,c:9}});
-    ws4['!cols'] = [{wch:14},{wch:22},{wch:10},{wch:12},{wch:14},{wch:22},{wch:22},{wch:42},{wch:22},{wch:32}];
-    XLSX.utils.book_append_sheet(wb, ws4, 'Incidentes');
+    ws4['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:9}});
+    ws4['!cols']=[{wch:14},{wch:22},{wch:10},{wch:12},{wch:14},{wch:22},{wch:22},{wch:42},{wch:22},{wch:32}];
+    XLSX.utils.book_append_sheet(wb,ws4,'Incidentes');
 
     // ── Descargar ──
-    const fileName = `CleanClass_Semana_${input.value}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    const fileName=`CleanClass_Semana_${input.value}.xlsx`;
+    XLSX.writeFile(wb,fileName);
 
     if(msg){
-      msg.textContent = `✅ Archivo "${fileName}" descargado correctamente.`;
+      msg.textContent=`✅ Archivo "${fileName}" descargado correctamente.`;
       msg.style.display='block';
       msg.style.color='#10b981';
     }
 
-  } catch(err) {
+  } catch(err){
     console.error('Error exportando Excel:', err);
     if(msg){
-      msg.textContent = '⚠ Error al generar el archivo: '+err.message;
+      msg.textContent='⚠ Error al generar el archivo: '+err.message;
       msg.style.display='block';
       msg.style.color='#ef4444';
     }
@@ -2889,7 +2802,7 @@ async function exportWeeklyExcel(){
     if(btn){
       btn.disabled=false;
       btn.innerHTML='<i data-lucide="download" style="width:18px;height:18px"></i> Descargar Excel';
-      if(typeof lucide !== 'undefined') lucide.createIcons();
+      if(typeof lucide!=='undefined') lucide.createIcons();
     }
   }
 }
