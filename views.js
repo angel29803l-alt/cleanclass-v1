@@ -2467,9 +2467,9 @@ function updateExcelWeekPreview(){
   const kpisEl = document.getElementById('excelPreviewKpis');
   if(!kpisEl) return;
 
-  const weekEv  = D.evidence.filter(e => days.includes(e.date));
-  const weekInc = D.incidents.filter(i => days.includes(i.date));
-  const weekCk  = (D.checkins||[]).filter(c => days.includes(c.date));
+  const weekEv  = D.evidence.filter(e => e && e.date && days.includes(e.date));
+  const weekInc = D.incidents.filter(i => i && i.date && days.includes(i.date));
+  const weekCk  = (D.checkins||[]).filter(c => c && c.date && days.includes(c.date));
   const approved = weekEv.filter(e => e.status==='Completado').length;
   const rate = weekEv.length ? Math.round((approved/weekEv.length)*100) : 0;
 
@@ -2514,9 +2514,9 @@ async function exportWeeklyExcel(){
     const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
     const allGrades = [...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
 
-    const weekEv  = D.evidence.filter(e => days.includes(e.date));
-    const weekInc = D.incidents.filter(i => days.includes(i.date));
-    const weekCk  = (D.checkins||[]).filter(c => days.includes(c.date));
+    const weekEv  = D.evidence.filter(e => e && e.date && days.includes(e.date));
+    const weekInc = D.incidents.filter(i => i && i.date && days.includes(i.date));
+    const weekCk  = (D.checkins||[]).filter(c => c && c.date && days.includes(c.date));
     const approved = weekEv.filter(e=>e.status==='Completado').length;
     const rejected = weekEv.filter(e=>e.status==='Rechazado').length;
     const pending  = weekEv.filter(e=>e.status==='Pendiente').length;
@@ -2752,7 +2752,7 @@ async function exportWeeklyExcel(){
       });
     });
 
-    D.students.sort((a,b)=>a.grade.localeCompare(b.grade)||a.name.localeCompare(b.name))
+    D.students.sort((a,b)=>(a.grade||'').localeCompare(b.grade||'')||(a.name||'').localeCompare(b.name||''))
       .forEach((s,i) => {
         const sg = studentGroups[s.name];
         const par = i%2===0;
@@ -2811,7 +2811,7 @@ async function exportWeeklyExcel(){
       wc(ws3, addr(0,r), 'Sin evidencias en esta semana', sDatoPar);
       r++;
     } else {
-      [...weekEv].sort((a,b)=>a.date.localeCompare(b.date)).forEach((e,i) => {
+      [...weekEv].filter(e=>e&&e.date).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((e,i) => {
         const par = i%2===0;
         const group = D.cleanGroups.find(g=>g.name===e.group);
         const dow = new Date(e.date+'T00:00:00').getDay();
@@ -2848,7 +2848,7 @@ async function exportWeeklyExcel(){
       wc(ws4, addr(0,r), 'Sin incidentes en esta semana', sDatoPar);
       r++;
     } else {
-      [...weekInc].sort((a,b)=>a.date.localeCompare(b.date)).forEach((i,idx) => {
+      [...weekInc].filter(i=>i&&i.date).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((i,idx) => {
         const par = idx%2===0;
         wc(ws4, addr(0,r), i.date,             par?sDatoPar:sDatoImpar);
         wc(ws4, addr(1,r), i.type,             par?sDatoPar:sDatoImpar);
