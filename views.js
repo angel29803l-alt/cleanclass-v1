@@ -519,10 +519,6 @@ let calendarOffset=0;
 // renderCheckinCard fue eliminado (código muerto — nunca se llamaba).
 // La lógica de check-in está integrada directamente en rDash/rEvidence.
 
-
-  if(isAdmin()) return '';
-  const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-
 function rDash(){
   const myGrade=getCurrentGrade();
   const myGroups=D.cleanGroups.filter(g=>!myGrade||g.grade===myGrade);
