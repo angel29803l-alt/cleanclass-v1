@@ -9,7 +9,6 @@ function getModules(){
       {key:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
       {key:'users',      icon:'users',            label:'Usuarios'},
       {key:'evidence',   icon:'camera',           label:'Evidencias'},
-      {key:'validation', icon:'check-square',     label:'Validación'},
       {key:'incidents',  icon:'alert-circle',     label:'Incidentes'},
       {key:'reports',    icon:'file-bar-chart',   label:'Reportes'},
       {key:'config',     icon:'settings',         label:'Configuración'},
