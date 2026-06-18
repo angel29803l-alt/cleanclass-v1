@@ -386,6 +386,7 @@ function rReportsAdmin(){
     ${tabBtn('daily','Reporte Diario','calendar')}
     ${tabBtn('ranking','Ranking Incumplimiento','award')}
     ${tabBtn('evidence','Evidencias del Día','camera')}
+    ${tabBtn('excel','Excel Semanal','file-spreadsheet')}
   </div>`;
 
   // ── TAB: REPORTE DIARIO ──
@@ -505,6 +506,88 @@ function rReportsAdmin(){
           </div>`;
         }).join('')}
       </div>`:`<p style="color:var(--textm);text-align:center;padding:30px">Sin evidencias hoy</p>`}
+    </div>`;
+  }
+
+  // ── TAB: EXCEL SEMANAL ──
+  if(rt==='excel'){
+    const nowEx = new Date();
+    const dayOfWeek = nowEx.getDay();
+    const diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+    const defaultMon = new Date(nowEx);
+    defaultMon.setDate(nowEx.getDate() + diffToMon);
+    const defaultMonStr = defaultMon.toISOString().split('T')[0];
+
+    html += `
+    <div class="card" style="background:var(--surface)">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <h3 class="font-bold text-lg flex items-center gap-2">
+            <i data-lucide="file-spreadsheet" style="width:20px;height:20px;color:#10b981"></i>
+            Exportar Reporte Semanal a Excel
+          </h3>
+          <p style="color:var(--textm);font-size:13px;margin-top:4px">
+            Genera un archivo Excel con 4 hojas: Resumen, Asistencia, Evidencias e Incidentes para la semana seleccionada.
+          </p>
+        </div>
+      </div>
+
+      <!-- Selector de semana -->
+      <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:20px;margin-bottom:20px">
+        <p style="font-size:13px;font-weight:600;color:#10b981;margin-bottom:12px">
+          <i data-lucide="calendar-range" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px"></i>
+          Selecciona la semana a exportar
+        </p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div>
+            <label class="auth-label">Lunes de la semana</label>
+            <input type="date" id="excelWeekStart" class="inp" value="${defaultMonStr}"
+              style="width:180px" onchange="updateExcelWeekPreview()">
+          </div>
+          <div style="padding:10px 16px;background:rgba(6,182,212,.08);border-radius:8px;border:1px solid rgba(6,182,212,.2)">
+            <p style="font-size:12px;color:var(--textm)">Semana</p>
+            <p id="excelWeekLabel" style="font-size:13px;font-weight:700;color:var(--accent)">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs de preview -->
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6" id="excelPreviewKpis"></div>
+
+      <!-- Hojas que tendrá -->
+      <div style="margin-bottom:20px">
+        <p style="font-size:13px;font-weight:600;margin-bottom:10px">El archivo tendrá 4 hojas:</p>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div style="padding:14px;background:rgba(6,182,212,.08);border-radius:10px;border:1px solid rgba(6,182,212,.2)">
+            <i data-lucide="layout-dashboard" style="width:18px;height:18px;color:#06b6d4;margin-bottom:8px;display:block"></i>
+            <p style="font-weight:700;font-size:13px;margin-bottom:2px">1. Resumen</p>
+            <p style="font-size:11px;color:var(--textm)">KPIs generales de la semana</p>
+          </div>
+          <div style="padding:14px;background:rgba(37,99,235,.08);border-radius:10px;border:1px solid rgba(37,99,235,.2)">
+            <i data-lucide="user-check" style="width:18px;height:18px;color:#2563eb;margin-bottom:8px;display:block"></i>
+            <p style="font-weight:700;font-size:13px;margin-bottom:2px">2. Asistencia</p>
+            <p style="font-size:11px;color:var(--textm)">Check-in GPS por grado y día</p>
+          </div>
+          <div style="padding:14px;background:rgba(124,58,237,.08);border-radius:10px;border:1px solid rgba(124,58,237,.2)">
+            <i data-lucide="camera" style="width:18px;height:18px;color:#7c3aed;margin-bottom:8px;display:block"></i>
+            <p style="font-weight:700;font-size:13px;margin-bottom:2px">3. Evidencias</p>
+            <p style="font-size:11px;color:var(--textm)">Fotos subidas y su estado</p>
+          </div>
+          <div style="padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border:1px solid rgba(239,68,68,.2)">
+            <i data-lucide="alert-circle" style="width:18px;height:18px;color:#ef4444;margin-bottom:8px;display:block"></i>
+            <p style="font-weight:700;font-size:13px;margin-bottom:2px">4. Incidentes</p>
+            <p style="font-size:11px;color:var(--textm)">Incidentes reportados en la semana</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón exportar -->
+      <button class="pill pill-primary flex items-center gap-2" style="font-size:15px;padding:14px 32px"
+        onclick="exportWeeklyExcel()">
+        <i data-lucide="download" style="width:18px;height:18px"></i>
+        Descargar Excel
+      </button>
+      <p id="excelMsg" style="font-size:12px;color:var(--textm);margin-top:10px;display:none"></p>
     </div>`;
   }
 
@@ -2348,6 +2431,287 @@ function rSettings(){
 
 
 // ---- VER IMAGEN EN PANTALLA COMPLETA ----
+
+// ============================================================
+// EXCEL SEMANAL — exportWeeklyExcel + updateExcelWeekPreview
+// Usa SheetJS (xlsx) cargado desde CDN en index.html
+// ============================================================
+
+function _getWeekDates(mondayStr){
+  const mon = new Date(mondayStr + 'T00:00:00');
+  const days = [];
+  for(let i=0;i<5;i++){
+    const d = new Date(mon);
+    d.setDate(mon.getDate()+i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days; // [lun, mar, mie, jue, vie]
+}
+
+function updateExcelWeekPreview(){
+  const input = document.getElementById('excelWeekStart');
+  if(!input || !input.value) return;
+  const days = _getWeekDates(input.value);
+  const fri = new Date(days[4]);
+
+  // Label de semana
+  const labelEl = document.getElementById('excelWeekLabel');
+  if(labelEl){
+    const opts = {day:'2-digit', month:'short'};
+    const from = new Date(days[0]).toLocaleDateString('es-CO', opts);
+    const to   = fri.toLocaleDateString('es-CO', opts);
+    labelEl.textContent = `${from} — ${to}`;
+  }
+
+  // KPIs de preview
+  const kpisEl = document.getElementById('excelPreviewKpis');
+  if(!kpisEl) return;
+
+  const weekEv  = D.evidence.filter(e => days.includes(e.date));
+  const weekInc = D.incidents.filter(i => days.includes(i.date));
+  const weekCk  = (D.checkins||[]).filter(c => days.includes(c.date));
+  const approved = weekEv.filter(e => e.status==='Completado').length;
+  const rate = weekEv.length ? Math.round((approved/weekEv.length)*100) : 0;
+
+  const kpis = [
+    {icon:'camera',       label:'Evidencias',  val:weekEv.length,  color:'#7c3aed', bg:'rgba(124,58,237,.1)'},
+    {icon:'check-circle', label:'Aprobadas',   val:approved,       color:'#10b981', bg:'rgba(16,185,129,.1)'},
+    {icon:'map-pin',      label:'Check-ins',   val:weekCk.length,  color:'#2563eb', bg:'rgba(37,99,235,.1)'},
+    {icon:'alert-circle', label:'Incidentes',  val:weekInc.length, color:'#ef4444', bg:'rgba(239,68,68,.1)'},
+  ];
+
+  kpisEl.innerHTML = kpis.map(s=>`
+    <div class="kpi-card" style="padding:14px">
+      <div style="width:36px;height:36px;border-radius:10px;background:${s.bg};display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+        <i data-lucide="${s.icon}" style="width:18px;height:18px;color:${s.color}"></i>
+      </div>
+      <p style="font-size:22px;font-weight:800;color:${s.color};line-height:1">${s.val}</p>
+      <p style="font-size:12px;color:var(--textm);margin-top:4px">${s.label}</p>
+    </div>`).join('');
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function exportWeeklyExcel(){
+  const input = document.getElementById('excelWeekStart');
+  const msg   = document.getElementById('excelMsg');
+  const btn   = document.querySelector('[onclick="exportWeeklyExcel()"]');
+
+  if(!input || !input.value){
+    if(msg){msg.textContent='Selecciona una semana primero.';msg.style.display='block';msg.style.color='#ef4444';}
+    return;
+  }
+
+  // Verificar SheetJS disponible
+  if(typeof XLSX === 'undefined'){
+    if(msg){msg.textContent='Error: librería Excel no disponible. Recarga la página.';msg.style.display='block';msg.style.color='#ef4444';}
+    return;
+  }
+
+  if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader" style="width:16px;height:16px;animation:spin 1s linear infinite"></i> Generando...';}
+  if(msg){msg.style.display='none';}
+
+  try {
+    const days  = _getWeekDates(input.value);
+    const DAYS_LABELS = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+    const allGrades = [...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
+
+    const weekEv  = D.evidence.filter(e => days.includes(e.date));
+    const weekInc = D.incidents.filter(i => days.includes(i.date));
+    const weekCk  = (D.checkins||[]).filter(c => days.includes(c.date));
+
+    const approved  = weekEv.filter(e=>e.status==='Completado').length;
+    const rejected  = weekEv.filter(e=>e.status==='Rechazado').length;
+    const pending   = weekEv.filter(e=>e.status==='Pendiente').length;
+    const rate      = weekEv.length ? Math.round((approved/weekEv.length)*100) : 0;
+
+    const weekLabel = (() => {
+      const opts={day:'2-digit',month:'short'};
+      return new Date(days[0]).toLocaleDateString('es-CO',opts)+' — '+new Date(days[4]).toLocaleDateString('es-CO',opts);
+    })();
+
+    const wb = XLSX.utils.book_new();
+
+    // ──────────────────────────────────────────
+    // HOJA 1: RESUMEN
+    // ──────────────────────────────────────────
+    const resumenRows = [
+      ['REPORTE SEMANAL — CleanClass'],
+      ['Semana:', weekLabel],
+      ['Generado:', new Date().toLocaleString('es-CO')],
+      [],
+      ['INDICADORES GENERALES'],
+      ['Métrica', 'Valor'],
+      ['Total evidencias semana', weekEv.length],
+      ['Evidencias aprobadas', approved],
+      ['Evidencias rechazadas', rejected],
+      ['Evidencias pendientes', pending],
+      ['Tasa de cumplimiento (%)', rate],
+      ['Total check-ins GPS', weekCk.length],
+      ['Total incidentes', weekInc.length],
+      ['Incidentes abiertos', weekInc.filter(i=>i.status==='Abierto').length],
+      [],
+      ['CUMPLIMIENTO POR GRADO'],
+      ['Grado', 'Grupos activos', 'Evidencias', 'Aprobadas', 'Rechazadas', 'Pendientes', 'Cumplimiento (%)'],
+      ...allGrades.map(grade => {
+        const gradeEv = weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade;});
+        const gradeGroups = D.cleanGroups.filter(g=>g.grade===grade).length;
+        const ga = gradeEv.filter(e=>e.status==='Completado').length;
+        const gr = gradeEv.filter(e=>e.status==='Rechazado').length;
+        const gp = gradeEv.filter(e=>e.status==='Pendiente').length;
+        const gr2 = gradeEv.length ? Math.round((ga/gradeEv.length)*100) : 0;
+        return [grade, gradeGroups, gradeEv.length, ga, gr, gp, gr2];
+      }),
+      [],
+      ['TOP 10 — ESTUDIANTES CON MÁS FALTAS EN LA SEMANA'],
+      ['Estudiante', 'Grado', 'Faltas de asistencia'],
+      ...(() => {
+        const absences = {};
+        D.cleanGroups.forEach(g => {
+          (g.members||[]).forEach(name => {
+            const checkedIn = days.filter(d => weekCk.some(c=>c.student===name&&c.date===d)).length;
+            const dutyDays  = days.filter(d => {
+              const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+              const dow = new Date(d+'T00:00:00').getDay();
+              const dname = DAYS_ES[dow];
+              return g.frequency==='weekly' || (g.frequency==='daily' && g.day===dname);
+            }).length;
+            if(dutyDays > 0){
+              if(!absences[name]) absences[name] = {name, grade:g.grade, faltas:0};
+              absences[name].faltas += Math.max(0, dutyDays - checkedIn);
+            }
+          });
+        });
+        return Object.values(absences)
+          .filter(a=>a.faltas>0)
+          .sort((a,b)=>b.faltas-a.faltas)
+          .slice(0,10)
+          .map(a=>[a.name, a.grade, a.faltas]);
+      })()
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(resumenRows);
+    ws1['!cols'] = [{wch:32},{wch:18},{wch:16},{wch:16},{wch:16},{wch:16},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Resumen');
+
+    // ──────────────────────────────────────────
+    // HOJA 2: ASISTENCIA (check-in GPS)
+    // ──────────────────────────────────────────
+    const asistenciaRows = [
+      ['ASISTENCIA GPS — Semana: '+weekLabel],
+      [],
+      ['Estudiante', 'Grado', 'Grupo', ...DAYS_LABELS, 'Total Asistencias', 'Total Posibles', 'Asistencia (%)']
+    ];
+
+    const studentGroups = {};
+    D.cleanGroups.forEach(g => {
+      (g.members||[]).forEach(name => {
+        if(!studentGroups[name]) studentGroups[name] = {grade:g.grade, group:g.name, freq:g.frequency, day:g.day};
+      });
+    });
+
+    D.students.forEach(s => {
+      const sg = studentGroups[s.name];
+      const DAYS_ES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      const dayChecks = days.map(d => {
+        const checked = weekCk.some(c=>c.student===s.name&&c.date===d);
+        return checked ? '✓' : '';
+      });
+      const totalAsist = dayChecks.filter(v=>v==='✓').length;
+      const totalPosibles = sg ? days.filter(d=>{
+        const dow = new Date(d+'T00:00:00').getDay();
+        const dname = DAYS_ES[dow];
+        return sg.freq==='weekly' || (sg.freq==='daily' && sg.day===dname);
+      }).length : 0;
+      const pct = totalPosibles ? Math.round((totalAsist/totalPosibles)*100) : '';
+      asistenciaRows.push([
+        s.name, s.grade,
+        sg ? sg.group : 'Sin grupo',
+        ...dayChecks,
+        totalAsist, totalPosibles, pct===''?'—':pct+'%'
+      ]);
+    });
+
+    const ws2 = XLSX.utils.aoa_to_sheet(asistenciaRows);
+    ws2['!cols'] = [{wch:28},{wch:12},{wch:20},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:18},{wch:16},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Asistencia');
+
+    // ──────────────────────────────────────────
+    // HOJA 3: EVIDENCIAS
+    // ──────────────────────────────────────────
+    const evidenciasRows = [
+      ['EVIDENCIAS DE ASEO — Semana: '+weekLabel],
+      [],
+      ['Fecha', 'Día', 'Grupo', 'Grado', 'Subida por', 'Estado', 'Revisado por', 'Observaciones']
+    ];
+    const DAYS_ES_EV=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    [...weekEv].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e => {
+      const group = D.cleanGroups.find(g=>g.name===e.group);
+      const dow = new Date(e.date+'T00:00:00').getDay();
+      evidenciasRows.push([
+        e.date,
+        DAYS_ES_EV[dow],
+        e.group,
+        group?.grade || '—',
+        e.student,
+        e.status,
+        e.reviewed_by || '—',
+        e.observation || '—'
+      ]);
+    });
+    if(weekEv.length === 0) evidenciasRows.push(['Sin evidencias en esta semana']);
+
+    const ws3 = XLSX.utils.aoa_to_sheet(evidenciasRows);
+    ws3['!cols'] = [{wch:14},{wch:12},{wch:22},{wch:12},{wch:24},{wch:14},{wch:22},{wch:40}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Evidencias');
+
+    // ──────────────────────────────────────────
+    // HOJA 4: INCIDENTES
+    // ──────────────────────────────────────────
+    const incidentesRows = [
+      ['INCIDENTES — Semana: '+weekLabel],
+      [],
+      ['Fecha', 'Tipo', 'Grado', 'Prioridad', 'Estado', 'Ubicación', 'Reportado por', 'Descripción', 'Asignado a', 'Notas']
+    ];
+    [...weekInc].sort((a,b)=>a.date.localeCompare(b.date)).forEach(i => {
+      incidentesRows.push([
+        i.date, i.type, i.grade||'—', i.priority, i.status,
+        i.location, i.reporter, i.description,
+        i.assigned_to||'—', i.notes||'—'
+      ]);
+    });
+    if(weekInc.length === 0) incidentesRows.push(['Sin incidentes en esta semana']);
+
+    const ws4 = XLSX.utils.aoa_to_sheet(incidentesRows);
+    ws4['!cols'] = [{wch:14},{wch:20},{wch:12},{wch:12},{wch:14},{wch:22},{wch:22},{wch:40},{wch:22},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws4, 'Incidentes');
+
+    // ──────────────────────────────────────────
+    // DESCARGAR
+    // ──────────────────────────────────────────
+    const fileName = `CleanClass_Semana_${input.value}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    if(msg){
+      msg.textContent = `✅ Archivo "${fileName}" descargado correctamente.`;
+      msg.style.display='block';
+      msg.style.color='#10b981';
+    }
+
+  } catch(err) {
+    console.error('Error exportando Excel:', err);
+    if(msg){
+      msg.textContent = '⚠ Error al generar el archivo: '+err.message;
+      msg.style.display='block';
+      msg.style.color='#ef4444';
+    }
+  } finally {
+    if(btn){
+      btn.disabled=false;
+      btn.innerHTML='<i data-lucide="download" style="width:18px;height:18px"></i> Descargar Excel';
+      if(typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
+}
+
 function openImageFullscreen(url){
   if(!url) return;
   const d = document.createElement('div');
