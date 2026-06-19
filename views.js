@@ -2713,7 +2713,7 @@ ${xmlF}${xmlBg}${xmlBr}
       entries.forEach(e=>{out.set(e,pos);pos+=e.length;});
       cdes.forEach(e=>{out.set(e,pos);pos+=e.length;});
       out.set(eocd,pos);
-      return out;
+      return {xlsxBytes: out, xmlFiles: zip};
     }
 
     // ── Cabecera estándar: título + semana + generado + separador ──
@@ -2893,13 +2893,25 @@ ${xmlF}${xmlBg}${xmlBr}
       {name:'Incidentes', rows:R4,merges:M4,freeze:5, cols:[12,20,8,10,12,18,18,40,18,28]},
     ];
 
-    const out=buildXLSX(sheets);
-    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const {xlsxBytes, xmlFiles} = buildXLSX(sheets);
+
+    // ── Descarga diagnóstico: styles.xml para verificar ──
+    const dlXml=(name,content)=>{
+      const b=new Blob([content],{type:'text/xml'});
+      const u=URL.createObjectURL(b);
+      const a=document.createElement('a');
+      a.href=u;a.download=name;a.click();
+      setTimeout(()=>URL.revokeObjectURL(u),1000);
+    };
+    dlXml('styles.xml', xmlFiles['xl/styles.xml']);
+    dlXml('sheet1.xml', xmlFiles['xl/worksheets/sheet1.xml']);
+
+    const blob=new Blob([xlsxBytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;a.download=`CleanClass_Semana_${input.value}.xlsx`;a.click();
     setTimeout(()=>URL.revokeObjectURL(url),2000);
-    if(msg){msg.textContent='✅ Archivo descargado correctamente.';msg.style.display='block';msg.style.color='#10b981';}
+    if(msg){msg.textContent='✅ Descargado. También se descargaron styles.xml y sheet1.xml para diagnóstico.';msg.style.display='block';msg.style.color='#10b981';}
 
   }catch(err){
     console.error('Excel error:',err);
