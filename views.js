@@ -2598,8 +2598,8 @@ async function exportWeeklyExcel(){
       const fKeys=[...new Set(sArr.map(e=>`${e[0]}|${e[1]}|${e[3]}`))];
       const fIdx={};fKeys.forEach((k,i)=>fIdx[k]=i);
 
-      // Fills únicos por bg
-      const bgKeys=[...new Set(sArr.map(e=>e[2]||''))];
+      // Fills únicos — solo los que tienen color real (bg vacío usa fillId=0)
+      const bgKeys=[...new Set(sArr.map(e=>e[2]).filter(Boolean))];
       const bgIdx={};bgKeys.forEach((k,i)=>bgIdx[k]=i);
 
       const xmlF=`<fonts count="${fKeys.length}">${fKeys.map(k=>{
@@ -2610,10 +2610,7 @@ async function exportWeeklyExcel(){
       const xmlBg=`<fills count="${bgKeys.length+2}">
         <fill><patternFill patternType="none"/></fill>
         <fill><patternFill patternType="gray125"/></fill>
-        ${bgKeys.map(bg=>bg
-          ?`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg}"/><bgColor indexed="64"/></patternFill></fill>`
-          :`<fill><patternFill patternType="none"/></fill>`
-        ).join('')}
+        ${bgKeys.map(bg=>`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg}"/><bgColor indexed="64"/></patternFill></fill>`).join('')}
       </fills>`;
 
       const xmlBr=`<borders count="4">
@@ -2627,7 +2624,7 @@ async function exportWeeklyExcel(){
 
       const xfs=sArr.map(([bold,sz,bg,fg,align,wrap,border])=>{
         const fi=fIdx[`${bold}|${sz}|${fg}`]??0;
-        const bi=(bgIdx[bg||'']??0)+2;
+        const bi=bg?(bgIdx[bg]??0)+2:0; // bg vacío → fillId=0 (default 'none')
         const bri=brMap[border||'t']??1;
         const ha=align==='C'?'center':align==='R'?'right':'left';
         return`<xf numFmtId="0" fontId="${fi}" fillId="${bi}" borderId="${bri}" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${ha}" vertical="center" wrapText="${wrap==='1'?1:0}"/></xf>`;
