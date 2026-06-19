@@ -2504,330 +2504,443 @@ async function exportWeeklyExcel(){
   if(btn){btn.disabled=true;btn.innerHTML='⏳ Generando...';}
   if(msg){msg.style.display='none';}
 
-  // Cargar librería dinámicamente con fallback
-  let XLSX = window.XLSXStyle || window.XLSX;
-  if(!XLSX){
-    await new Promise((resolve, reject) => {
-      const tryLoad = (url, cb) => {
-        const sc = document.createElement('script');
-        sc.src = url;
-        sc.onload = cb;
-        sc.onerror = () => reject(new Error('No se pudo cargar: '+url));
-        document.head.appendChild(sc);
-      };
-      tryLoad('https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js', () => {
-        XLSX = window.XLSXStyle || window.XLSX;
-        if(XLSX) resolve();
-        else tryLoad('https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js', () => {
-          XLSX = window.XLSX; resolve();
-        });
-      });
-    }).catch(err => { XLSX = null; console.error(err); });
-  }
-
-  if(!XLSX){
-    if(msg){msg.textContent='Error: no se pudo cargar la librería Excel. Verifica tu conexión.';msg.style.display='block';msg.style.color='#ef4444';}
-    if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="download" style="width:18px;height:18px"></i> Descargar Excel';}
-    return;
-  }
-  if(msg){msg.style.display='none';}
-
   try {
-    // ── Helper: string seguro ──
-    const s = v => (v==null ? '' : String(v));
-
-    const days  = _getWeekDates(input.value);
+    const sv = v => (v==null?'':String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const days = _getWeekDates(input.value);
     const DAYS_LABELS = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
     const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-
-    const allGrades = [...new Set([
-      ...D.students.map(st=>st.grade),
-      ...D.rooms.map(r=>r.grade)
-    ])].filter(Boolean).map(s).sort();
-
-    // Filtros defensivos — descartar registros sin fecha o nulos
-    const weekEv  = (D.evidence  ||[]).filter(e => e && s(e.date) && days.includes(s(e.date)));
-    const weekInc = (D.incidents ||[]).filter(i => i && s(i.date) && days.includes(s(i.date)));
-    const weekCk  = (D.checkins  ||[]).filter(c => c && s(c.date) && days.includes(s(c.date)));
-
+    const allGrades = [...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
+    const weekEv  = (D.evidence ||[]).filter(e=>e&&e.date&&days.includes(e.date));
+    const weekInc = (D.incidents||[]).filter(i=>i&&i.date&&days.includes(i.date));
+    const weekCk  = (D.checkins ||[]).filter(c=>c&&c.date&&days.includes(c.date));
     const approved = weekEv.filter(e=>e.status==='Completado').length;
     const rejected = weekEv.filter(e=>e.status==='Rechazado').length;
     const pending  = weekEv.filter(e=>e.status==='Pendiente').length;
-    const rate     = weekEv.length ? Math.round((approved/weekEv.length)*100) : 0;
-
+    const rate     = weekEv.length?Math.round((approved/weekEv.length)*100):0;
     const weekLabel = new Date(days[0]).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})
-                    + ' — ' + new Date(days[4]).toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+                    +' — '+new Date(days[4]).toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+    const fileName = `CleanClass_Semana_${input.value}.xlsx`;
 
-    const wb = XLSX.utils.book_new();
-
-    // ── Estilos ────────────────────────────────────────────────
-    const sTitulo = {
-      font:{ bold:true, sz:14, color:{rgb:'FFFFFF'} },
-      fill:{ fgColor:{rgb:'0F2A50'} },
-      alignment:{ horizontal:'left', vertical:'center' }
-    };
-    const sSeccion = {
-      font:{ bold:true, sz:11, color:{rgb:'FFFFFF'} },
-      fill:{ fgColor:{rgb:'1E3A5F'} },
-      alignment:{ horizontal:'left', vertical:'center' }
-    };
-    const sColHead = {
-      font:{ bold:true, sz:10, color:{rgb:'FFFFFF'} },
-      fill:{ fgColor:{rgb:'1B3A6B'} },
-      border:{
-        top:{style:'thin',color:{rgb:'AAAAAA'}},
-        bottom:{style:'thin',color:{rgb:'AAAAAA'}},
-        left:{style:'thin',color:{rgb:'AAAAAA'}},
-        right:{style:'thin',color:{rgb:'AAAAAA'}}
-      },
-      alignment:{ horizontal:'center', vertical:'center', wrapText:true }
-    };
-    const border = {
-      top:{style:'thin',color:{rgb:'DDDDDD'}},
-      bottom:{style:'thin',color:{rgb:'DDDDDD'}},
-      left:{style:'thin',color:{rgb:'DDDDDD'}},
-      right:{style:'thin',color:{rgb:'DDDDDD'}}
-    };
-    const sDatoPar   = { font:{sz:10}, fill:{fgColor:{rgb:'FFFFFF'}},  border, alignment:{vertical:'center',wrapText:true} };
-    const sDatoImpar = { font:{sz:10}, fill:{fgColor:{rgb:'EEF2F7'}},  border, alignment:{vertical:'center',wrapText:true} };
-    const sMeta      = { font:{bold:true,sz:10,color:{rgb:'1B3A6B'}}, fill:{fgColor:{rgb:'F0F4F8'}}, alignment:{vertical:'center'} };
-    const sMetaVal   = { font:{sz:10}, fill:{fgColor:{rgb:'F0F4F8'}}, alignment:{vertical:'center'} };
-
-    const sNum = par => ({ ...(par?sDatoPar:sDatoImpar), alignment:{horizontal:'center',vertical:'center'} });
-
-    const sBadge = status => {
-      const map = {
-        'Completado':{bg:'C6EFCE',fg:'276221'},'Rechazado':{bg:'FFCCCC',fg:'9C0006'},
-        'Pendiente':{bg:'FFEB9C',fg:'9C5700'},'Abierto':{bg:'FFCCCC',fg:'9C0006'},
-        'En Proceso':{bg:'FFEB9C',fg:'9C5700'},'Resuelto':{bg:'C6EFCE',fg:'276221'},
-        'Alta':{bg:'FFCCCC',fg:'9C0006'},'Media':{bg:'FFEB9C',fg:'9C5700'},'Baja':{bg:'C6EFCE',fg:'276221'},
-      };
-      const c = map[status] || {bg:'EEEEEE',fg:'444444'};
-      return { font:{bold:true,sz:10,color:{rgb:c.fg}}, fill:{fgColor:{rgb:c.bg}}, border, alignment:{horizontal:'center',vertical:'center'} };
+    // ── Colores ──
+    const C = {
+      TITULO:    '0F2A50', TITULO_FG:  'FFFFFF',
+      SECCION:   '1E3A5F', SECCION_FG: 'FFFFFF',
+      HEAD:      '1B3A6B', HEAD_FG:    'FFFFFF',
+      PAR:       'FFFFFF', IMPAR:      'EEF2F7',
+      META_BG:   'F0F4F8', META_FG:    '1B3A6B',
+      VERDE_BG:  'C6EFCE', VERDE_FG:   '276221',
+      ROJO_BG:   'FFCCCC', ROJO_FG:    '9C0006',
+      AMBAR_BG:  'FFEB9C', AMBAR_FG:   '9C5700',
+      AZUL_BG:   'DBEAFE', AZUL_FG:    '1E40AF',
     };
 
-    const wc   = (ws,addr,val,style,type) => { ws[addr]={v:val==null?'':val, t:type||(typeof val==='number'?'n':'s'), s:style}; };
-    const addr = (col,row) => XLSX.utils.encode_cell({c:col,r:row});
+    // ── Generador de XML XLSX desde cero ──
+    // Cada hoja es un array de filas; cada fila es array de celdas {v, s, merge}
+    // s = {bold, bg, fg, align, wrap, border}
 
-    // ──────────────────────────────────────────────────────────
+    const styleMap = [];
+    const fillMap  = ['FFFFFF','0F2A50','1E3A5F','1B3A6B','F0F4F8','EEF2F7',
+                      'C6EFCE','FFCCCC','FFEB9C','DBEAFE','FFEB9C'];
+
+    function buildXLSX(sheetsData){
+      // sheetsData = [{name, rows:[{cells:[{v,bold,bg,fg,align,wrap,border,numFmt}], height}], cols:[{wch}], merges:[{r,c,r2,c2}]}]
+
+      const numFmts = [];
+      // Construir styles únicos
+      const styleKey = c => `${c.bold?1:0}|${c.bg||''}|${c.fg||''}|${c.align||''}|${c.wrap?1:0}|${c.border?1:0}|${c.numFmt||''}`;
+      const styleIndex = {};
+
+      // Recopilar todos los estilos usados
+      sheetsData.forEach(sh => sh.rows.forEach(row => (row.cells||[]).forEach(cell => {
+        if(!cell) return;
+        const k = styleKey(cell);
+        if(!(k in styleIndex)) styleIndex[k] = Object.keys(styleIndex).length;
+      })));
+
+      const styleEntries = Object.entries(styleIndex).sort((a,b)=>a[1]-b[1]).map(([k])=>k.split('|'));
+      // [bold, bg, fg, align, wrap, border, numFmt]
+
+      // Colores únicos para fills
+      const allBgs = [...new Set(['FFFFFF', 'none', ...styleEntries.map(e=>e[1]).filter(Boolean)])];
+      const bgIndex = {};
+      allBgs.forEach((bg,i)=>bgIndex[bg]=i);
+
+      // Fonts
+      const allFonts = [...new Set(['000000', ...styleEntries.map(e=>e[2]).filter(Boolean)])];
+      const fgIndex = {};
+      allFonts.forEach((fg,i)=>fgIndex[fg]=i);
+
+      const xmlFonts = `<fonts count="${allFonts.length+2}">
+        <font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>
+        <font><b/><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>
+        ${allFonts.map(fg=>`<font><sz val="10"/><color rgb="FF${fg}"/><name val="Calibri"/></font>`).join('')}
+        ${allFonts.map(fg=>`<font><b/><sz val="10"/><color rgb="FF${fg}"/><name val="Calibri"/></font>`).join('')}
+      </fonts>`;
+
+      const xmlFills = `<fills count="${allBgs.length+2}">
+        <fill><patternFill patternType="none"/></fill>
+        <fill><patternFill patternType="gray125"/></fill>
+        ${allBgs.map(bg=>`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg}"/></patternFill></fill>`).join('')}
+      </fills>`;
+
+      const thinBorder = `<border><left style="thin"><color rgb="FFAAAAAA"/></left><right style="thin"><color rgb="FFAAAAAA"/></right><top style="thin"><color rgb="FFAAAAAA"/></top><bottom style="thin"><color rgb="FFAAAAAA"/></bottom></border>`;
+      const xmlBorders = `<borders count="2"><border><left/><right/><top/><bottom/></border>${thinBorder}</borders>`;
+
+      // Construir xfs
+      const xfs = styleEntries.map(([bold,bg,fg,align,wrap,border,numFmt]) => {
+        const fontI = fg ? (bold==='1' ? allFonts.length + fgIndex[fg] : fgIndex[fg]) : (bold==='1'?1:0);
+        const fillI = bg ? bgIndex[bg]+2 : 0;
+        const borderI = border==='1'?1:0;
+        const hAlign = align||'left';
+        return `<xf numFmtId="0" fontId="${fontI}" fillId="${fillI}" borderId="${borderI}" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${hAlign}" vertical="center" wrapText="${wrap==='1'?1:0}"/></xf>`;
+      });
+
+      const xmlStyles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  ${xmlFonts}
+  ${xmlFills}
+  ${xmlBorders}
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="${xfs.length+1}">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment vertical="center"/></xf>
+    ${xfs.join('')}
+  </cellXfs>
+</styleSheet>`;
+
+      // Generar hojas
+      const sheetXmls = sheetsData.map(sh => {
+        const merges = sh.merges||[];
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`;
+
+        // Anchos de columna
+        if(sh.cols&&sh.cols.length){
+          xml += '<cols>'+sh.cols.map((c,i)=>`<col min="${i+1}" max="${i+1}" width="${c.wch||10}" customWidth="1"/>`).join('')+'</cols>';
+        }
+
+        xml += '<sheetData>';
+        sh.rows.forEach((row,ri)=>{
+          const ht = row.height?` ht="${row.height}" customHeight="1"`:'';
+          xml += `<row r="${ri+1}"${ht}>`;
+          (row.cells||[]).forEach((cell,ci)=>{
+            if(!cell){xml+=`<c r="${colName(ci)}${ri+1}"/>`;return;}
+            const k = styleKey(cell);
+            const si = (styleIndex[k]||0)+1; // +1 por el xf default al inicio
+            const addr = `${colName(ci)}${ri+1}`;
+            const val = sv(cell.v);
+            if(typeof cell.v === 'number'){
+              xml+=`<c r="${addr}" s="${si}" t="n"><v>${cell.v}</v></c>`;
+            } else if(val===''){
+              xml+=`<c r="${addr}" s="${si}"/>`;
+            } else {
+              xml+=`<c r="${addr}" s="${si}" t="inlineStr"><is><t>${val}</t></is></c>`;
+            }
+          });
+          xml += '</row>';
+        });
+        xml += '</sheetData>';
+
+        if(merges.length){
+          xml += '<mergeCells count="'+merges.length+'">'+
+            merges.map(m=>`<mergeCell ref="${colName(m.c)}${m.r+1}:${colName(m.c2)}${m.r2+1}"/>`).join('')+
+            '</mergeCells>';
+        }
+        xml += '</worksheet>';
+        return xml;
+      });
+
+      return {styleXml: xmlStyles, sheetXmls};
+    }
+
+    function colName(i){
+      let s='';
+      i++;
+      while(i>0){s=String.fromCharCode(64+(i%26||26))+s;i=Math.floor((i-1)/26);}
+      return s;
+    }
+
+    // ── Helpers de celda ──
+    const cTit  = v => ({v, bold:true, bg:C.TITULO,  fg:C.TITULO_FG,  border:true});
+    const cSec  = v => ({v, bold:true, bg:C.SECCION, fg:C.SECCION_FG, border:true});
+    const cHead = v => ({v, bold:true, bg:C.HEAD,    fg:C.HEAD_FG,    border:true, align:'center'});
+    const cMeta = v => ({v, bold:true, bg:C.META_BG, fg:C.META_FG,    border:true});
+    const cMetaV= v => ({v, bg:C.META_BG, border:true});
+    const cD    = (v,par,align) => ({v, bg:par?C.PAR:C.IMPAR, border:true, align:align||'left'});
+    const cDN   = (v,par) => ({v, bg:par?C.PAR:C.IMPAR, border:true, align:'center'});
+    const cBadge= (v,par) => {
+      const map = {'Completado':[C.VERDE_BG,C.VERDE_FG],'Aprobado':[C.VERDE_BG,C.VERDE_FG],
+                   'Rechazado':[C.ROJO_BG,C.ROJO_FG],'Pendiente':[C.AMBAR_BG,C.AMBAR_FG],
+                   'Abierto':[C.ROJO_BG,C.ROJO_FG],'En Proceso':[C.AMBAR_BG,C.AMBAR_FG],
+                   'Resuelto':[C.VERDE_BG,C.VERDE_FG],
+                   'Alta':[C.ROJO_BG,C.ROJO_FG],'Media':[C.AMBAR_BG,C.AMBAR_FG],'Baja':[C.VERDE_BG,C.VERDE_FG]};
+      const [bg,fg] = map[v]||['EEEEEE','444444'];
+      return {v, bold:true, bg, fg, border:true, align:'center'};
+    };
+    const empty = par => ({v:'', bg:par?C.PAR:C.IMPAR, border:true});
+
+    // ══════════════════════════════════════════
     // HOJA 1: RESUMEN
-    // ──────────────────────────────────────────────────────────
-    const ws1 = {}; ws1['!merges'] = []; let r = 0;
+    // ══════════════════════════════════════════
+    const rows1 = []; const merges1 = [];
+    const push1 = (cells, height) => rows1.push({cells, height});
 
-    wc(ws1,addr(0,r),'REPORTE SEMANAL — CleanClass',sTitulo);
-    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
-    wc(ws1,addr(0,r),'Semana:',sMeta); wc(ws1,addr(1,r),weekLabel,sMetaVal); r++;
-    wc(ws1,addr(0,r),'Generado:',sMeta); wc(ws1,addr(1,r),new Date().toLocaleString('es-CO'),sMetaVal); r++;
-    r++;
+    push1([cTit('REPORTE SEMANAL — CleanClass')], 22);
+    merges1.push({r:0,c:0,r2:0,c2:6});
 
-    wc(ws1,addr(0,r),'INDICADORES GENERALES',sSeccion);
-    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
-    wc(ws1,addr(0,r),'Métrica',sColHead); wc(ws1,addr(1,r),'Valor',sColHead); r++;
+    push1([cMeta('Semana:'), cMetaV(weekLabel)]);
+    push1([cMeta('Generado:'), cMetaV(new Date().toLocaleString('es-CO'))]);
+    push1([{v:''}]);
 
+    push1([cSec('INDICADORES GENERALES')], 18);
+    merges1.push({r:rows1.length-1,c:0,r2:rows1.length-1,c2:6});
+
+    push1([cHead('Métrica'), cHead('Valor')]);
     [['Total evidencias semana',weekEv.length],['Evidencias aprobadas',approved],
      ['Evidencias rechazadas',rejected],['Evidencias pendientes',pending],
      ['Tasa de cumplimiento (%)',rate],['Total check-ins GPS',weekCk.length],
      ['Total incidentes',weekInc.length],['Incidentes abiertos',weekInc.filter(i=>i.status==='Abierto').length]
-    ].forEach(([label,val],i)=>{
-      const par=i%2===0;
-      wc(ws1,addr(0,r),label,par?sDatoPar:sDatoImpar);
-      wc(ws1,addr(1,r),val,sNum(par),'n');
-      r++;
-    });
-    r++;
+    ].forEach(([l,v],i)=>push1([cD(l,i%2===0), cDN(v,i%2===0)]));
 
-    wc(ws1,addr(0,r),'CUMPLIMIENTO POR GRADO',sSeccion);
-    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
-    ['Grado','Grupos activos','Evidencias','Aprobadas','Rechazadas','Pendientes','Cumplimiento (%)']
-      .forEach((h,c)=>wc(ws1,addr(c,r),h,sColHead)); r++;
+    push1([{v:''}]);
+    push1([cSec('CUMPLIMIENTO POR GRADO')], 18);
+    merges1.push({r:rows1.length-1,c:0,r2:rows1.length-1,c2:6});
+    push1(['Grado','Grupos activos','Evidencias','Aprobadas','Rechazadas','Pendientes','Cumplimiento (%)'].map(cHead));
 
     allGrades.forEach((grade,i)=>{
-      const gradeEv = weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&s(g.grade)===grade;});
-      const gg = D.cleanGroups.filter(g=>s(g.grade)===grade).length;
-      const ga = gradeEv.filter(e=>e.status==='Completado').length;
-      const gr = gradeEv.filter(e=>e.status==='Rechazado').length;
-      const gp = gradeEv.filter(e=>e.status==='Pendiente').length;
-      const grate = gradeEv.length?Math.round((ga/gradeEv.length)*100):0;
       const par=i%2===0;
-      [grade,gg,gradeEv.length,ga,gr,gp,grate].forEach((val,c)=>{
-        wc(ws1,addr(c,r),val,c===0?(par?sDatoPar:sDatoImpar):sNum(par),typeof val==='number'?'n':'s');
-      }); r++;
+      const gradeEv=weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade;});
+      const ga=gradeEv.filter(e=>e.status==='Completado').length;
+      const gr=gradeEv.filter(e=>e.status==='Rechazado').length;
+      const gp=gradeEv.filter(e=>e.status==='Pendiente').length;
+      const grate=gradeEv.length?Math.round((ga/gradeEv.length)*100):0;
+      push1([cD(grade,par),cDN(D.cleanGroups.filter(g=>g.grade===grade).length,par),
+             cDN(gradeEv.length,par),cDN(ga,par),cDN(gr,par),cDN(gp,par),cDN(grate,par)]);
     });
-    r++;
 
-    wc(ws1,addr(0,r),'TOP 10 — ESTUDIANTES CON MÁS FALTAS EN LA SEMANA',sSeccion);
-    ws1['!merges'].push({s:{r,c:0},e:{r,c:6}}); r++;
-    ['Estudiante','Grado','Faltas de asistencia'].forEach((h,c)=>wc(ws1,addr(c,r),h,sColHead)); r++;
+    push1([{v:''}]);
+    push1([cSec('TOP 10 — ESTUDIANTES CON MÁS FALTAS')], 18);
+    merges1.push({r:rows1.length-1,c:0,r2:rows1.length-1,c2:6});
+    push1([cHead('Estudiante'),cHead('Grado'),cHead('Faltas de asistencia')]);
 
     const absences={};
-    (D.cleanGroups||[]).forEach(g=>{
-      (g.members||[]).forEach(name=>{
-        if(!name) return;
-        const dutyDays=days.filter(d=>{
-          const dow=new Date(d+'T00:00:00').getDay();
-          return g.frequency==='weekly'||(g.frequency==='daily'&&g.day===DAYS_ES[dow]);
-        }).length;
-        const checkedIn=days.filter(d=>weekCk.some(c=>s(c.student)===name&&s(c.date)===d)).length;
-        if(dutyDays>0){
-          if(!absences[name]) absences[name]={name,grade:s(g.grade),faltas:0};
-          absences[name].faltas+=Math.max(0,dutyDays-checkedIn);
-        }
-      });
-    });
+    (D.cleanGroups||[]).forEach(g=>(g.members||[]).forEach(name=>{
+      if(!name) return;
+      const duty=days.filter(d=>{const dow=new Date(d+'T00:00:00').getDay();
+        return g.frequency==='weekly'||(g.frequency==='daily'&&g.day===DAYS_ES[dow]);}).length;
+      const ci=days.filter(d=>weekCk.some(c=>c.student===name&&c.date===d)).length;
+      if(duty>0){if(!absences[name])absences[name]={name,grade:g.grade||'',faltas:0};
+        absences[name].faltas+=Math.max(0,duty-ci);}
+    }));
     Object.values(absences).filter(a=>a.faltas>0).sort((a,b)=>b.faltas-a.faltas).slice(0,10)
-      .forEach((a,i)=>{
-        const par=i%2===0;
-        wc(ws1,addr(0,r),s(a.name),par?sDatoPar:sDatoImpar);
-        wc(ws1,addr(1,r),s(a.grade),sNum(par));
-        wc(ws1,addr(2,r),a.faltas,sNum(par),'n');
-        r++;
-      });
+      .forEach((a,i)=>push1([cD(a.name,i%2===0),cDN(a.grade,i%2===0),cDN(a.faltas,i%2===0)]));
 
-    ws1['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:6}});
-    ws1['!cols']=[{wch:34},{wch:18},{wch:14},{wch:14},{wch:14},{wch:14},{wch:18}];
-    XLSX.utils.book_append_sheet(wb,ws1,'Resumen');
-
-    // ──────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════
     // HOJA 2: ASISTENCIA
-    // ──────────────────────────────────────────────────────────
-    const ws2={}; ws2['!merges']=[]; r=0;
-    wc(ws2,addr(0,r),'ASISTENCIA GPS — Semana: '+weekLabel,sTitulo);
-    ws2['!merges'].push({s:{r,c:0},e:{r,c:10}}); r++; r++;
+    // ══════════════════════════════════════════
+    const rows2=[], merges2=[];
+    rows2.push({cells:[cTit('ASISTENCIA GPS — Semana: '+weekLabel)], height:22});
+    merges2.push({r:0,c:0,r2:0,c2:10});
+    rows2.push({cells:[{v:''}]});
+    rows2.push({cells:['Estudiante','Grado','Grupo',...DAYS_LABELS,'Asistencias','Posibles','%'].map(cHead)});
 
-    ['Estudiante','Grado','Grupo',...DAYS_LABELS,'Total Asistencias','Total Posibles','Asistencia (%)']
-      .forEach((h,c)=>wc(ws2,addr(c,r),h,sColHead)); r++;
+    const stGroups={};
+    (D.cleanGroups||[]).forEach(g=>(g.members||[]).forEach(name=>{
+      if(name&&!stGroups[name]) stGroups[name]={grade:g.grade||'',group:g.name||'',freq:g.frequency,day:g.day};
+    }));
 
-    const studentGroups={};
-    (D.cleanGroups||[]).forEach(g=>{
-      (g.members||[]).forEach(name=>{
-        if(name && !studentGroups[name])
-          studentGroups[name]={grade:s(g.grade),group:s(g.name),freq:s(g.frequency),day:s(g.day)};
+    [...(D.students||[])].sort((a,b)=>(a.grade||'').localeCompare(b.grade||'')||(a.name||'').localeCompare(b.name||''))
+      .forEach((st,i)=>{
+        const par=i%2===0, sg=stGroups[st.name||''];
+        const dc=days.map(d=>weekCk.some(c=>c.student===st.name&&c.date===d)?'✓':'');
+        const ta=dc.filter(v=>v==='✓').length;
+        const tp=sg?days.filter(d=>{const dow=new Date(d+'T00:00:00').getDay();
+          return sg.freq==='weekly'||(sg.freq==='daily'&&sg.day===DAYS_ES[dow]);}).length:0;
+        const pct=tp?Math.round((ta/tp)*100):0;
+        const pctCell=tp?{v:pct+'%', bold:pct<50, bg:pct>=80?C.VERDE_BG:pct>=50?C.AMBAR_BG:C.ROJO_BG,
+          fg:pct>=80?C.VERDE_FG:pct>=50?C.AMBAR_FG:C.ROJO_FG, border:true, align:'center'}:cDN('—',par);
+        rows2.push({cells:[
+          cD(st.name||'',par), cDN(st.grade||'',par), cD(sg?sg.group:'Sin grupo',par),
+          ...dc.map(v=>v==='✓'?{v:'✓',bold:true,bg:C.VERDE_BG,fg:C.VERDE_FG,border:true,align:'center'}:cDN('',par)),
+          cDN(ta,par), cDN(tp,par), pctCell
+        ]});
       });
+
+    // ══════════════════════════════════════════
+    // HOJA 3: EVIDENCIAS
+    // ══════════════════════════════════════════
+    const rows3=[], merges3=[];
+    rows3.push({cells:[cTit('EVIDENCIAS — Semana: '+weekLabel)], height:22});
+    merges3.push({r:0,c:0,r2:0,c2:7});
+    rows3.push({cells:[{v:''}]});
+    rows3.push({cells:['Fecha','Día','Grupo','Grado','Subida por','Estado','Revisado por','Observaciones'].map(cHead)});
+    const evS=[...weekEv].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    if(!evS.length) rows3.push({cells:[{...cD('Sin evidencias en esta semana',true), }]});
+    else evS.forEach((e,i)=>{
+      const par=i%2===0, dow=new Date((e.date||'2000-01-01')+'T00:00:00').getDay();
+      rows3.push({cells:[cD(e.date||'',par),cD(DAYS_ES[dow]||'',par),cD(e.group||'',par),
+        cDN((D.cleanGroups.find(g=>g.name===e.group)||{}).grade||'',par),
+        cD(e.student||'',par),cBadge(e.status||'',par),
+        cD(e.reviewed_by||'—',par),{...cD(e.observation||'—',par),wrap:true}]});
     });
 
-    // IMPORTANTE: usar slice() para no mutar D.students
-    [...(D.students||[])].sort((a,b)=>s(a.grade).localeCompare(s(b.grade))||s(a.name).localeCompare(s(b.name)))
-      .forEach((st,i)=>{
-        const sg=studentGroups[s(st.name)];
-        const par=i%2===0;
-        const dayChecks=days.map(d=>weekCk.some(c=>s(c.student)===s(st.name)&&s(c.date)===d)?'✓':'');
-        const totalAsist=dayChecks.filter(v=>v==='✓').length;
-        const totalPos=sg?days.filter(d=>{
-          const dow=new Date(d+'T00:00:00').getDay();
-          return sg.freq==='weekly'||(sg.freq==='daily'&&sg.day===DAYS_ES[dow]);
-        }).length:0;
-        const pct=totalPos?Math.round((totalAsist/totalPos)*100):0;
-
-        wc(ws2,addr(0,r),s(st.name),par?sDatoPar:sDatoImpar);
-        wc(ws2,addr(1,r),s(st.grade),sNum(par));
-        wc(ws2,addr(2,r),sg?sg.group:'Sin grupo',par?sDatoPar:sDatoImpar);
-        dayChecks.forEach((v,ci)=>{
-          const stl=v==='✓'
-            ? {font:{bold:true,sz:11,color:{rgb:'276221'}},fill:{fgColor:{rgb:par?'C6EFCE':'B8E8C0'}},border,alignment:{horizontal:'center',vertical:'center'}}
-            : {...(par?sDatoPar:sDatoImpar),alignment:{horizontal:'center',vertical:'center'}};
-          wc(ws2,addr(3+ci,r),v,stl);
-        });
-        wc(ws2,addr(8,r),totalAsist,sNum(par),'n');
-        wc(ws2,addr(9,r),totalPos,sNum(par),'n');
-        wc(ws2,addr(10,r),totalPos?pct+'%':'—',{
-          ...(par?sDatoPar:sDatoImpar),
-          font:{bold:true,sz:10,color:{rgb:pct>=80?'276221':pct>=50?'9C5700':'9C0006'}},
-          alignment:{horizontal:'center',vertical:'center'}
-        });
-        r++;
-      });
-
-    ws2['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:10}});
-    ws2['!cols']=[{wch:28},{wch:10},{wch:22},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:16},{wch:14},{wch:14}];
-    XLSX.utils.book_append_sheet(wb,ws2,'Asistencia');
-
-    // ──────────────────────────────────────────────────────────
-    // HOJA 3: EVIDENCIAS
-    // ──────────────────────────────────────────────────────────
-    const ws3={}; ws3['!merges']=[]; r=0;
-    wc(ws3,addr(0,r),'EVIDENCIAS DE ASEO — Semana: '+weekLabel,sTitulo);
-    ws3['!merges'].push({s:{r,c:0},e:{r,c:7}}); r++; r++;
-    ['Fecha','Día','Grupo','Grado','Subida por','Estado','Revisado por','Observaciones']
-      .forEach((h,c)=>wc(ws3,addr(c,r),h,sColHead)); r++;
-
-    const evSorted=[...weekEv].sort((a,b)=>s(a.date).localeCompare(s(b.date)));
-    if(evSorted.length===0){
-      wc(ws3,addr(0,r),'Sin evidencias en esta semana',sDatoPar); r++;
-    } else {
-      evSorted.forEach((e,i)=>{
-        const par=i%2===0;
-        const grp=D.cleanGroups.find(g=>g.name===e.group);
-        const dow=new Date(s(e.date)+'T00:00:00').getDay();
-        wc(ws3,addr(0,r),s(e.date),par?sDatoPar:sDatoImpar);
-        wc(ws3,addr(1,r),DAYS_ES[dow]||'',par?sDatoPar:sDatoImpar);
-        wc(ws3,addr(2,r),s(e.group),par?sDatoPar:sDatoImpar);
-        wc(ws3,addr(3,r),s(grp?.grade),sNum(par));
-        wc(ws3,addr(4,r),s(e.student),par?sDatoPar:sDatoImpar);
-        wc(ws3,addr(5,r),s(e.status),sBadge(e.status));
-        wc(ws3,addr(6,r),s(e.reviewed_by),par?sDatoPar:sDatoImpar);
-        wc(ws3,addr(7,r),s(e.observation),{...(par?sDatoPar:sDatoImpar),alignment:{wrapText:true,vertical:'center'}});
-        r++;
-      });
-    }
-    ws3['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:7}});
-    ws3['!cols']=[{wch:14},{wch:12},{wch:24},{wch:10},{wch:26},{wch:14},{wch:22},{wch:42}];
-    XLSX.utils.book_append_sheet(wb,ws3,'Evidencias');
-
-    // ──────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════
     // HOJA 4: INCIDENTES
-    // ──────────────────────────────────────────────────────────
-    const ws4={}; ws4['!merges']=[]; r=0;
-    wc(ws4,addr(0,r),'INCIDENTES — Semana: '+weekLabel,sTitulo);
-    ws4['!merges'].push({s:{r,c:0},e:{r,c:9}}); r++; r++;
-    ['Fecha','Tipo','Grado','Prioridad','Estado','Ubicación','Reportado por','Descripción','Asignado a','Notas']
-      .forEach((h,c)=>wc(ws4,addr(c,r),h,sColHead)); r++;
+    // ══════════════════════════════════════════
+    const rows4=[], merges4=[];
+    rows4.push({cells:[cTit('INCIDENTES — Semana: '+weekLabel)], height:22});
+    merges4.push({r:0,c:0,r2:0,c2:9});
+    rows4.push({cells:[{v:''}]});
+    rows4.push({cells:['Fecha','Tipo','Grado','Prioridad','Estado','Ubicación','Reportado por','Descripción','Asignado a','Notas'].map(cHead)});
+    const incS=[...weekInc].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    if(!incS.length) rows4.push({cells:[cD('Sin incidentes en esta semana',true)]});
+    else incS.forEach((i,idx)=>{
+      const par=idx%2===0;
+      rows4.push({cells:[cD(i.date||'',par),cD(i.type||'',par),cDN(i.grade||'',par),
+        cBadge(i.priority||'',par),cBadge(i.status||'',par),cD(i.location||'',par),
+        cD(i.reporter||'',par),{...cD(i.description||'',par),wrap:true},
+        cD(i.assigned_to||'',par),{...cD(i.notes||'',par),wrap:true}]});
+    });
 
-    const incSorted=[...weekInc].sort((a,b)=>s(a.date).localeCompare(s(b.date)));
-    if(incSorted.length===0){
-      wc(ws4,addr(0,r),'Sin incidentes en esta semana',sDatoPar); r++;
-    } else {
-      incSorted.forEach((i,idx)=>{
-        const par=idx%2===0;
-        wc(ws4,addr(0,r),s(i.date),par?sDatoPar:sDatoImpar);
-        wc(ws4,addr(1,r),s(i.type),par?sDatoPar:sDatoImpar);
-        wc(ws4,addr(2,r),s(i.grade),sNum(par));
-        wc(ws4,addr(3,r),s(i.priority),sBadge(i.priority));
-        wc(ws4,addr(4,r),s(i.status),sBadge(i.status));
-        wc(ws4,addr(5,r),s(i.location),par?sDatoPar:sDatoImpar);
-        wc(ws4,addr(6,r),s(i.reporter),par?sDatoPar:sDatoImpar);
-        wc(ws4,addr(7,r),s(i.description),{...(par?sDatoPar:sDatoImpar),alignment:{wrapText:true,vertical:'center'}});
-        wc(ws4,addr(8,r),s(i.assigned_to),par?sDatoPar:sDatoImpar);
-        wc(ws4,addr(9,r),s(i.notes),{...(par?sDatoPar:sDatoImpar),alignment:{wrapText:true,vertical:'center'}});
-        r++;
-      });
+    // ── Armar y descargar ──
+    const sheetsData = [
+      {name:'Resumen',    rows:rows1, merges:merges1, cols:[{wch:34},{wch:18},{wch:14},{wch:14},{wch:14},{wch:14},{wch:18}]},
+      {name:'Asistencia', rows:rows2, merges:merges2, cols:[{wch:28},{wch:10},{wch:22},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:14},{wch:12},{wch:10}]},
+      {name:'Evidencias', rows:rows3, merges:merges3, cols:[{wch:14},{wch:12},{wch:24},{wch:10},{wch:26},{wch:14},{wch:22},{wch:42}]},
+      {name:'Incidentes', rows:rows4, merges:merges4, cols:[{wch:14},{wch:22},{wch:10},{wch:12},{wch:14},{wch:22},{wch:22},{wch:42},{wch:22},{wch:32}]},
+    ];
+
+    const {styleXml, sheetXmls} = buildXLSX(sheetsData);
+
+    // ── Empaquetar como ZIP/XLSX ──
+    const enc = new TextEncoder();
+    const zip = {};
+    const rel = (id,target,type) => `<Relationship Id="rId${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/>`;
+
+    zip['[Content_Types].xml'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  ${sheetsData.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}
+</Types>`;
+
+    zip['_rels/.rels'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+    zip['xl/workbook.xml'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>${sheetsData.map((s,i)=>`<sheet name="${sv(s.name)}" sheetId="${i+1}" r:id="rId${i+2}"/>`).join('')}</sheets>
+</workbook>`;
+
+    zip['xl/_rels/workbook.xml.rels'] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  ${sheetsData.map((_,i)=>`<Relationship Id="rId${i+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}
+</Relationships>`;
+
+    zip['xl/styles.xml'] = styleXml;
+    sheetXmls.forEach((xml,i)=>{ zip[`xl/worksheets/sheet${i+1}.xml`] = xml; });
+
+    // ── ZIP manual (sin librería) ──
+    function strToBytes(str){ return enc.encode(str); }
+    function u32le(n){ return new Uint8Array([n&0xff,(n>>8)&0xff,(n>>16)&0xff,(n>>24)&0xff]); }
+    function u16le(n){ return new Uint8Array([n&0xff,(n>>8)&0xff]); }
+    function crc32(data){
+      let c=0xFFFFFFFF;
+      const t=[...Array(256)].map((_,i)=>{let n=i;for(let j=0;j<8;j++)n=n&1?(n>>>1)^0xEDB88320:(n>>>1);return n});
+      for(const b of data)c=t[(c^b)&0xff]^(c>>>8);
+      return (c^0xFFFFFFFF)>>>0;
     }
-    ws4['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:9}});
-    ws4['!cols']=[{wch:14},{wch:22},{wch:10},{wch:12},{wch:14},{wch:22},{wch:22},{wch:42},{wch:22},{wch:32}];
-    XLSX.utils.book_append_sheet(wb,ws4,'Incidentes');
+    function deflateRaw(data){ return data; } // store (no compression, always works)
 
-    // ── Descargar ──
-    const fileName=`CleanClass_Semana_${input.value}.xlsx`;
-    XLSX.writeFile(wb,fileName);
+    const entries=[];
+    const centralDir=[];
+    let offset=0;
 
-    if(msg){
-      msg.textContent=`✅ Archivo "${fileName}" descargado correctamente.`;
-      msg.style.display='block';
-      msg.style.color='#10b981';
+    for(const [name,content] of Object.entries(zip)){
+      const nameBytes=enc.encode(name);
+      const dataBytes=typeof content==='string'?strToBytes(content):content;
+      const crc=crc32(dataBytes);
+      const size=dataBytes.length;
+
+      const local=new Uint8Array([
+        0x50,0x4B,0x03,0x04, // sig
+        0x14,0x00,           // version needed
+        0x00,0x00,           // flags
+        0x00,0x00,           // compression (store)
+        0x00,0x00,0x00,0x00, // mod time/date
+        ...u32le(crc),
+        ...u32le(size),
+        ...u32le(size),
+        ...u16le(nameBytes.length),
+        0x00,0x00,           // extra length
+      ]);
+
+      const entry=new Uint8Array(local.length+nameBytes.length+dataBytes.length);
+      entry.set(local,0);
+      entry.set(nameBytes,local.length);
+      entry.set(dataBytes,local.length+nameBytes.length);
+      entries.push(entry);
+
+      centralDir.push({nameBytes,crc,size,offset});
+      offset+=entry.length;
     }
+
+    // Central directory
+    const cdEntries=centralDir.map(({nameBytes,crc,size,offset})=>new Uint8Array([
+      0x50,0x4B,0x01,0x02, // sig
+      0x14,0x00,           // version made by
+      0x14,0x00,           // version needed
+      0x00,0x00,           // flags
+      0x00,0x00,           // compression
+      0x00,0x00,0x00,0x00, // mod time/date
+      ...u32le(crc),
+      ...u32le(size),
+      ...u32le(size),
+      ...u16le(nameBytes.length),
+      0x00,0x00,           // extra
+      0x00,0x00,           // comment
+      0x00,0x00,           // disk start
+      0x00,0x00,           // int attrs
+      0x00,0x00,0x00,0x00, // ext attrs
+      ...u32le(offset),
+      ...nameBytes,
+    ]));
+
+    const cdSize=cdEntries.reduce((s,e)=>s+e.length,0);
+    const eocd=new Uint8Array([
+      0x50,0x4B,0x05,0x06,
+      0x00,0x00,0x00,0x00,
+      ...u16le(cdEntries.length),
+      ...u16le(cdEntries.length),
+      ...u32le(cdSize),
+      ...u32le(offset),
+      0x00,0x00,
+    ]);
+
+    const totalSize=entries.reduce((s,e)=>s+e.length,0)+cdSize+eocd.length;
+    const out=new Uint8Array(totalSize);
+    let pos=0;
+    entries.forEach(e=>{out.set(e,pos);pos+=e.length;});
+    cdEntries.forEach(e=>{out.set(e,pos);pos+=e.length;});
+    out.set(eocd,pos);
+
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=fileName; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+
+    if(msg){msg.textContent=`✅ "${fileName}" descargado correctamente.`;msg.style.display='block';msg.style.color='#10b981';}
 
   } catch(err){
-    console.error('Error exportando Excel:', err);
-    if(msg){
-      msg.textContent='⚠ Error al generar el archivo: '+err.message;
-      msg.style.display='block';
-      msg.style.color='#ef4444';
-    }
+    console.error('Error exportando Excel:',err);
+    if(msg){msg.textContent='⚠ Error: '+err.message;msg.style.display='block';msg.style.color='#ef4444';}
   } finally {
-    if(btn){
-      btn.disabled=false;
-      btn.innerHTML='<i data-lucide="download" style="width:18px;height:18px"></i> Descargar Excel';
-      if(typeof lucide!=='undefined') lucide.createIcons();
-    }
+    if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="download" style="width:18px;height:18px"></i> Descargar Excel';if(typeof lucide!=='undefined')lucide.createIcons();}
   }
 }
 
