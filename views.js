@@ -2504,7 +2504,16 @@ async function exportWeeklyExcel(){
   if(msg){msg.style.display='none';}
 
   try{
-    const xs=v=>(v==null?'':String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    // xs(): escapa XML y elimina chars de control prohibidos XML 1.0
+    const xs=v=>{
+      if(v==null)return'';
+      return String(v)
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'')
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+    };
     const ss=v=>v==null?'':String(v);
     const mk=(n,fn)=>[...Array(n)].map((_,i)=>fn(i)); // crea N objetos nuevos
 
