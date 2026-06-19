@@ -2545,7 +2545,7 @@ async function exportWeeklyExcel(){
     function buildXLSX(sheets){
       const enc=new TextEncoder();
       const sIdx={};
-      sheets.forEach(sh=>sh.rows.forEach(r=>(r||[]).forEach(c=>{
+      sheets.forEach(sh=>sh.rows.forEach(r=>(r?.c||[]).forEach(c=>{
         if(!c)return; const k=styleKey(c); if(!(k in sIdx))sIdx[k]=Object.keys(sIdx).length;
       })));
       const sArr=Object.entries(sIdx).sort((a,b)=>a[1]-b[1]).map(([k])=>k.split('|'));
