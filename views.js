@@ -2504,9 +2504,11 @@ async function exportWeeklyExcel(){
   if(msg){msg.style.display='none';}
 
   try {
-    // ── Helpers ──
-    const xs = v => (v==null?'':String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    const ss = v => v==null?'':String(v);
+    // ── Helpers de texto seguro para XML ──
+    const xs = v=>(v==null?'':String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const ss = v=>v==null?'':String(v);
+    // fill: genera N celdas nuevas (no comparte referencia)
+    const fill = (n,fn)=>[...Array(n)].map((_,i)=>fn(i));
 
     const days = _getWeekDates(input.value);
     const DAYS_LABELS = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
@@ -2519,107 +2521,119 @@ async function exportWeeklyExcel(){
     const approved = weekEv.filter(e=>e.status==='Completado').length;
     const rejected = weekEv.filter(e=>e.status==='Rechazado').length;
     const pending  = weekEv.filter(e=>e.status==='Pendiente').length;
-    const rate     = weekEv.length?Math.round((approved/weekEv.length)*100):0;
-    const weekLabel = new Date(days[0]).toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})
-                    +' — '+new Date(days[4]).toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'});
+    const weekLabel = new Date(days[0]).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})
+                    +' — '+new Date(days[4]).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
     const fileName = `CleanClass_Semana_${input.value}.xlsx`;
 
-    // ══════════════════════════════════════════
-    // PALETA DE COLORES (spec)
-    // ══════════════════════════════════════════
+    // ── Paleta ──
     const P = {
-      AZ_OSC:  '1E3A5F', AZ_OSC_FG:  'FFFFFF',  // azul oscuro principal
-      AZ_SEC:  '2563EB', AZ_SEC_FG:  'FFFFFF',  // azul secundario
-      BLANCO:  'FFFFFF',
-      GRIS_CL: 'F3F4F6',                          // filas alternas
-      GRIS_MD: 'D1D5DB',                          // bordes internos
-      NEGRO:   '000000',
-      VERDE:   '10B981', VERDE_BG: 'D1FAE5', VERDE_FG: '065F46',
-      AMBAR:   'F59E0B', AMBAR_BG: 'FEF3C7', AMBAR_FG: '92400E',
-      ROJO:    'EF4444', ROJO_BG:  'FEE2E2', ROJO_FG:  '991B1B',
-      GRIS_FG: '374151',
+      AZ:  '1E3A5F', AZ_FG:  'FFFFFF',
+      AZ2: '2563EB', AZ2_FG: 'FFFFFF',
+      BL:  'FFFFFF', GR_CL: 'F3F4F6', GR_MD: 'D1D5DB',
+      VE_BG:'D1FAE5', VE_FG:'065F46',
+      AM_BG:'FEF3C7', AM_FG:'92400E',
+      RO_BG:'FEE2E2', RO_FG:'991B1B',
+      VE:'10B981', AM:'F59E0B', RO:'EF4444',
     };
 
-    // ══════════════════════════════════════════
-    // MOTOR DE ESTILOS
-    // ══════════════════════════════════════════
-    // Celda: {v, bold, sz, bg, fg, align, valign, wrap, borderStyle, borderColor, borderOuter}
-    const styleKey = c =>
-      `${c.bold?1:0}|${c.sz||10}|${c.bg||''}|${c.fg||'000000'}|${c.align||'left'}|${c.valign||'center'}|${c.wrap?1:0}|${c.bs||'thin'}|${c.bc||'D1D5DB'}|${c.bo?1:0}`;
+    // ── Celda: cada propiedad es primitiva, nunca objeto compartido ──
+    // {v, bold, sz, bg, fg, align, wrap, border}
+    // border: 'none'|'thin'|'medium'
+    const styleKey = c=>[c.bold?1:0,c.sz||10,c.bg||'',c.fg||'000000',c.align||'L',c.wrap?1:0,c.border||'thin'].join('|');
 
-    function buildXLSX(sheetsData){
-      const enc = new TextEncoder();
-      const styleIndex = {};
-
-      sheetsData.forEach(sh=>sh.rows.forEach(row=>(row.cells||[]).forEach(cell=>{
-        if(!cell) return;
-        const k=styleKey(cell);
-        if(!(k in styleIndex)) styleIndex[k]=Object.keys(styleIndex).length;
+    // ── Motor XML/ZIP ──
+    function buildXLSX(sheets){
+      const enc=new TextEncoder();
+      const sIdx={};
+      sheets.forEach(sh=>sh.rows.forEach(r=>(r||[]).forEach(c=>{
+        if(!c)return; const k=styleKey(c); if(!(k in sIdx))sIdx[k]=Object.keys(sIdx).length;
       })));
+      const sArr=Object.entries(sIdx).sort((a,b)=>a[1]-b[1]).map(([k])=>k.split('|'));
+      // [bold,sz,bg,fg,align,wrap,border]
 
-      const styleEntries = Object.entries(styleIndex).sort((a,b)=>a[1]-b[1]).map(([k])=>k.split('|'));
+      const fgKeys=[...new Set(['000000',...sArr.map(e=>e[3]).filter(Boolean)])];
+      const fgIdx={};fgKeys.forEach((k,i)=>fgIdx[k]=i);
 
-      // Fonts únicos: [bold, sz, fg]
-      const fontKeys = [...new Set(styleEntries.map(e=>`${e[0]}|${e[1]}|${e[3]}`))];
-      const fontIdx  = {};
-      fontKeys.forEach((k,i)=>fontIdx[k]=i);
+      const bgKeys=[...new Set(['',...sArr.map(e=>e[2]).filter(Boolean)])];
+      const bgIdx={};bgKeys.forEach((k,i)=>bgIdx[k]=i);
 
-      // Fills únicos
-      const fillKeys = [...new Set(['none', ...styleEntries.map(e=>e[2]).filter(Boolean)])];
-      const fillIdx  = {};
-      fillKeys.forEach((k,i)=>fillIdx[k]=i);
-
-      const xmlFonts = `<fonts count="${fontKeys.length}">
-        ${fontKeys.map(k=>{
-          const [bold,sz,fg]=k.split('|');
-          return `<font>${bold==='1'?'<b/>':''}<sz val="${sz||10}"/><color rgb="FF${fg||'000000'}"/><name val="Calibri"/><family val="2"/></font>`;
-        }).join('')}
+      const xmlFonts=`<fonts count="${fgKeys.length*2}">
+        ${fgKeys.map(fg=>`<font><sz val="10"/><color rgb="FF${fg}"/><name val="Calibri"/></font>`).join('')}
+        ${fgKeys.map(fg=>`<font><b/><sz val="10"/><color rgb="FF${fg}"/><name val="Calibri"/></font>`).join('')}
       </fonts>`;
+      // Nota: sz se sobreescribe por xf con font size real
 
-      const xmlFills = `<fills count="${fillKeys.length+2}">
+      const xmlFills=`<fills count="${bgKeys.length+2}">
         <fill><patternFill patternType="none"/></fill>
         <fill><patternFill patternType="gray125"/></fill>
-        ${fillKeys.map(k=>k==='none'
-          ?'<fill><patternFill patternType="none"/></fill>'
-          :`<fill><patternFill patternType="solid"><fgColor rgb="FF${k}"/><bgColor indexed="64"/></patternFill></fill>`
+        ${bgKeys.map(bg=>bg
+          ?`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg}"/><bgColor indexed="64"/></patternFill></fill>`
+          :`<fill><patternFill patternType="none"/></fill>`
         ).join('')}
       </fills>`;
 
-      // Borders: generamos uno por combinación de estilo+color
-      const borderKeys = [...new Set(styleEntries.map(e=>`${e[7]}|${e[8]}|${e[9]}`))];
-      const borderIdx  = {};
-      borderKeys.forEach((k,i)=>borderIdx[k]=i);
-
-      const xmlBorders = `<borders count="${borderKeys.length+1}">
-        <border><left/><right/><top/><bottom/><diagonal/></border>
-        ${borderKeys.map(k=>{
-          const [bs,bc,bo]=k.split('|');
-          const outerBs = bo==='1'?'medium':bs;
-          const innerC  = `<color rgb="FF${bc}"/>`;
-          const outerC  = `<color rgb="FF000000"/>`;
-          return `<border>
-            <left style="${outerBs}">${outerC}</left>
-            <right style="${outerBs}">${outerC}</right>
-            <top style="${outerBs}">${outerC}</top>
-            <bottom style="${outerBs}">${outerC}</bottom>
-            <diagonal/>
-          </border>`;
-        }).join('')}
+      const xmlBorders=`<borders count="4">
+        <border><left/><right/><top/><bottom/></border>
+        <border>
+          <left style="thin"><color rgb="FFD1D5DB"/></left>
+          <right style="thin"><color rgb="FFD1D5DB"/></right>
+          <top style="thin"><color rgb="FFD1D5DB"/></top>
+          <bottom style="thin"><color rgb="FFD1D5DB"/></bottom>
+        </border>
+        <border>
+          <left style="medium"><color rgb="FF000000"/></left>
+          <right style="medium"><color rgb="FF000000"/></right>
+          <top style="medium"><color rgb="FF000000"/></top>
+          <bottom style="medium"><color rgb="FF000000"/></bottom>
+        </border>
+        <border>
+          <left style="thin"><color rgb="FF1E3A5F"/></left>
+          <right style="thin"><color rgb="FF1E3A5F"/></right>
+          <top style="thin"><color rgb="FF1E3A5F"/></top>
+          <bottom style="thin"><color rgb="FF1E3A5F"/></bottom>
+        </border>
       </borders>`;
 
-      const xfs = styleEntries.map(([bold,sz,bg,fg,align,valign,wrap,bs,bc,bo])=>{
-        const fk = `${bold}|${sz}|${fg}`;
-        const fi = fontIdx[fk]??0;
-        const bgi= bg?fillIdx[bg]+2:0;
-        const bdi= borderIdx[`${bs}|${bc}|${bo}`]??0;
-        return `<xf numFmtId="0" fontId="${fi}" fillId="${bgi}" borderId="${bdi+1}" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-          <alignment horizontal="${align||'left'}" vertical="${valign||'center'}" wrapText="${wrap==='1'?1:0}"/>
-        </xf>`;
+      const borderMap={'none':0,'thin':1,'medium':2,'dark':3};
+
+      // Reconstruir fonts con sz real
+      const fontXfs=sArr.map(([bold,sz,bg,fg,align,wrap,border])=>{
+        const fgi=fgIdx[fg||'000000']+(bold==='1'?fgKeys.length:0);
+        const bgi=bgIdx[bg||'']+2;
+        const bi=borderMap[border||'thin']||1;
+        const ha=align==='C'?'center':align==='R'?'right':'left';
+        return `<xf numFmtId="0" fontId="${fgi}" fillId="${bgi}" borderId="${bi}" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${ha}" vertical="center" wrapText="${wrap==='1'?1:0}"/></xf>`;
       });
 
-      const xmlStyles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      // Reconstruir fonts correctamente con sz
+      const allFontDefs=[];
+      fgKeys.forEach(fg=>{
+        // Para cada entrada de estilo que use este fg, necesitamos sz correcto
+        // Simplificamos: generamos una font por (bold,sz,fg) única
+      });
+      // Mejor: generar fonts únicos por (bold,sz,fg)
+      const fontKeysFull=[...new Set(sArr.map(([bold,sz,,fg])=>`${bold}|${sz}|${fg||'000000'}`))];
+      const fontIdxFull={};fontKeysFull.forEach((k,i)=>fontIdxFull[k]=i);
+
+      const xmlFontsFull=`<fonts count="${fontKeysFull.length}">
+        ${fontKeysFull.map(k=>{
+          const[bold,sz,fg]=k.split('|');
+          return`<font>${bold==='1'?'<b/>':''}<sz val="${sz||10}"/><color rgb="FF${fg}"/><name val="Calibri"/></font>`;
+        }).join('')}
+      </fonts>`;
+
+      const xfs=sArr.map(([bold,sz,bg,fg,align,wrap,border])=>{
+        const fk=`${bold}|${sz}|${fg||'000000'}`;
+        const fi=fontIdxFull[fk]??0;
+        const bgi=(bgIdx[bg||'']??0)+2;
+        const bi=borderMap[border||'thin']||1;
+        const ha=align==='C'?'center':align==='R'?'right':'left';
+        return`<xf numFmtId="0" fontId="${fi}" fillId="${bgi}" borderId="${bi}" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${ha}" vertical="center" wrapText="${wrap==='1'?1:0}"/></xf>`;
+      });
+
+      const xmlStyles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  ${xmlFonts}${xmlFills}${xmlBorders}
+  ${xmlFontsFull}${xmlFills}${xmlBorders}
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
   <cellXfs count="${xfs.length+1}">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
@@ -2627,94 +2641,70 @@ async function exportWeeklyExcel(){
   </cellXfs>
 </styleSheet>`;
 
-      function colName(i){let s='';i++;while(i>0){s=String.fromCharCode(64+(i%26||26))+s;i=Math.floor((i-1)/26);}return s;}
+      function col(i){let s='';i++;while(i>0){s=String.fromCharCode(64+(i%26||26))+s;i=Math.floor((i-1)/26);}return s;}
 
-      const sheetXmls = sheetsData.map(sh=>{
-        let xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
-           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`;
-
-        if(sh.freeze){xml+=`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`;}
-
-        if(sh.cols?.length) xml+='<cols>'+sh.cols.map((c,i)=>`<col min="${i+1}" max="${i+1}" width="${c.wch||12}" customWidth="1"/>`).join('')+'</cols>';
-
-        xml+='<sheetData>';
+      const shXmls=sheets.map(sh=>{
+        let x=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`;
+        if(sh.freeze) x+=`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`;
+        if(sh.cols?.length) x+=`<cols>${sh.cols.map((c,i)=>`<col min="${i+1}" max="${i+1}" width="${c}" customWidth="1"/>`).join('')}</cols>`;
+        x+='<sheetData>';
         sh.rows.forEach((row,ri)=>{
-          const ht=row.height?` ht="${row.height}" customHeight="1"`:'';
-          xml+=`<row r="${ri+1}"${ht}>`;
-          (row.cells||[]).forEach((cell,ci)=>{
-            if(cell===null||cell===undefined){xml+=`<c r="${colName(ci)}${ri+1}"/>`;return;}
+          if(!row){x+=`<row r="${ri+1}"/>`;return;}
+          const ht=row.h?` ht="${row.h}" customHeight="1"`:'';
+          x+=`<row r="${ri+1}"${ht}>`;
+          (row.c||[]).forEach((cell,ci)=>{
+            if(!cell){x+=`<c r="${col(ci)}${ri+1}"/>`;return;}
             const k=styleKey(cell);
-            const si=(styleIndex[k]??-1)+1+1; // +1 default xf, +1 1-indexed
-            const addr=`${colName(ci)}${ri+1}`;
-            const val=xs(cell.v);
+            const si=(sIdx[k]??0)+2; // +1 default, +1 1-indexed
+            const addr=`${col(ci)}${ri+1}`;
             if(typeof cell.v==='number'){
-              xml+=`<c r="${addr}" s="${si}" t="n"><v>${cell.v}</v></c>`;
-            } else if(!val){
-              xml+=`<c r="${addr}" s="${si}"/>`;
+              x+=`<c r="${addr}" s="${si}" t="n"><v>${cell.v}</v></c>`;
             } else {
-              xml+=`<c r="${addr}" s="${si}" t="inlineStr"><is><t>${val}</t></is></c>`;
+              const val=xs(cell.v);
+              if(!val) x+=`<c r="${addr}" s="${si}"/>`;
+              else x+=`<c r="${addr}" s="${si}" t="inlineStr"><is><t>${val}</t></is></c>`;
             }
           });
-          xml+='</row>';
+          x+='</row>';
         });
-        xml+='</sheetData>';
-
-        const merges=sh.merges||[];
-        if(merges.length) xml+='<mergeCells count="'+merges.length+'">'+merges.map(m=>`<mergeCell ref="${colName(m.c)}${m.r+1}:${colName(m.c2)}${m.r2+1}"/>`).join('')+'</mergeCells>';
-
-        xml+='</worksheet>';
-        return xml;
+        x+='</sheetData>';
+        const mg=sh.merges||[];
+        if(mg.length) x+=`<mergeCells count="${mg.length}">${mg.map(m=>`<mergeCell ref="${col(m[1])}${m[0]+1}:${col(m[3])}${m[2]+1}"/>`).join('')}</mergeCells>`;
+        x+='</worksheet>';
+        return x;
       });
 
-      // ── ZIP sin librería ──
-      function u32le(n){return new Uint8Array([n&0xff,(n>>8)&0xff,(n>>16)&0xff,(n>>24)&0xff]);}
-      function u16le(n){return new Uint8Array([n&0xff,(n>>8)&0xff]);}
-      function crc32(data){
+      // ZIP sin librería
+      function u32(n){return new Uint8Array([n&0xff,(n>>8)&0xff,(n>>16)&0xff,(n>>24)&0xff]);}
+      function u16(n){return new Uint8Array([n&0xff,(n>>8)&0xff]);}
+      function crc32(d){
         let c=0xFFFFFFFF;
         const t=[...Array(256)].map((_,i)=>{let n=i;for(let j=0;j<8;j++)n=n&1?(n>>>1)^0xEDB88320:(n>>>1);return n});
-        for(const b of data)c=t[(c^b)&0xff]^(c>>>8);
+        for(const b of d)c=t[(c^b)&0xff]^(c>>>8);
         return(c^0xFFFFFFFF)>>>0;
       }
-
       const zip={};
-      zip['[Content_Types].xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-  ${sheetsData.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}
-</Types>`;
-      zip['_rels/.rels']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>`;
-      zip['xl/workbook.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets>${sheetsData.map((s,i)=>`<sheet name="${xs(s.name)}" sheetId="${i+1}" r:id="rId${i+2}"/>`).join('')}</sheets>
-</workbook>`;
-      zip['xl/_rels/workbook.xml.rels']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-  ${sheetsData.map((_,i)=>`<Relationship Id="rId${i+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}
-</Relationships>`;
+      zip['[Content_Types].xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;
+      zip['_rels/.rels']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+      zip['xl/workbook.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${xs(s.name)}" sheetId="${i+1}" r:id="rId${i+2}"/>`).join('')}</sheets></workbook>`;
+      zip['xl/_rels/workbook.xml.rels']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${sheets.map((_,i)=>`<Relationship Id="rId${i+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}</Relationships>`;
       zip['xl/styles.xml']=xmlStyles;
-      sheetXmls.forEach((xml,i)=>{zip[`xl/worksheets/sheet${i+1}.xml`]=xml;});
+      shXmls.forEach((x,i)=>{zip[`xl/worksheets/sheet${i+1}.xml`]=x;});
 
-      const entries=[],centralDir=[];let offset=0;
+      const entries=[],cd=[];let off=0;
       for(const[name,content]of Object.entries(zip)){
-        const nb=enc.encode(name),db=enc.encode(typeof content==='string'?content:content);
-        const crc=crc32(db),size=db.length;
-        const local=new Uint8Array([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32le(crc),...u32le(size),...u32le(size),...u16le(nb.length),0x00,0x00]);
-        const e=new Uint8Array(local.length+nb.length+db.length);
-        e.set(local,0);e.set(nb,local.length);e.set(db,local.length+nb.length);
-        entries.push(e);centralDir.push({nb,crc,size,offset});offset+=e.length;
+        const nb=enc.encode(name),db=enc.encode(content);
+        const crc=crc32(db),sz=db.length;
+        const lh=new Uint8Array([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(sz),...u32(sz),...u16(nb.length),0x00,0x00]);
+        const e=new Uint8Array(lh.length+nb.length+db.length);
+        e.set(lh,0);e.set(nb,lh.length);e.set(db,lh.length+nb.length);
+        entries.push(e);cd.push({nb,crc,sz,off});off+=e.length;
       }
-      const cdes=centralDir.map(({nb,crc,size,offset})=>new Uint8Array([0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32le(crc),...u32le(size),...u32le(size),...u16le(nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32le(offset),...nb]));
-      const cdSize=cdes.reduce((s,e)=>s+e.length,0);
-      const eocd=new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16le(cdes.length),...u16le(cdes.length),...u32le(cdSize),...u32le(offset),0x00,0x00]);
-      const total=entries.reduce((s,e)=>s+e.length,0)+cdSize+eocd.length;
+      const cdes=cd.map(({nb,crc,sz,off})=>new Uint8Array([0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(sz),...u32(sz),...u16(nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(off),...nb]));
+      const cdSz=cdes.reduce((s,e)=>s+e.length,0);
+      const eocd=new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(cdes.length),...u16(cdes.length),...u32(cdSz),...u32(off),0x00,0x00]);
+      const total=entries.reduce((s,e)=>s+e.length,0)+cdSz+eocd.length;
       const out=new Uint8Array(total);let pos=0;
       entries.forEach(e=>{out.set(e,pos);pos+=e.length;});
       cdes.forEach(e=>{out.set(e,pos);pos+=e.length;});
@@ -2723,258 +2713,251 @@ async function exportWeeklyExcel(){
     }
 
     // ══════════════════════════════════════════
-    // HELPERS DE CELDA (spec completo)
+    // HELPERS DE CELDA — compactos, sin objetos compartidos
+    // row = {h, c:[...celdas], mg:[...merges relativas]}
+    // celda = {v, bold, sz, bg, fg, align:'L'|'C'|'R', wrap, border}
     // ══════════════════════════════════════════
-    // Títulos de hoja — 16pt, AZ_OSC, texto blanco, borde exterior grueso
-    const cTit  = v=>({v,bold:true,sz:16,bg:P.AZ_OSC,fg:P.AZ_OSC_FG,align:'left',bs:'thin',bc:P.GRIS_MD,bo:true});
-    // Subtítulo de sección — 12pt, AZ_OSC menos oscuro
-    const cSub  = v=>({v,bold:true,sz:12,bg:P.AZ_OSC,fg:P.AZ_OSC_FG,align:'left',bs:'thin',bc:P.GRIS_MD});
-    // Encabezado de columna — 11pt, AZ_SEC, centrado
-    const cHead = v=>({v,bold:true,sz:11,bg:P.AZ_SEC,fg:P.AZ_SEC_FG,align:'center',bs:'thin',bc:P.GRIS_MD,bo:true});
-    // Meta label (Semana:, Generado:)
-    const cMeta = v=>({v,bold:true,sz:10,bg:P.AZ_OSC,fg:P.AZ_OSC_FG,align:'left',bs:'thin',bc:P.GRIS_MD});
-    const cMetaV= v=>({v,bold:false,sz:10,bg:'EFF6FF',fg:P.AZ_OSC,align:'left',bs:'thin',bc:P.GRIS_MD});
-    // Fila de dato — alternada
-    const cD    = (v,par,al)=>({v,sz:10,bg:par?P.BLANCO:P.GRIS_CL,fg:P.GRIS_FG,align:al||'left',bs:'thin',bc:P.GRIS_MD});
-    const cDC   = (v,par)=>({v,sz:10,bg:par?P.BLANCO:P.GRIS_CL,fg:P.GRIS_FG,align:'center',bs:'thin',bc:P.GRIS_MD});
-    const cDN   = (v,par)=>({v,bold:false,sz:10,bg:par?P.BLANCO:P.GRIS_CL,fg:P.GRIS_FG,align:'center',bs:'thin',bc:P.GRIS_MD});
-    // Vacía con relleno
-    const cEmp  = par=>({v:'',sz:10,bg:par?P.BLANCO:P.GRIS_CL,bs:'thin',bc:P.GRIS_MD});
-    // Fila separadora
-    const cSep  = ()=>({v:'',bg:P.AZ_OSC,bs:'thin',bc:P.AZ_OSC});
-    // Badge de estado / prioridad
-    const cBadge= (v,par)=>{
-      const map={
-        'Completado':[P.VERDE_BG,P.VERDE_FG],'Aprobado':[P.VERDE_BG,P.VERDE_FG],'Resuelto':[P.VERDE_BG,P.VERDE_FG],'Baja':[P.VERDE_BG,P.VERDE_FG],
-        'Rechazado':[P.ROJO_BG,P.ROJO_FG],'Abierto':[P.ROJO_BG,P.ROJO_FG],'Alta':[P.ROJO_BG,P.ROJO_FG],
-        'Pendiente':[P.AMBAR_BG,P.AMBAR_FG],'En Proceso':[P.AMBAR_BG,P.AMBAR_FG],'Media':[P.AMBAR_BG,P.AMBAR_FG],
-      };
-      const[bg,fg]=map[v]||[P.GRIS_CL,P.GRIS_FG];
-      return{v,bold:true,sz:10,bg,fg,align:'center',bs:'thin',bc:P.GRIS_MD};
+    const C = {
+      tit:  (v,sz)=>({v,bold:true,sz:sz||14,bg:P.AZ,  fg:P.AZ_FG, align:'L',border:'dark'}),
+      sub:  (v)   =>({v,bold:true,sz:11,    bg:P.AZ,  fg:P.AZ_FG, align:'L',border:'dark'}),
+      head: (v,sz)=>({v,bold:true,sz:sz||10,bg:P.AZ2, fg:P.AZ2_FG,align:'C',border:'thin'}),
+      meta: (v)   =>({v,bold:true,sz:10,    bg:P.AZ,  fg:P.AZ_FG, align:'L',border:'dark'}),
+      metaV:(v)   =>({v,bold:false,sz:10,   bg:'EFF6FF',fg:P.AZ,  align:'L',border:'thin'}),
+      sep:  ()    =>({v:'',sz:6,             bg:P.AZ,  fg:P.AZ,    align:'L',border:'dark'}),
+      d:    (v,p,a)=>({v,sz:10,bg:p?P.BL:P.GR_CL,fg:'374151',align:a||'L',border:'thin'}),
+      dc:   (v,p) =>({v,sz:10,bg:p?P.BL:P.GR_CL,fg:'374151',align:'C',border:'thin'}),
+      dn:   (v,p) =>({v,sz:10,bg:p?P.BL:P.GR_CL,fg:'374151',align:'C',border:'thin'}),
+      emp:  (p)   =>({v:'',sz:10,bg:p?P.BL:P.GR_CL,border:'thin'}),
+      badge:(v,p) =>{
+        const m={'Completado':[P.VE_BG,P.VE_FG],'Aprobado':[P.VE_BG,P.VE_FG],'Resuelto':[P.VE_BG,P.VE_FG],'Baja':[P.VE_BG,P.VE_FG],
+                 'Rechazado':[P.RO_BG,P.RO_FG],'Abierto':[P.RO_BG,P.RO_FG],'Alta':[P.RO_BG,P.RO_FG],
+                 'Pendiente':[P.AM_BG,P.AM_FG],'En Proceso':[P.AM_BG,P.AM_FG],'Media':[P.AM_BG,P.AM_FG]};
+        const[bg,fg]=m[v]||[P.GR_CL,'374151'];
+        return{v,bold:true,sz:10,bg,fg,align:'C',border:'thin'};
+      },
+      kpiV: (v,fg)=>({v,bold:true,sz:20,bg:P.BL,fg:fg||P.AZ,align:'C',border:'thin'}),
+      kpiL: (v,fg)=>({v,bold:true,sz:9, bg:P.BL,fg:fg||P.AZ,align:'C',border:'thin'}),
+      pct:  (v,p) =>{
+        const bg=v>=80?P.VE_BG:v>=50?P.AM_BG:P.RO_BG;
+        const fg=v>=80?P.VE_FG:v>=50?P.AM_FG:P.RO_FG;
+        return{v:`${v}%`,bold:true,sz:10,bg,fg,align:'C',border:'thin'};
+      },
+      bar:  (v,p) =>{
+        const bg=v>=80?P.VE_BG:v>=50?P.AM_BG:P.RO_BG;
+        const fg=v>=80?P.VE_FG:v>=50?P.AM_FG:P.RO_FG;
+        const n=Math.round(v/10);
+        return{v:'|'.repeat(n)+' '.repeat(10-n)+` ${v}%`,bold:true,sz:9,bg,fg,align:'L',border:'thin'};
+      },
+      chk:  (v,p) =>v==='✓'
+        ?{v:'✓',bold:true,sz:11,bg:P.VE_BG,fg:P.VE_FG,align:'C',border:'thin'}
+        :{v:'',sz:10,bg:p?P.BL:P.GR_CL,fg:P.GR_MD,align:'C',border:'thin'},
+      rank: (v,p) =>{
+        const bgs=['','FCD34D','E5E7EB','D97706'];
+        const fgs=['','92400E','374151','92400E'];
+        const bg=v<=3?bgs[v]:(p?P.BL:P.GR_CL);
+        const fg=v<=3?fgs[v]:'374151';
+        return{v,bold:true,sz:11,bg,fg,align:'C',border:'thin'};
+      },
     };
-    // KPI card — valor grande
-    const cKpiV = (v,color)=>({v,bold:true,sz:18,bg:P.BLANCO,fg:color||P.AZ_OSC,align:'center',bs:'thin',bc:P.GRIS_MD,bo:true});
-    const cKpiL = (v,color)=>({v,bold:true,sz:10,bg:P.BLANCO,fg:color||P.AZ_OSC,align:'center',bs:'thin',bc:P.GRIS_MD,bo:true});
-    // Ranking — número de posición
-    const cRank = (v,par)=>{
-      const bgs=['','FFD700','C0C0C0','CD7F32'];
-      const bg=v<=3?bgs[v]:par?P.BLANCO:P.GRIS_CL;
-      return{v,bold:true,sz:11,bg,fg:v<=3?'000000':P.GRIS_FG,align:'center',bs:'thin',bc:P.GRIS_MD};
-    };
-    // Barra de progreso ASCII
-    const cBar  = (pct,par)=>{
-      const filled=Math.round(pct/10);
-      const bar='█'.repeat(filled)+'░'.repeat(10-filled)+` ${pct}%`;
-      const fg=pct>=80?P.VERDE:pct>=50?P.AMBAR:P.ROJO;
-      return{v:bar,bold:true,sz:9,bg:par?P.BLANCO:P.GRIS_CL,fg,align:'left',bs:'thin',bc:P.GRIS_MD};
-    };
-    // Asistencia ✓ / ✗
-    const cCheck= (v,par)=>v==='✓'
-      ?{v:'✓',bold:true,sz:12,bg:P.VERDE_BG,fg:P.VERDE_FG,align:'center',bs:'thin',bc:P.GRIS_MD}
-      :{v:'✗',sz:11,bg:par?P.BLANCO:P.GRIS_CL,fg:'D1D5DB',align:'center',bs:'thin',bc:P.GRIS_MD};
+
+    // ── Cabecera estándar de hoja (4 filas: título, semana, separador, vacío) ──
+    // Devuelve {rows, merges, nextR}
+    function sheetHeader(titulo, ncols){
+      const rows=[], mg=[];
+      // F0: título
+      rows.push({h:28,c:[C.tit(titulo,14),...fill(ncols-1,()=>C.tit(''))]});
+      mg.push([0,0,0,ncols-1]);
+      // F1: semana
+      rows.push({h:18,c:[C.meta('Semana:'),C.metaV(weekLabel),...fill(ncols-2,()=>({v:'',sz:10,bg:'EFF6FF',border:'thin'}))]});
+      mg.push([1,1,1,ncols-1]);
+      // F2: generado
+      rows.push({h:16,c:[C.meta('Generado:'),C.metaV(new Date().toLocaleString('es-CO')),...fill(ncols-2,()=>({v:'',sz:10,bg:'EFF6FF',border:'thin'}))]});
+      mg.push([2,1,2,ncols-1]);
+      // F3: separador
+      rows.push({h:4,c:fill(ncols,()=>C.sep())});
+      return{rows,mg,r:rows.length};
+    }
 
     // ══════════════════════════════════════════
-    // HOJA 1: RESUMEN
+    // HOJA 1: RESUMEN (9 columnas)
     // ══════════════════════════════════════════
-    const rows1=[],merges1=[];
-    const p1=(cells,height)=>rows1.push({cells,height});
-    const m1=()=>rows1.length-1;
+    const NC1=9;
+    const {rows:r1,mg:mg1,r:ri1} = sheetHeader('CleanClass — Reporte Semanal de Aseo',NC1);
+    let R=ri1; // índice de fila actual
 
-    // ── Cabecera principal ──
-    p1([cTit('  CleanClass — Reporte Semanal de Aseo')],32);
-    merges1.push({r:m1(),c:0,r2:m1(),c2:8});
-    p1([cMeta('  📅  Semana:'),cMetaV('  '+weekLabel),{v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD},{v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD},{v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD},{v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD},{v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD}],20);
-    merges1.push({r:m1(),c:1,r2:m1(),c2:8});
-    p1([cMeta('  🕐  Generado:'),cMetaV('  '+new Date().toLocaleString('es-CO')),{v:'',bg:'EFF6FF'},{v:'',bg:'EFF6FF'},{v:'',bg:'EFF6FF'},{v:'',bg:'EFF6FF'},{v:'',bg:'EFF6FF'}],18);
-    merges1.push({r:m1(),c:1,r2:m1(),c2:8});
-    p1([cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep()],6);
+    // ── KPIs: 4 + 3 en dos bloques de 2 filas ──
+    const kpis=[
+      {v:weekEv.length,  l:'Total Evidencias', fg:P.AZ},
+      {v:approved,       l:'Aprobadas',         fg:P.VE_FG},
+      {v:rejected,       l:'Rechazadas',        fg:P.RO_FG},
+      {v:pending,        l:'Pendientes',        fg:P.AM_FG},
+      {v:weekCk.length,  l:'Check-ins GPS',     fg:P.AZ2},
+      {v:weekInc.length, l:'Incidentes',        fg:P.AZ},
+      {v:weekInc.filter(i=>i.status==='Abierto').length, l:'Inc. Abiertos', fg:P.RO_FG},
+    ];
+    // Fila vacía de respiro
+    r1.push({h:8,c:fill(NC1,()=>({v:'',bg:P.BL,border:'none'}))});
+    mg1.push([R,0,R,NC1-1]); R++;
 
-    // ── KPIs visuales (2 filas: valor + etiqueta) ──
-    p1([{v:'',bg:P.BLANCO}],14);
-    merges1.push({r:m1(),c:0,r2:m1(),c2:8});
+    // KPIs fila 1 de valores (4 columnas: 0,2,4,6) + fila 2 etiquetas
+    // Usamos 8 columnas para 4 KPIs (2 cols por KPI)
+    const kpiRow1V=fill(NC1,()=>({v:'',bg:P.BL,border:'thin'}));
+    const kpiRow1L=fill(NC1,()=>({v:'',bg:P.BL,border:'thin'}));
+    const kpiRow2V=fill(NC1,()=>({v:'',bg:P.BL,border:'thin'}));
+    const kpiRow2L=fill(NC1,()=>({v:'',bg:P.BL,border:'thin'}));
+    // 4 KPIs fila 1 en cols 0,2,4,6
+    [0,1,2,3].forEach((i,ci)=>{
+      const col=ci*2;
+      kpiRow1V[col]=C.kpiV(kpis[i].v,kpis[i].fg);
+      kpiRow1L[col]=C.kpiL(kpis[i].l,kpis[i].fg);
+      mg1.push([R,col,R,col+1]);
+      mg1.push([R+1,col,R+1,col+1]);
+    });
+    // 3 KPIs fila 2 en cols 0,3,6
+    [4,5,6].forEach((i,ci)=>{
+      const col=ci*3;
+      kpiRow2V[col]=C.kpiV(kpis[i].v,kpis[i].fg);
+      kpiRow2L[col]=C.kpiL(kpis[i].l,kpis[i].fg);
+      mg1.push([R+2,col,R+2,col+2]);
+      mg1.push([R+3,col,R+3,col+2]);
+    });
+    r1.push({h:30,c:kpiRow1V}); R++;
+    r1.push({h:16,c:kpiRow1L}); R++;
+    r1.push({h:30,c:kpiRow2V}); R++;
+    r1.push({h:16,c:kpiRow2L}); R++;
 
-    const kpiColors=[P.AZ_OSC,P.VERDE,P.ROJO,P.AMBAR,P.AZ_SEC,P.AZ_SEC,P.ROJO];
-    const kpiVals=[weekEv.length,approved,rejected,pending,weekCk.length,weekInc.length,weekInc.filter(i=>i.status==='Abierto').length];
-    const kpiLabels=['Total Evidencias','✅ Aprobadas','❌ Rechazadas','⏳ Pendientes','📍 Check-ins GPS','⚠ Incidentes','🔴 Abiertos'];
-
-    // Fila de valores grandes (7 KPIs en columnas 0-6, + col 7-8 vacías)
-    p1([...kpiVals.map((v,i)=>cKpiV(v,kpiColors[i])),{v:'',bg:P.BLANCO},{v:'',bg:P.BLANCO}],36);
-    merges1.push({r:m1(),c:7,r2:m1(),c2:8});
-    // Fila de etiquetas
-    p1([...kpiLabels.map((l,i)=>cKpiL(l,kpiColors[i])),{v:'',bg:P.BLANCO},{v:'',bg:P.BLANCO}],18);
-    merges1.push({r:m1(),c:7,r2:m1(),c2:8});
-
-    p1([cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep()],6);
-    p1([{v:'',bg:P.BLANCO}],10);
+    r1.push({h:4,c:fill(NC1,()=>C.sep())}); R++;
+    r1.push({h:8,c:fill(NC1,()=>({v:'',bg:P.BL,border:'none'}))}); R++;
 
     // ── Cumplimiento por grado ──
-    p1([cSub('  📊  CUMPLIMIENTO POR GRADO')],22);
-    merges1.push({r:m1(),c:0,r2:m1(),c2:8});
-    p1(['Grado','Grupos','Evidencias','Aprobadas','Rechazadas','Pendientes','Cumplimiento','Barra de progreso',''].map(cHead),20);
-
+    r1.push({h:20,c:[C.sub('CUMPLIMIENTO POR GRADO'),...fill(NC1-1,()=>C.sub(''))]}); mg1.push([R,0,R,NC1-1]); R++;
+    r1.push({h:18,c:['Grado','Evidencias','Aprobadas','Rechazadas','Pendientes','Cumplimiento','Progreso','',''].map(v=>C.head(v))}); R++;
     allGrades.forEach((grade,i)=>{
-      const par=i%2===0;
-      const gradeEv=weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade;});
-      const ga=gradeEv.filter(e=>e.status==='Completado').length;
-      const gr=gradeEv.filter(e=>e.status==='Rechazado').length;
-      const gp=gradeEv.filter(e=>e.status==='Pendiente').length;
-      const gg=D.cleanGroups.filter(g=>g.grade===grade).length;
-      const grate=gradeEv.length?Math.round((ga/gradeEv.length)*100):0;
-      const pctBadge={v:`${grate}%`,bold:true,sz:11,
-        bg:grate>=80?P.VERDE_BG:grate>=50?P.AMBAR_BG:P.ROJO_BG,
-        fg:grate>=80?P.VERDE_FG:grate>=50?P.AMBAR_FG:P.ROJO_FG,
-        align:'center',bs:'thin',bc:P.GRIS_MD};
-      p1([cD(grade,par),cDN(gg,par),cDN(gradeEv.length,par),cDN(ga,par),cDN(gr,par),cDN(gp,par),pctBadge,cBar(grate,par),cEmp(par)],18);
+      const p=i%2===0;
+      const gEv=weekEv.filter(e=>{const g=D.cleanGroups.find(cg=>cg.name===e.group);return g&&g.grade===grade;});
+      const ga=gEv.filter(e=>e.status==='Completado').length;
+      const gr=gEv.filter(e=>e.status==='Rechazado').length;
+      const gp=gEv.filter(e=>e.status==='Pendiente').length;
+      const grate=gEv.length?Math.round((ga/gEv.length)*100):0;
+      r1.push({h:16,c:[C.d(grade,p),C.dc(gEv.length,p),C.dc(ga,p),C.dc(gr,p),C.dc(gp,p),C.pct(grate,p),C.bar(grate,p),C.emp(p),C.emp(p)]}); R++;
     });
+    if(!allGrades.length){r1.push({h:16,c:[C.d('Sin datos',true),...fill(NC1-1,()=>C.emp(true))]}); R++;}
 
-    p1([cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep(),cSep()],6);
-    p1([{v:'',bg:P.BLANCO}],10);
+    r1.push({h:4,c:fill(NC1,()=>C.sep())}); R++;
+    r1.push({h:8,c:fill(NC1,()=>({v:'',bg:P.BL,border:'none'}))}); R++;
 
     // ── Top 10 faltas ──
-    p1([cSub('  🏅  TOP 10 — ESTUDIANTES CON MÁS FALTAS')],22);
-    merges1.push({r:m1(),c:0,r2:m1(),c2:8});
-    p1(['#','Estudiante','Grado','Faltas de Asistencia','Indicador visual','','','',''].map(cHead),20);
-
-    const absences={};
+    r1.push({h:20,c:[C.sub('TOP 10 — ESTUDIANTES CON MAS FALTAS'),...fill(NC1-1,()=>C.sub(''))]}); mg1.push([R,0,R,NC1-1]); R++;
+    r1.push({h:18,c:['#','Estudiante','Grado','Faltas','Indicador','','','',''].map(v=>C.head(v))}); R++;
+    const abs={};
     (D.cleanGroups||[]).forEach(g=>(g.members||[]).forEach(name=>{
       if(!name)return;
       const duty=days.filter(d=>{const dow=new Date(d+'T00:00:00').getDay();
         return g.frequency==='weekly'||(g.frequency==='daily'&&g.day===DAYS_ES[dow]);}).length;
       const ci=days.filter(d=>weekCk.some(c=>c.student===name&&c.date===d)).length;
-      if(duty>0){if(!absences[name])absences[name]={name,grade:ss(g.grade),faltas:0};
-        absences[name].faltas+=Math.max(0,duty-ci);}
+      if(duty>0){if(!abs[name])abs[name]={name,grade:ss(g.grade),faltas:0};
+        abs[name].faltas+=Math.max(0,duty-ci);}
     }));
-    const topFaltas=Object.values(absences).filter(a=>a.faltas>0).sort((a,b)=>b.faltas-a.faltas).slice(0,10);
-    const maxFaltas=topFaltas[0]?.faltas||1;
-
-    topFaltas.forEach((a,i)=>{
-      const par=i%2===0;
-      const barLen=Math.round((a.faltas/maxFaltas)*8);
-      const bar='▓'.repeat(barLen)+'░'.repeat(8-barLen);
-      const rankC=cRank(i+1,par);
-      p1([rankC,cD(a.name,par),cDC(a.grade,par),cDN(a.faltas,par),
-        {v:bar,sz:9,bold:true,bg:par?P.BLANCO:P.GRIS_CL,fg:P.ROJO,align:'left',bs:'thin',bc:P.GRIS_MD},
-        cEmp(par),cEmp(par),cEmp(par),cEmp(par)],18);
+    const topF=Object.values(abs).filter(a=>a.faltas>0).sort((a,b)=>b.faltas-a.faltas).slice(0,10);
+    const maxF=topF[0]?.faltas||1;
+    topF.forEach((a,i)=>{
+      const p=i%2===0;
+      const n=Math.round((a.faltas/maxF)*8);
+      const barBg=i===0?P.RO_BG:i===1?P.AM_BG:i===2?'FEF9C3':p?P.BL:P.GR_CL;
+      const barFg=i===0?P.RO_FG:i===1?P.AM_FG:i===2?'92400E':'374151';
+      r1.push({h:16,c:[
+        C.rank(i+1,p),C.d(a.name,p),C.dc(a.grade,p),C.dc(a.faltas,p),
+        {v:'|'.repeat(n)+'  '+a.faltas+' faltas',sz:9,bold:true,bg:barBg,fg:barFg,align:'L',border:'thin'},
+        C.emp(p),C.emp(p),C.emp(p),C.emp(p)
+      ]}); R++;
     });
-    if(!topFaltas.length) p1([cD('Sin faltas registradas esta semana',true)]);
-
-    ws1_ref={rows:rows1,merges:merges1};
+    if(!topF.length){r1.push({h:16,c:[C.d('Sin faltas registradas',true),...fill(NC1-1,()=>C.emp(true))]}); R++;}
 
     // ══════════════════════════════════════════
-    // HOJA 2: ASISTENCIA
+    // HOJA 2: ASISTENCIA (11 columnas)
     // ══════════════════════════════════════════
-    const rows2=[],merges2=[];
-    rows2.push({cells:[cTit('  CleanClass — Asistencia GPS Semanal')],height:32});
-    merges2.push({r:0,c:0,r2:0,c2:10});
-    rows2.push({cells:[cMeta('  📅 Semana:'),cMetaV('  '+weekLabel),...Array(9).fill({v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD})],height:18});
-    merges2.push({r:1,c:1,r2:1,c2:10});
-    rows2.push({cells:[cSep(),...Array(10).fill(cSep())],height:6});
-    rows2.push({cells:[{v:'',bg:P.BLANCO}],height:8});
+    const NC2=11;
+    const {rows:r2,mg:mg2,r:ri2}=sheetHeader('CleanClass — Asistencia GPS Semanal',NC2);
+    const heads2=['Estudiante','Grado','Grupo',...DAYS_LABELS.map((d,i)=>d+'\n'+new Date(days[i]+'T00:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})),'Asist.','Posibles','%'];
+    r2.push({h:26,c:heads2.map(v=>C.head(v))}); mg2.push(); // encabezado con fecha
 
-    rows2.push({cells:['Estudiante','Grado','Grupo',...DAYS_LABELS.map((d,i)=>`${d}\n${new Date(days[i]+'T00:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})}`),'Asistencias','Posibles','%'].map(cHead),height:30});
-
-    const stGroups={};
+    const stG={};
     (D.cleanGroups||[]).forEach(g=>(g.members||[]).forEach(name=>{
-      if(name&&!stGroups[name]) stGroups[name]={grade:ss(g.grade),group:ss(g.name),freq:g.frequency,day:g.day};
+      if(name&&!stG[name])stG[name]={grade:ss(g.grade),group:ss(g.name),freq:g.frequency,day:g.day};
     }));
-
-    [...(D.students||[])].sort((a,b)=>(ss(a.grade)).localeCompare(ss(b.grade))||(ss(a.name)).localeCompare(ss(b.name)))
+    [...(D.students||[])].sort((a,b)=>ss(a.grade).localeCompare(ss(b.grade))||ss(a.name).localeCompare(ss(b.name)))
       .forEach((st,i)=>{
-        const par=i%2===0,sg=stGroups[ss(st.name)];
-        const dc=days.map(d=>weekCk.some(c=>c.student===st.name&&c.date===d)?'✓':'✗');
+        const p=i%2===0,sg=stG[ss(st.name)];
+        const dc=days.map(d=>weekCk.some(c=>c.student===st.name&&c.date===d)?'✓':'');
         const ta=dc.filter(v=>v==='✓').length;
         const tp=sg?days.filter(d=>{const dow=new Date(d+'T00:00:00').getDay();
           return sg.freq==='weekly'||(sg.freq==='daily'&&sg.day===DAYS_ES[dow]);}).length:0;
         const pct=tp?Math.round((ta/tp)*100):0;
-        const pctCell=tp?{v:`${pct}%`,bold:true,sz:10,
-          bg:pct>=80?P.VERDE_BG:pct>=50?P.AMBAR_BG:P.ROJO_BG,
-          fg:pct>=80?P.VERDE_FG:pct>=50?P.AMBAR_FG:P.ROJO_FG,
-          align:'center',bs:'thin',bc:P.GRIS_MD}:cDN('—',par);
-        rows2.push({cells:[cD(ss(st.name),par),cDC(ss(st.grade),par),cD(sg?sg.group:'Sin grupo',par),
-          ...dc.map(v=>cCheck(v,par)),cDN(ta,par),cDN(tp,par),pctCell],height:18});
+        r2.push({h:16,c:[C.d(ss(st.name),p),C.dc(ss(st.grade),p),C.d(sg?sg.group:'Sin grupo',p),
+          ...dc.map(v=>C.chk(v,p)),C.dc(ta,p),C.dc(tp,p),C.pct(pct,p)]});
       });
 
     // ══════════════════════════════════════════
-    // HOJA 3: EVIDENCIAS
+    // HOJA 3: EVIDENCIAS (8 columnas)
     // ══════════════════════════════════════════
-    const rows3=[],merges3=[];
-    rows3.push({cells:[cTit('  CleanClass — Evidencias de Aseo')],height:32});
-    merges3.push({r:0,c:0,r2:0,c2:7});
-    rows3.push({cells:[cMeta('  📅 Semana:'),cMetaV('  '+weekLabel),...Array(6).fill({v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD})],height:18});
-    merges3.push({r:1,c:1,r2:1,c2:7});
-    rows3.push({cells:[cSep(),...Array(7).fill(cSep())],height:6});
-    rows3.push({cells:[{v:'',bg:P.BLANCO}],height:8});
-    rows3.push({cells:['Fecha','Día','Grupo','Grado','Subida por','Estado','Revisado por','Observaciones'].map(cHead),height:22});
-
-    const evS=[...weekEv].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const NC3=8;
+    const {rows:r3,mg:mg3,r:ri3}=sheetHeader('CleanClass — Evidencias de Aseo',NC3);
+    r3.push({h:18,c:['Fecha','Dia','Grupo','Grado','Subida por','Estado','Revisado por','Observaciones'].map(v=>C.head(v))});
+    const evS=[...weekEv].sort((a,b)=>ss(a.date).localeCompare(ss(b.date)));
     if(!evS.length){
-      rows3.push({cells:[{...cD('Sin evidencias registradas en esta semana',true),align:'center'},
-        ...Array(7).fill(cEmp(true))],height:22});
-      merges3.push({r:rows3.length-1,c:0,r2:rows3.length-1,c2:7});
+      r3.push({h:16,c:[{...C.d('Sin evidencias esta semana',true),align:'C'},...fill(NC3-1,()=>C.emp(true))]});
+      mg3.push([r3.length-1,0,r3.length-1,NC3-1]);
     } else {
       evS.forEach((e,i)=>{
-        const par=i%2===0,dow=new Date((e.date||'2000-01-01')+'T00:00:00').getDay();
-        rows3.push({cells:[
-          cDC(e.date||'',par),cDC(DAYS_ES[dow]||'',par),
-          cD(ss(e.group),par),cDC((D.cleanGroups.find(g=>g.name===e.group)||{}).grade||'',par),
-          cD(ss(e.student),par),cBadge(ss(e.status),par),
-          cD(ss(e.reviewed_by)||'—',par),{...cD(ss(e.observation)||'—',par),wrap:true}
-        ],height:20});
+        const p=i%2===0,dow=new Date((ss(e.date)||'2000-01-01')+'T00:00:00').getDay();
+        r3.push({h:16,c:[C.dc(ss(e.date),p),C.dc(DAYS_ES[dow]||'',p),
+          C.d(ss(e.group),p),C.dc((D.cleanGroups.find(g=>g.name===e.group)||{}).grade||'',p),
+          C.d(ss(e.student),p),C.badge(ss(e.status),p),
+          C.d(ss(e.reviewed_by)||'—',p),{...C.d(ss(e.observation)||'—',p),wrap:true}]});
       });
     }
 
     // ══════════════════════════════════════════
-    // HOJA 4: INCIDENTES
+    // HOJA 4: INCIDENTES (10 columnas)
     // ══════════════════════════════════════════
-    const rows4=[],merges4=[];
-    rows4.push({cells:[cTit('  CleanClass — Incidentes Reportados')],height:32});
-    merges4.push({r:0,c:0,r2:0,c2:9});
-    rows4.push({cells:[cMeta('  📅 Semana:'),cMetaV('  '+weekLabel),...Array(8).fill({v:'',bg:'EFF6FF',bs:'thin',bc:P.GRIS_MD})],height:18});
-    merges4.push({r:1,c:1,r2:1,c2:9});
-    rows4.push({cells:[cSep(),...Array(9).fill(cSep())],height:6});
-    rows4.push({cells:[{v:'',bg:P.BLANCO}],height:8});
-    rows4.push({cells:['Fecha','Tipo','Grado','Prioridad','Estado','Ubicación','Reportado por','Descripción','Asignado a','Notas'].map(cHead),height:22});
-
-    const incS=[...weekInc].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const NC4=10;
+    const {rows:r4,mg:mg4,r:ri4}=sheetHeader('CleanClass — Incidentes Reportados',NC4);
+    r4.push({h:18,c:['Fecha','Tipo','Grado','Prioridad','Estado','Ubicacion','Reportado por','Descripcion','Asignado a','Notas'].map(v=>C.head(v))});
+    const incS=[...weekInc].sort((a,b)=>ss(a.date).localeCompare(ss(b.date)));
     if(!incS.length){
-      rows4.push({cells:[{...cD('Sin incidentes registrados en esta semana',true),align:'center'},
-        ...Array(9).fill(cEmp(true))],height:22});
-      merges4.push({r:rows4.length-1,c:0,r2:rows4.length-1,c2:9});
+      r4.push({h:16,c:[{...C.d('Sin incidentes esta semana',true),align:'C'},...fill(NC4-1,()=>C.emp(true))]});
+      mg4.push([r4.length-1,0,r4.length-1,NC4-1]);
     } else {
       incS.forEach((inc,i)=>{
-        const par=i%2===0;
-        rows4.push({cells:[
-          cDC(ss(inc.date),par),cD(ss(inc.type),par),cDC(ss(inc.grade),par),
-          cBadge(ss(inc.priority),par),cBadge(ss(inc.status),par),
-          cD(ss(inc.location),par),cD(ss(inc.reporter),par),
-          {...cD(ss(inc.description),par),wrap:true},
-          cD(ss(inc.assigned_to)||'—',par),{...cD(ss(inc.notes)||'—',par),wrap:true}
-        ],height:20});
+        const p=i%2===0;
+        r4.push({h:16,c:[C.dc(ss(inc.date),p),C.d(ss(inc.type),p),C.dc(ss(inc.grade),p),
+          C.badge(ss(inc.priority),p),C.badge(ss(inc.status),p),C.d(ss(inc.location),p),
+          C.d(ss(inc.reporter),p),{...C.d(ss(inc.description),p),wrap:true},
+          C.d(ss(inc.assigned_to)||'—',p),{...C.d(ss(inc.notes)||'—',p),wrap:true}]});
       });
     }
 
     // ══════════════════════════════════════════
-    // ARMAR Y DESCARGAR
+    // ARMAR — columnas compactas (más alto que ancho)
     // ══════════════════════════════════════════
-    const sheetsData=[
-      {name:'Resumen',    rows:rows1, merges:merges1, freeze:0,
-       cols:[{wch:6},{wch:30},{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:28},{wch:10}]},
-      {name:'Asistencia', rows:rows2, merges:merges2, freeze:5,
-       cols:[{wch:28},{wch:10},{wch:22},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:10}]},
-      {name:'Evidencias', rows:rows3, merges:merges3, freeze:5,
-       cols:[{wch:14},{wch:12},{wch:24},{wch:10},{wch:26},{wch:14},{wch:22},{wch:45}]},
-      {name:'Incidentes', rows:rows4, merges:merges4, freeze:5,
-       cols:[{wch:14},{wch:22},{wch:10},{wch:12},{wch:14},{wch:22},{wch:22},{wch:45},{wch:22},{wch:32}]},
+    const sheets=[
+      {name:'Resumen',    rows:r1,merges:mg1,freeze:4,
+       cols:[6,22,10,10,10,10,12,18,6]},
+      {name:'Asistencia', rows:r2,merges:mg2,freeze:5,
+       cols:[24,8,18,9,9,9,9,9,10,9,8]},
+      {name:'Evidencias', rows:r3,merges:mg3,freeze:5,
+       cols:[12,10,20,8,22,12,18,38]},
+      {name:'Incidentes', rows:r4,merges:mg4,freeze:5,
+       cols:[12,18,8,10,12,18,18,38,18,28]},
     ];
 
-    const out = buildXLSX(sheetsData);
+    const out=buildXLSX(sheets);
     const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;a.download=fileName;a.click();
     setTimeout(()=>URL.revokeObjectURL(url),2000);
-
-    if(msg){msg.textContent=`✅ "${fileName}" descargado correctamente.`;msg.style.display='block';msg.style.color='#10b981';}
+    if(msg){msg.textContent=`✅ "${fileName}" descargado.`;msg.style.display='block';msg.style.color='#10b981';}
 
   } catch(err){
     console.error('Excel error:',err);
