@@ -2492,6 +2492,8 @@ function updateExcelWeekPreview(){
 }
 
 async function exportWeeklyExcel(){
+  // xlsx-js-style expone XLSXStyle; creamos alias para compatibilidad
+  const XLSX = window.XLSXStyle || window.XLSX;
   const input = document.getElementById('excelWeekStart');
   const msg   = document.getElementById('excelMsg');
   const btn   = document.querySelector('[onclick="exportWeeklyExcel()"]');
@@ -2500,12 +2502,10 @@ async function exportWeeklyExcel(){
     if(msg){msg.textContent='Selecciona una semana primero.';msg.style.display='block';msg.style.color='#ef4444';}
     return;
   }
-  if(typeof XLSX === 'undefined'){
+  if(!XLSX){
     if(msg){msg.textContent='Error: librería Excel no disponible. Recarga la página.';msg.style.display='block';msg.style.color='#ef4444';}
     return;
   }
-
-  if(btn){btn.disabled=true;btn.innerHTML='⏳ Generando...';}
   if(msg){msg.style.display='none';}
 
   try {
