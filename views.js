@@ -2515,10 +2515,10 @@ async function exportWeeklyExcel(){
         sc.onerror = () => reject(new Error('No se pudo cargar: '+url));
         document.head.appendChild(sc);
       };
-      tryLoad('https://cdn.jsdelivr.net/gh/gitbrent/xlsx-js-style@v1.2.0/dist/xlsx-js-style.min.js', () => {
+      tryLoad('https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js', () => {
         XLSX = window.XLSXStyle || window.XLSX;
         if(XLSX) resolve();
-        else tryLoad('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', () => {
+        else tryLoad('https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js', () => {
           XLSX = window.XLSX; resolve();
         });
       });
