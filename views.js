@@ -2492,8 +2492,8 @@ function updateExcelWeekPreview(){
 }
 
 async function exportWeeklyExcel(){
-  // xlsx-js-style expone XLSXStyle; creamos alias para compatibilidad
-  const XLSX = window.XLSXStyle || window.XLSX;
+  // xlsx-js-style puede exponer XLSXStyle o XLSX según la versión
+  const XLSX = window.XLSXStyle || window.XLSX || window.xlsx;
   const input = document.getElementById('excelWeekStart');
   const msg   = document.getElementById('excelMsg');
   const btn   = document.querySelector('[onclick="exportWeeklyExcel()"]');
@@ -2503,7 +2503,8 @@ async function exportWeeklyExcel(){
     return;
   }
   if(!XLSX){
-    if(msg){msg.textContent='Error: librería Excel no disponible. Recarga la página.';msg.style.display='block';msg.style.color='#ef4444';}
+    const found = Object.keys(window).filter(k=>k.toLowerCase().includes('xlsx'));
+    if(msg){msg.textContent=`Error: librería Excel no disponible. Variables encontradas: [${found.join(', ')||'ninguna'}]. Recarga la página.`;msg.style.display='block';msg.style.color='#ef4444';}
     return;
   }
   if(msg){msg.style.display='none';}
