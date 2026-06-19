@@ -2492,8 +2492,6 @@ function updateExcelWeekPreview(){
 }
 
 async function exportWeeklyExcel(){
-  // xlsx-js-style puede exponer XLSXStyle o XLSX según la versión
-  const XLSX = window.XLSXStyle || window.XLSX || window.xlsx;
   const input = document.getElementById('excelWeekStart');
   const msg   = document.getElementById('excelMsg');
   const btn   = document.querySelector('[onclick="exportWeeklyExcel()"]');
@@ -2502,9 +2500,34 @@ async function exportWeeklyExcel(){
     if(msg){msg.textContent='Selecciona una semana primero.';msg.style.display='block';msg.style.color='#ef4444';}
     return;
   }
+
+  if(btn){btn.disabled=true;btn.innerHTML='⏳ Generando...';}
+  if(msg){msg.style.display='none';}
+
+  // Cargar librería dinámicamente con fallback
+  let XLSX = window.XLSXStyle || window.XLSX;
   if(!XLSX){
-    const found = Object.keys(window).filter(k=>k.toLowerCase().includes('xlsx'));
-    if(msg){msg.textContent=`Error: librería Excel no disponible. Variables encontradas: [${found.join(', ')||'ninguna'}]. Recarga la página.`;msg.style.display='block';msg.style.color='#ef4444';}
+    await new Promise((resolve, reject) => {
+      const tryLoad = (url, cb) => {
+        const sc = document.createElement('script');
+        sc.src = url;
+        sc.onload = cb;
+        sc.onerror = () => reject(new Error('No se pudo cargar: '+url));
+        document.head.appendChild(sc);
+      };
+      tryLoad('https://cdn.jsdelivr.net/gh/gitbrent/xlsx-js-style@v1.2.0/dist/xlsx-js-style.min.js', () => {
+        XLSX = window.XLSXStyle || window.XLSX;
+        if(XLSX) resolve();
+        else tryLoad('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', () => {
+          XLSX = window.XLSX; resolve();
+        });
+      });
+    }).catch(err => { XLSX = null; console.error(err); });
+  }
+
+  if(!XLSX){
+    if(msg){msg.textContent='Error: no se pudo cargar la librería Excel. Verifica tu conexión.';msg.style.display='block';msg.style.color='#ef4444';}
+    if(btn){btn.disabled=false;btn.innerHTML='<i data-lucide="download" style="width:18px;height:18px"></i> Descargar Excel';}
     return;
   }
   if(msg){msg.style.display='none';}
