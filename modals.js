@@ -542,21 +542,46 @@ function changeAssignmentMode(mode){
 
 function bindEvents(){
   document.querySelectorAll('.validation-btn').forEach(btn=>{
-    btn.onclick=e=>{
+    btn.onclick=async e=>{
       e.preventDefault();
-      const evidenceId=parseInt(btn.dataset.id);
+      const evidenceId=btn.dataset.id;
       const action=btn.dataset.action;
       const obs=document.getElementById(`obs-${evidenceId}`);
       const observation=obs?.value||'';
-      const evidence=D.evidence.find(ev=>ev.id===evidenceId);
-      if(!evidence) return;
-      evidence.status=action==='approve'?'Completado':'Rechazado';
-      evidence.compliant=action==='approve'; // PUNTO 3: actualiza booleano
-      evidence.reviewed_by=currentSession?currentSession.name:'Docente';
+      const evidence=D.evidence.find(ev=>String(ev.id)===String(evidenceId));
+      if(!evidence){ console.error('Evidencia no encontrada:', evidenceId); return; }
+
+      const newStatus=action==='approve'?'Completado':'Rechazado';
+      const reviewedBy=currentSession?.name||'Docente';
+
+      // Actualizar directamente en Supabase solo los campos de validación
+      const { error } = await sb.from('evidence')
+        .update({
+          status: newStatus,
+          compliant: action==='approve',
+          reviewed_by: reviewedBy,
+          observation: observation,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', evidenceId);
+
+      if(error){
+        console.error('❌ Error al guardar validación:', error.message, error.details);
+        const n=document.createElement('div');
+        n.style.cssText='position:fixed;top:20px;right:20px;background:#7f1d1d;color:#fecaca;padding:14px 18px;border-radius:10px;z-index:9999;font-size:13px;font-weight:600';
+        n.textContent='⚠ Error al guardar: '+error.message;
+        document.body.appendChild(n);
+        setTimeout(()=>n.remove(),5000);
+        return;
+      }
+
+      // Actualizar local y re-renderizar
+      evidence.status=newStatus;
+      evidence.compliant=action==='approve';
+      evidence.reviewed_by=reviewedBy;
       evidence.observation=observation;
       evidence.reviewed_at=new Date().toISOString();
-      // Guardar validación en Supabase
-      saveEvidence(evidence);
+      await loadEvidence();
       render();
     };
   });
