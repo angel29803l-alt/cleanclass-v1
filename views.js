@@ -2623,11 +2623,28 @@ async function exportWeeklyExcel(){
         ${bgKeys.map(bg=>`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg}"/><bgColor indexed="64"/></patternFill></fill>`).join('')}
       </fills>`;
 
+      // Bordes: 0=none, 1=thin gris(tabla interna), 2=medium negro(exterior), 3=thin azul(header)
+      // Cada celda tiene borde completo → efecto tabla sin necesidad de aplicar manualmente
       const xmlBr=`<borders count="4">
         <border><left/><right/><top/><bottom/></border>
-        <border><left style="thin"><color rgb="FF${P.GM}"/></left><right style="thin"><color rgb="FF${P.GM}"/></right><top style="thin"><color rgb="FF${P.GM}"/></top><bottom style="thin"><color rgb="FF${P.GM}"/></bottom></border>
-        <border><left style="medium"><color rgb="FF000000"/></left><right style="medium"><color rgb="FF000000"/></right><top style="medium"><color rgb="FF000000"/></top><bottom style="medium"><color rgb="FF000000"/></bottom></border>
-        <border><left style="thin"><color rgb="FF${P.AZ}"/></left><right style="thin"><color rgb="FF${P.AZ}"/></right><top style="thin"><color rgb="FF${P.AZ}"/></top><bottom style="thin"><color rgb="FF${P.AZ}"/></bottom></border>
+        <border>
+          <left style="thin"><color rgb="FF${P.GM}"/></left>
+          <right style="thin"><color rgb="FF${P.GM}"/></right>
+          <top style="thin"><color rgb="FF${P.GM}"/></top>
+          <bottom style="thin"><color rgb="FF${P.GM}"/></bottom>
+        </border>
+        <border>
+          <left style="medium"><color rgb="FF1E3A5F"/></left>
+          <right style="medium"><color rgb="FF1E3A5F"/></right>
+          <top style="medium"><color rgb="FF1E3A5F"/></top>
+          <bottom style="medium"><color rgb="FF1E3A5F"/></bottom>
+        </border>
+        <border>
+          <left style="thin"><color rgb="FF${P.AZ}"/></left>
+          <right style="thin"><color rgb="FF${P.AZ}"/></right>
+          <top style="thin"><color rgb="FF${P.AZ}"/></top>
+          <bottom style="thin"><color rgb="FF${P.AZ}"/></bottom>
+        </border>
       </borders>`;
       // border index: 0=none,1=thin gray,2=medium black,3=thin blue
       const brMap={'n':0,'t':1,'m':2,'d':3};
@@ -2742,7 +2759,7 @@ ${xmlF}${xmlBg}${xmlBr}
     // ── KPIs: tabla de 4 filas × 4 columnas (valor|etiqueta en pares) ──
     // Usamos 4 cols para 4 KPIs — cada KPI ocupa 2 cols (valor + nada)
     // Fila vacía
-    R1.push({h:6,c:mk(NC,()=>({v:'',s:6,bg:P.BL,br:'n'}))}); ri++;
+    R1.push({h:6,c:mk(NC,()=>({v:'',s:6,bg:P.BL,br:'t'}))}); ri++;
 
     const kpis=[
       {v:wEv.length, l:'Total Evidencias', fg:P.AZ},
@@ -2775,7 +2792,7 @@ ${xmlF}${xmlBg}${xmlBr}
     R1.push({h:14,c:kl2}); ri++;
 
     R1.push({h:3,c:mk(NC,()=>sep())}); ri++;
-    R1.push({h:6,c:mk(NC,()=>({v:'',s:6,bg:P.BL,br:'n'}))}); ri++;
+    R1.push({h:6,c:mk(NC,()=>({v:'',s:6,bg:P.BL,br:'t'}))}); ri++;
 
     // ── Cumplimiento por grado ──
     R1.push({h:18,c:[sub('CUMPLIMIENTO POR GRADO'),...mk(NC-1,()=>sub(''))]}); M1.push([ri,0,ri,NC-1]); ri++;
@@ -2792,7 +2809,7 @@ ${xmlF}${xmlBg}${xmlBr}
     if(!grades.length){R1.push({h:15,c:[d('Sin datos',true),...mk(NC-1,()=>emp(true))]}); ri++;}
 
     R1.push({h:3,c:mk(NC,()=>sep())}); ri++;
-    R1.push({h:6,c:mk(NC,()=>({v:'',s:6,bg:P.BL,br:'n'}))}); ri++;
+    R1.push({h:6,c:mk(NC,()=>({v:'',s:6,bg:P.BL,br:'t'}))}); ri++;
 
     // ── Top 10 faltas ──
     R1.push({h:18,c:[sub('TOP 10 — ESTUDIANTES CON MAS FALTAS'),...mk(NC-1,()=>sub(''))]}); M1.push([ri,0,ri,NC-1]); ri++;
