@@ -200,53 +200,7 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 .notif-pill-btn:hover{background:rgba(6,182,212,.22)!important;transform:translateY(-2px);animation:none;box-shadow:0 6px 20px rgba(6,182,212,.4)}
 .notif-pill-btn:active{transform:scale(.97)}
 
-/* ============================================================
-   FUNDADORES — marco animado
-   ============================================================ */
-@keyframes founder-glow {
-  0%   { box-shadow: 0 0 0 2px var(--fc,#FFD700), 0 0 8px 2px var(--fc,#FFD700); }
-  50%  { box-shadow: 0 0 0 3px var(--fc,#FFD700), 0 0 18px 6px var(--fc,#FFD700); }
-  100% { box-shadow: 0 0 0 2px var(--fc,#FFD700), 0 0 8px 2px var(--fc,#FFD700); }
-}
-@keyframes founder-border {
-  0%   { border-color: var(--fc,#FFD700); opacity:1; }
-  50%  { border-color: var(--fc,#FFD700); opacity:.5; }
-  100% { border-color: var(--fc,#FFD700); opacity:1; }
-}
-@keyframes founder-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-.founder-avatar {
-  animation: founder-glow 2s ease-in-out infinite;
-  border: 2.5px solid var(--fc, #FFD700) !important;
-}
-.founder-name {
-  background: linear-gradient(90deg, var(--fc,#FFD700) 0%, #fff 40%, var(--fc,#FFD700) 60%, #fff 80%, var(--fc,#FFD700) 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: founder-shimmer 3s linear infinite;
-  font-weight: 800 !important;
-}
-.founder-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 8px;
-  border-radius: 50px;
-  font-size: 10px;
-  font-weight: 700;
-  border: 1px solid var(--fc, #FFD700);
-  color: var(--fc, #FFD700);
-  background: rgba(255,215,0,.08);
-  margin-left: 6px;
-  animation: founder-border 2s ease-in-out infinite;
-}
-.founder-row {
-  background: rgba(255,215,0,.03) !important;
-}
+
 
 /* ============================================================
    PANEL CTRL+K — anuncios del admin
@@ -301,3 +255,139 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 1px rgba(6,182,212,.2);
   animation: announceIn .35s cubic-bezier(.175,.885,.32,1.275) both;
 }
+
+/* ============================================================
+   FUNDADORES — marcos animados (12 tipos)
+   ============================================================ */
+@keyframes spin   { to{transform:rotate(360deg)} }
+@keyframes spinR  { to{transform:rotate(-360deg)} }
+@keyframes fShimmer { from{background-position:200% center} to{background-position:-200% center} }
+@keyframes fBreath  { 0%,100%{opacity:.8} 50%{opacity:1} }
+@keyframes fPulse   { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+@keyframes fChaos   { 0%{transform:scale(1) rotate(0)} 20%{transform:scale(1.07) rotate(4deg)} 50%{transform:scale(.93) rotate(-5deg)} 75%{transform:scale(1.05) rotate(2deg)} 100%{transform:scale(1) rotate(0)} }
+@keyframes fWobble  { 0%,100%{border-radius:50%} 25%{border-radius:40% 60% 55% 45%} 50%{border-radius:60% 40% 45% 55%} 75%{border-radius:45% 55% 40% 60%} }
+@keyframes fBH      { 0%,100%{box-shadow:0 0 0 0 rgba(80,0,120,.7),inset 0 0 8px rgba(80,0,120,.2)} 50%{box-shadow:0 0 0 6px rgba(80,0,120,0),inset 0 0 20px rgba(80,0,120,.4)} }
+@keyframes fIce     { 0%,100%{box-shadow:inset 0 0 10px rgba(91,200,224,.15)} 50%{box-shadow:inset 0 0 22px rgba(168,230,240,.35)} }
+@keyframes fRainbow { 0%{filter:hue-rotate(0deg)} 100%{filter:hue-rotate(360deg)} }
+@keyframes fSparkle { 0%,100%{opacity:0;transform:scale(0)} 40%,60%{opacity:1;transform:scale(1)} }
+@keyframes fFrost   { 0%,100%{opacity:.75} 50%{opacity:1} }
+
+/* Wrapper común */
+.founder-frame-wrap {
+  position:relative; width:38px; height:38px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.founder-frame-wrap img,
+.founder-frame-wrap .founder-letter {
+  position:relative; z-index:2;
+  width:30px; height:30px; border-radius:50%;
+  object-fit:cover; display:block;
+}
+.founder-letter {
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; color:#fff; font-weight:700;
+}
+/* Anillos base */
+.founder-frame-wrap::before,
+.founder-frame-wrap::after {
+  content:''; position:absolute; border-radius:50%;
+  animation:spin 2.5s linear infinite;
+}
+.founder-frame-wrap::before { inset:-4px; filter:blur(2px); z-index:1; }
+.founder-frame-wrap::after  { inset:-2px; filter:blur(1px); z-index:1; opacity:.7; animation:spinR 3.5s linear infinite; }
+
+/* nombre con shimmer */
+.founder-name {
+  background-size:200% auto;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  animation:fShimmer 2.5s linear infinite;
+  font-weight:800 !important;
+}
+.founder-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  padding:1px 7px; border-radius:50px; font-size:10px; font-weight:700;
+  border:1px solid var(--fc,#FFD700); color:var(--fc,#FFD700);
+  background:rgba(255,215,0,.08); margin-left:5px;
+}
+.founder-row { background:rgba(255,215,0,.02) !important; }
+
+/* ── FUEGO ── */
+.founder-frame-fire::before { background:conic-gradient(from 0deg,#ff4500,#ff8c00,#ffd700,#ff2200,#ff4500); }
+.founder-frame-fire::after  { background:conic-gradient(from 90deg,#ff8c00,#ff0000,#ffd700,#ff8c00); animation-duration:2s; }
+.founder-frame-fire .founder-name { background-image:linear-gradient(90deg,#ff4500,#ffd700,#fff,#ffd700,#ff4500); }
+.founder-frame-fire .founder-badge { border-color:#ff8c00; color:#ff8c00; background:rgba(255,140,0,.08); }
+
+/* ── DORADO ── */
+.founder-frame-gold::before { background:conic-gradient(from 0deg,#b8860b,#ffd700,#fffacd,#ffd700,#b8860b); }
+.founder-frame-gold::after  { background:conic-gradient(from 60deg,#ffd700,#b8860b,#fffacd,#b8860b,#ffd700); }
+.founder-frame-gold .founder-name { background-image:linear-gradient(90deg,#b8860b,#ffd700,#fffacd,#ffd700,#b8860b); }
+.founder-frame-gold .founder-badge { border-color:#ffd700; color:#ffd700; background:rgba(255,215,0,.08); }
+
+/* ── ELÉCTRICO ── */
+.founder-frame-electric::before { background:conic-gradient(from 0deg,#00f5ff,#0080ff,#7000ff,#00f5ff); animation-duration:1.5s; }
+.founder-frame-electric::after  { background:conic-gradient(from 180deg,#7000ff,#0080ff,#00f5ff,#7000ff); animation-duration:1s; }
+.founder-frame-electric .founder-name { background-image:linear-gradient(90deg,#0080ff,#00f5ff,#fff,#7000ff,#0080ff); }
+.founder-frame-electric .founder-badge { border-color:#00f5ff; color:#00f5ff; background:rgba(0,245,255,.08); }
+
+/* ── AURORA ── */
+.founder-frame-aurora::before { background:conic-gradient(from 0deg,#00ff88,#00cfff,#8000ff,#00ff88); }
+.founder-frame-aurora::after  { background:conic-gradient(from 120deg,#8000ff,#00cfff,#00ff88,#8000ff); }
+.founder-frame-aurora .founder-name { background-image:linear-gradient(90deg,#00ff88,#00cfff,#fff,#8000ff,#00ff88); }
+.founder-frame-aurora .founder-badge { border-color:#00cfff; color:#00cfff; background:rgba(0,207,255,.08); }
+
+/* ── RAINBOW ── */
+.founder-frame-rainbow::before { background:conic-gradient(red,orange,yellow,lime,cyan,blue,violet,red); animation:spin 2s linear infinite, fRainbow 4s linear infinite; }
+.founder-frame-rainbow::after  { background:conic-gradient(violet,blue,cyan,lime,yellow,orange,red,violet); animation:spinR 3s linear infinite; }
+.founder-frame-rainbow .founder-name { background-image:linear-gradient(90deg,red,orange,yellow,lime,cyan,blue,violet,red); }
+.founder-frame-rainbow .founder-badge { border-color:#ff0; color:#ff0; background:rgba(255,255,0,.08); }
+
+/* ── OCÉANO ── */
+.founder-frame-ocean::before { background:conic-gradient(from 0deg,#006994,#00b4d8,#90e0ef,#023e8a,#006994); }
+.founder-frame-ocean::after  { background:conic-gradient(from 90deg,#90e0ef,#023e8a,#00b4d8,#006994,#90e0ef); }
+.founder-frame-ocean .founder-name { background-image:linear-gradient(90deg,#006994,#00b4d8,#caf0f8,#00b4d8,#006994); }
+.founder-frame-ocean .founder-badge { border-color:#00b4d8; color:#00b4d8; background:rgba(0,180,216,.08); }
+
+/* ── CAOS (rojo/naranja/negro errático) ── */
+.founder-frame-chaos { animation:fChaos 1.3s ease-in-out infinite; }
+.founder-frame-chaos::before { background:conic-gradient(from 0deg,#ff0000,#ff4500,#000,#ff6600,#8b0000,#ff2200,#000,#ff4500,#ff0000); animation-duration:.6s; filter:blur(3px); }
+.founder-frame-chaos::after  { background:conic-gradient(from 90deg,#000,#ff4500,#ff0000,#000,#ff6600,#8b0000,#000); animation:spinR .45s steps(10,end) infinite; opacity:.9; }
+.founder-frame-chaos img,
+.founder-frame-chaos .founder-letter { animation:fWobble 1.6s ease-in-out infinite; }
+.founder-frame-chaos .founder-name { background-image:linear-gradient(90deg,#8b0000,#ff4500,#ff0000,#ff6600,#000,#ff4500,#8b0000); animation-duration:.8s; }
+.founder-frame-chaos .founder-badge { border-color:#ff4500; color:#ff4500; background:rgba(255,69,0,.08); }
+
+/* ── ORDEN ── */
+.founder-frame-order::before { background:conic-gradient(from 0deg,#1e3a5f,#4a90d9,#fff,#4a90d9,#1e3a5f); animation-duration:5s; filter:blur(1px); }
+.founder-frame-order::after  { background:conic-gradient(from 45deg,#fff,#1e3a5f,#4a90d9,#1e3a5f,#fff); animation-duration:7s; }
+.founder-frame-order .founder-name { background-image:linear-gradient(90deg,#1e3a5f,#4a90d9,#fff,#4a90d9,#1e3a5f); animation-duration:4s; }
+.founder-frame-order .founder-badge { border-color:#4a90d9; color:#4a90d9; background:rgba(74,144,217,.08); }
+
+/* ── CRISTALICO ── */
+.founder-frame-crystal::before { background:conic-gradient(from 0deg,#e0f7ff,#b3ecff,#fff,#7dd3fc,#e0f7ff); animation-duration:5s; filter:blur(1px); }
+.founder-frame-crystal::after  { background:conic-gradient(from 60deg,#fff,#7dd3fc,#b3ecff,#e0f7ff,#fff); animation-duration:7s; }
+.founder-frame-crystal .founder-name { background-image:linear-gradient(90deg,#7dd3fc,#fff,#b3ecff,#fff,#7dd3fc); }
+.founder-frame-crystal .founder-badge { border-color:#7dd3fc; color:#7dd3fc; background:rgba(125,211,252,.08); }
+
+/* ── VENENO ── */
+.founder-frame-poison::before { background:conic-gradient(from 0deg,#39ff14,#008000,#7fff00,#004d00,#39ff14); }
+.founder-frame-poison::after  { background:conic-gradient(from 90deg,#004d00,#39ff14,#008000,#7fff00,#004d00); }
+.founder-frame-poison .founder-name { background-image:linear-gradient(90deg,#004d00,#39ff14,#7fff00,#39ff14,#004d00); }
+.founder-frame-poison .founder-badge { border-color:#39ff14; color:#39ff14; background:rgba(57,255,20,.08); }
+
+/* ── AGUJERO NEGRO ── */
+.founder-frame-blackhole::before { background:conic-gradient(from 0deg,#4b0082,#8b00ff,#000080,#000,#4b0082,#ff00ff,#000,#8b00ff,#4b0082); animation-duration:2s; }
+.founder-frame-blackhole::after  { background:conic-gradient(from 180deg,#000,#8b00ff,#000,#4b0082,#000); animation-duration:1.5s; }
+.founder-frame-blackhole img,
+.founder-frame-blackhole .founder-letter { animation:fBH 3s ease-in-out infinite; background:radial-gradient(circle at 35% 30%,#1a0030,#000) !important; }
+.founder-frame-blackhole .founder-name { background-image:linear-gradient(90deg,#4b0082,#8b00ff,#c0c,#8b00ff,#4b0082); }
+.founder-frame-blackhole .founder-badge { border-color:#8b00ff; color:#8b00ff; background:rgba(139,0,255,.08); }
+
+/* ── HIELO (escarcha SVG) ── */
+.founder-frame-ice::before { background:conic-gradient(from 0deg,transparent 0deg,rgba(168,230,240,.9) 15deg,transparent 30deg,rgba(220,245,255,.6) 45deg,transparent 60deg,rgba(168,230,240,.8) 75deg,transparent 90deg,rgba(255,255,255,.9) 105deg,transparent 120deg,rgba(168,230,240,.7) 135deg,transparent 150deg,transparent 210deg,rgba(168,230,240,.9) 225deg,transparent 240deg,rgba(255,255,255,.7) 285deg,transparent 300deg,rgba(168,230,240,.8) 315deg,transparent 330deg,rgba(255,255,255,.9) 345deg,transparent 360deg); animation-duration:6s; filter:blur(.5px); }
+.founder-frame-ice::after  { background:conic-gradient(from 120deg,#a8e6f0,transparent 8deg,#fff,transparent 8deg,#5bc8e0,transparent 8deg,#b3ecff,transparent 8deg,#a8e6f0); animation-duration:4s; opacity:.8; filter:blur(.3px); }
+.founder-frame-ice img,
+.founder-frame-ice .founder-letter { animation:fIce 2.5s ease-in-out infinite; background:linear-gradient(135deg,#06192e,#061525) !important; color:#a8e6f0 !important; }
+.founder-frame-ice .founder-name { background-image:linear-gradient(90deg,#5bc8e0,#fff,#a8e6f0,#7dd3fc,#fff,#5bc8e0); animation-duration:3s; }
+.founder-frame-ice .founder-badge { border-color:#5bc8e0; color:#5bc8e0; background:rgba(91,200,224,.08); }

@@ -1130,17 +1130,24 @@ function rUsers(){
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
         const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
         const _fc=_isFounder?(_isFounder.color||'#FFD700'):'';
+        const _ftype=_isFounder?(_isFounder.type||'gold'):'';
+        const _up2=D.usersProfiles?.find(u=>u.email===s.email);
+        const _av2=_up2?.avatar_url;
+        const _avatarContent=_av2
+          ?`<img src="${_av2}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;position:relative;z-index:2">`
+          :`<div class="founder-letter" style="position:relative;z-index:2">${s.name.charAt(0)}</div>`;
+        const _avatarEl=_isFounder
+          ?`<div class="founder-frame-wrap founder-frame-${_ftype}">${_avatarContent}</div>`
+          :`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`;
         return `<tr class="${_isFounder?'founder-row':''}">
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
-            <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0;--fc:${_fc}" class="${_isFounder?'founder-avatar':''}">${(()=>{const up=D.usersProfiles?.find(u=>u.email===s.email);const av=up?.avatar_url;return av?`<img src="${av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`;})()}</div>
+            ${_avatarEl}
             <div style="display:flex;align-items:center;gap:4px">
               <span class="${_isFounder?'founder-name':''}" style="${_isFounder?'--fc:'+_fc+';':''}font-weight:600;font-size:13px">${s.name}</span>
               ${_isFounder?`<span class="founder-badge" style="--fc:${_fc}">★ Fundador</span>`:''}
             </div>
           </div></td>
-          <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${s.grade}</span></td>
-          <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
           <td style="text-align:center">${comp!==null?`<div style="display:flex;align-items:center;gap:7px;justify-content:center">
             <div style="width:50px;height:5px;border-radius:3px;background:rgba(6,182,212,.1);overflow:hidden"><div style="width:${comp}%;height:100%;background:${cc}"></div></div>
@@ -3268,44 +3275,67 @@ function saveFounders(){
 }
 
 function openFounderManager(){
-  // Solo admin
   if(!isAdmin()) return;
   const existing = window._founders;
   const allPeople = [
     ...D.students.map(s=>({...s,role:'Estudiante'})),
     ...D.teachers.map(t=>({...t,role:'Docente'}))
   ];
+  const FRAME_TYPES = [
+    {id:'fire',     label:'🔥 Fuego'},
+    {id:'gold',     label:'✨ Dorado'},
+    {id:'electric', label:'⚡ Eléctrico'},
+    {id:'aurora',   label:'🌌 Aurora'},
+    {id:'rainbow',  label:'🌈 Rainbow'},
+    {id:'ocean',    label:'🌊 Océano'},
+    {id:'chaos',    label:'💥 Caos'},
+    {id:'order',    label:'🔷 Orden'},
+    {id:'crystal',  label:'💎 Cristalico'},
+    {id:'poison',   label:'☠️ Veneno'},
+    {id:'blackhole',label:'🌑 Agujero Negro'},
+    {id:'ice',      label:'❄️ Hielo'},
+  ];
 
   const html = `
-  <div class="modal-bg" id="founderManagerBg" onclick="if(event.target===this)this.remove()">
-    <div class="modal" style="max-width:500px;background:#1e293b">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div class="modal-bg" id="founderManagerBg" onclick="if(event.target===this)this.remove()" style="z-index:9999">
+    <div class="modal" style="max-width:540px;background:#1e293b;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <h2 style="font-size:16px;font-weight:700">⭐ Gestionar Fundadores</h2>
         <button onclick="document.getElementById('founderManagerBg').remove()" class="pill pill-ghost" style="padding:4px 10px">✕</button>
       </div>
-      <p style="font-size:12px;color:var(--textm);margin-bottom:16px">Marca a los fundadores para que aparezcan con marco animado y nombre dorado (o el color que elijas).</p>
-      <div style="max-height:340px;overflow-y:auto;display:flex;flex-col gap-2">
+      <p style="font-size:12px;color:var(--textm);margin-bottom:14px">Elige quién es fundador, su marco animado y color del nombre.</p>
+      <div style="display:flex;flex-col;gap:0">
         ${allPeople.map(p=>{
           const f = existing.find(x=>x.email===p.email||x.name===p.name);
           const color = f?.color||'#FFD700';
-          return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.1);margin-bottom:6px">
-            <input type="checkbox" id="f_${p.email}" ${f?'checked':''} style="width:16px;height:16px;accent-color:#06b6d4"
-              onchange="toggleFounder('${p.email}','${p.name}',this.checked,document.getElementById('fc_${p.email}').value)">
-            <div style="flex:1">
-              <p style="font-size:13px;font-weight:600">${p.name}</p>
-              <p style="font-size:11px;color:var(--textm)">${p.role} · ${p.email||'—'}</p>
+          const ftype = f?.type||'gold';
+          const eid = p.email.replace(/[@.]/g,'_');
+          return `<div style="padding:10px 12px;border-radius:10px;background:${f?'rgba(6,182,212,.06)':'rgba(6,182,212,.02)'};border:1px solid ${f?'rgba(6,182,212,.2)':'rgba(6,182,212,.08)'};margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:${f?'10px':'0'}">
+              <input type="checkbox" id="f_${eid}" ${f?'checked':''} style="width:16px;height:16px;accent-color:#06b6d4;flex-shrink:0"
+                onchange="toggleFounder('${p.email}','${p.name}',this.checked,document.getElementById('fc_${eid}').value,document.getElementById('ft_${eid}').value);this.closest('div').style.background=this.checked?'rgba(6,182,212,.06)':'rgba(6,182,212,.02)';this.closest('div').style.border=this.checked?'1px solid rgba(6,182,212,.2)':'1px solid rgba(6,182,212,.08)';document.getElementById('fex_${eid}').style.display=this.checked?'flex':'none'">
+              <div style="flex:1;min-width:0">
+                <p style="font-size:13px;font-weight:600">${p.name}</p>
+                <p style="font-size:11px;color:var(--textm)">${p.role} · ${p.email||'—'}</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:11px;color:var(--textm)">Color:</label>
+                <input type="color" id="fc_${eid}" value="${color}" style="width:28px;height:24px;padding:1px;border:none;border-radius:6px;cursor:pointer;background:transparent"
+                  onchange="toggleFounder('${p.email}','${p.name}',document.getElementById('f_${eid}').checked,this.value,document.getElementById('ft_${eid}').value)">
+              </div>
             </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <label style="font-size:11px;color:var(--textm)">Color:</label>
-              <input type="color" id="fc_${p.email}" value="${color}" style="width:32px;height:28px;padding:2px;border:none;border-radius:6px;cursor:pointer;background:transparent"
-                onchange="toggleFounder('${p.email}','${p.name}',document.getElementById('f_${p.email}').checked,this.value)">
+            <div id="fex_${eid}" style="display:${f?'flex':'none'};gap:6px;flex-wrap:wrap;margin-top:4px">
+              <select id="ft_${eid}" style="font-size:11px;padding:4px 8px;border-radius:8px;border:1px solid rgba(6,182,212,.3);background:#0f172a;color:var(--text);cursor:pointer"
+                onchange="toggleFounder('${p.email}','${p.name}',true,document.getElementById('fc_${eid}').value,this.value)">
+                ${FRAME_TYPES.map(t=>`<option value="${t.id}" ${ftype===t.id?'selected':''}>${t.label}</option>`).join('')}
+              </select>
             </div>
           </div>`;
         }).join('')}
       </div>
       <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
         <button class="pill pill-ghost" onclick="document.getElementById('founderManagerBg').remove()">Cerrar</button>
-        <button class="pill pill-primary" onclick="document.getElementById('founderManagerBg').remove();render()">Aplicar</button>
+        <button class="pill pill-primary" onclick="document.getElementById('founderManagerBg').remove();render()">✓ Aplicar</button>
       </div>
     </div>
   </div>`;
@@ -3314,9 +3344,9 @@ function openFounderManager(){
   document.body.appendChild(div.firstElementChild);
 }
 
-function toggleFounder(email, name, checked, color){
+function toggleFounder(email, name, checked, color, type){
   window._founders = window._founders.filter(f=>f.email!==email&&f.name!==name);
-  if(checked) window._founders.push({email, name, color: color||'#FFD700'});
+  if(checked) window._founders.push({email, name, color: color||'#FFD700', type: type||'gold'});
   saveFounders();
 }
 
