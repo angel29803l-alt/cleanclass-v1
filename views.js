@@ -69,6 +69,7 @@ function rDashboardAdmin(){
           </div>
           <div>
             <h1 class="text-2xl font-bold">Dashboard</h1>
+            <p style="color:var(--textm);font-size:13px">Resumen general del estado del aseo escolar hoy</p>
             <p style="color:var(--accent);font-size:13px;font-weight:600">${todayName} ${todayStr} — CleanClass</p>
           </div>
         </div>
@@ -181,6 +182,7 @@ function rConfig(){
   let html=`
   <div style="margin-bottom:20px">
     <h1 class="text-2xl font-bold mb-1"><i data-lucide="settings" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Configuración</h1>
+    <p style="color:var(--textm);font-size:13px;margin-bottom:16px">Ajusta los horarios de aseo, la ubicación del colegio, los días sin clase y los salones</p>
     <p style="color:var(--textm);font-size:13px">Horarios, ubicación GPS, días sin clase y salones</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
@@ -381,6 +383,7 @@ function rReportsAdmin(){
   let html=`
   <div style="margin-bottom:20px">
     <h1 class="text-2xl font-bold mb-1"><i data-lucide="file-bar-chart" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Reportes</h1>
+    <p style="color:var(--textm);font-size:13px">Consulta el estado diario del aseo, el ranking de incumplimiento y exporta el reporte semanal a Excel</p>
     <p style="color:var(--textm);font-size:13px">Informes detallados para la coordinación</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
@@ -820,6 +823,7 @@ function rAnalytics(){
         </div>
         Analíticas y Gráficos
       </h1>
+      <p style="color:var(--textm);font-size:13px;margin-top:6px">Gráficos y estadísticas de cumplimiento del aseo por grado y grupo</p>
       <p style="color:var(--textm);font-size:13px;margin-top:4px">${myGrade?'Grado '+myGrade:'Todo el colegio'}</p>
     </div>
   </div>
@@ -993,6 +997,7 @@ function rUsers(){
           </div>
           Módulo de Usuarios
         </h1>
+        <p style="color:var(--textm);font-size:13px;margin-top:6px">Consulta los estudiantes y docentes registrados en el sistema</p>
         <p style="color:var(--textm);font-size:13px;margin-top:4px">${isAdmin()?'Aquí puedes ver, agregar y gestionar todos los estudiantes y docentes del colegio, organizados por grado.':myGrade?'Grado '+myGrade:'Sin grado asignado'}</p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
@@ -1195,6 +1200,7 @@ function rEvidence(){
     return `
     <div style="margin-bottom:20px">
       <h1 class="text-2xl font-bold mb-1"><i data-lucide="camera" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Evidencias de Aseo</h1>
+      <p style="color:var(--textm);font-size:13px">Galería de fotos del aseo subidas por los estudiantes, organizadas por grado</p>
       <p style="color:var(--textm);font-size:13px">Aquí puedes ver todas las fotos que los estudiantes suben después del aseo. Toca una imagen para verla en grande.</p>
     </div>
 
@@ -1290,6 +1296,7 @@ function rEvidence(){
   <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
       <h1 class="text-2xl font-bold">Evidencias de Aseo</h1>
+      <p style="color:var(--textm);font-size:13px">Sube la foto del aseo de tu grupo para que el docente la revise y apruebe</p>
       <p style="color:var(--textm);font-size:13px">Toma la foto de la limpieza directamente desde la app</p>
     </div>
     ${(()=>{
@@ -1668,6 +1675,7 @@ function rClean(){
 
   return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div><h1 class="text-2xl font-bold">${isStudent()?'Mis Turnos de Aseo':t('cleanTitle')}${myGrade?' — '+myGrade:''}</h1>
+    <p style="color:var(--textm);font-size:13px">${isStudent()?'Consulta qué días te toca el aseo y con qué grupo':'Crea y organiza los grupos encargados del aseo del salón'}</p>
     <p style="color:var(--textm)" class="text-sm">${assignmentMode==='daily'?t('manageDaily'):t('manageWeekly')}</p></div>
     <div class="flex gap-2 flex-wrap">
       <button class="btn ${assignmentMode==='daily'?'btn-p':'btn-s'} flex items-center gap-1" onclick="changeAssignmentMode('daily')" style="font-size:12px"><i data-lucide="calendar" style="width:14px;height:14px"></i>${t('dailyMode')}</button>
@@ -1779,6 +1787,7 @@ function rValidation(){
 
   return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div><h1 class="text-2xl font-bold">${t('validation')}${myGrade?' — '+myGrade:''}</h1>
+    <p style="color:var(--textm);font-size:13px">Revisa las fotos del aseo y aprueba o rechaza cada evidencia subida por los estudiantes</p>
     <p style="color:var(--textm)" class="text-sm">Revisión y aprobación de evidencias de aseo</p></div>
   </div>
   ${missingGroups.length>0?`<div class="card mb-4" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);padding:14px">
@@ -1874,6 +1883,7 @@ function rMyValidations(){
   const reviewed=mine.filter(e=>e.status!=='Pendiente');
   return `<div class="mb-6">
     <h1 class="text-2xl font-bold">Mis Validaciones</h1>
+    <p style="color:var(--textm);font-size:13px">Aquí puedes ver si tu evidencia fue aprobada o rechazada por el docente</p>
     <p style="color:var(--textm)" class="text-sm">Aquí ves lo que el docente respondió sobre tus evidencias</p>
   </div>
   <div class="grid gap-4 sm:grid-cols-3 mb-6">
@@ -1926,6 +1936,7 @@ function rIncidents(){
     headerHtml = `
     <div style="margin-bottom:20px">
       <h1 class="text-2xl font-bold mb-1"><i data-lucide="alert-circle" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Gestión de Incidentes</h1>
+      <p style="color:var(--textm);font-size:13px">Seguimiento de daños, problemas o situaciones reportadas en los salones del colegio</p>
       <p style="color:var(--textm);font-size:13px">Aquí puedes ver y gestionar todos los incidentes reportados por los estudiantes. Usa el filtro para ver por grado.</p>
     </div>
     <!-- Filtro por grado -->
@@ -1952,6 +1963,7 @@ function rIncidents(){
     headerHtml = `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
       <h1 class="text-2xl font-bold">Incidentes del Grado${myGrade?' — '+myGrade:''}</h1>
+    <p style="color:var(--textm);font-size:13px">Revisa y da seguimiento a los incidentes reportados en tu grado</p>
       <p style="color:var(--textm)" class="text-sm">Incidentes reportados por estudiantes. Revisa, actualiza el estado y haz seguimiento.</p>
     </div>
   </div>
@@ -2037,6 +2049,7 @@ function rReportIncident(){
   return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
       <h1 class="text-2xl font-bold">Reportar Incidente</h1>
+      <p style="color:var(--textm);font-size:13px">Reporta cualquier daño o problema que encuentres en el salón para que el docente lo gestione</p>
       <p style="color:var(--textm)" class="text-sm">Reporta cualquier problema o daño en el salón al docente</p>
     </div>
     <button class="pill pill-primary flex items-center gap-1" onclick="openModal('add','incidents')">
