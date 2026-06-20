@@ -131,18 +131,32 @@ function rDashboardAdmin(){
         <h3 class="font-bold text-lg">Evidencias de Hoy</h3>
         <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${todayEvidence.length} total</span>
       </div>
-      ${todayEvidence.length>0?`
-      <div class="flex flex-col gap-3">
-        ${todayEvidence.sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date)).map(e=>`
-          <div style="display:flex;gap:10px;padding:10px;background:rgba(6,182,212,.05);border-radius:8px">
-            ${e.image?`<img src="${e.image}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="openImageFullscreen('${e.image}')">`:'<div style="width:60px;height:60px;border-radius:8px;background:rgba(6,182,212,.1);display:flex;align-items:center;justify-content:center"><i data-lucide="image" style="width:24px;height:24px;color:rgba(6,182,212,.4)"></i></div>'}
-            <div style="flex:1">
-              <p style="font-size:13px;font-weight:600">${e.group}</p>
-              <p style="font-size:11px;color:var(--textm)">${e.student} · ${e.time||''}</p>
-              <span class="badge" style="font-size:10px;background:${e.status==='Completado'?'#d1fae5;color:#059669':e.status==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e'}">${e.status}</span>
-            </div>
-          </div>`).join('')}
-      </div>`:`<p style="color:var(--textm);text-align:center;padding:30px">Sin evidencias hoy</p>`}
+      ${(()=>{
+        const _DES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        const _tdn=_DES[new Date().getDay()];
+        const _tg=D.cleanGroups.filter(g=>g.frequency==='weekly'||(g.frequency==='daily'&&g.day===_tdn));
+        const _gwe=new Set(todayEvidence.map(e=>e.group));
+        const _miss=_tg.filter(g=>!_gwe.has(g.name));
+        const _stBg=s=>s==='Completado'?'#d1fae5;color:#059669':s==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e';
+
+        if(todayEvidence.length>0){
+          const evHtml=[...todayEvidence].sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date)).map(e=>{
+            const imgTag=e.image?'<img src="'+e.image+'" style="width:56px;height:56px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="openImageFullscreen(decodeURIComponent(\''+encodeURIComponent(e.image)+'\'))">':'<div style="width:56px;height:56px;border-radius:8px;background:rgba(6,182,212,.1);display:flex;align-items:center;justify-content:center"><i data-lucide=\\"image\\" style=\\"width:22px;height:22px;color:rgba(6,182,212,.4)\\"></i></div>';
+            return '<div style="display:flex;gap:10px;padding:10px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.1)">'+imgTag+'<div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600">'+e.group+'</p><p style="font-size:11px;color:var(--textm)">'+e.student+' · '+(e.time||'')+'</p><span class="badge" style="font-size:10px;background:'+_stBg(e.status)+'">'+e.status+'</span></div></div>';
+          }).join('');
+          const missHtml=_miss.length>0?'<div style="margin-top:8px;padding:12px;background:rgba(239,68,68,.05);border-radius:10px;border:1px solid rgba(239,68,68,.15)"><p style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Sin evidencia aún ('+_miss.length+')</p>'+_miss.map(g=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(239,68,68,.08)"><div><p style="font-size:12px;font-weight:600">'+g.name+'</p><p style="font-size:11px;color:var(--textm)">Grado '+g.grade+'</p></div><span style="font-size:10px;color:var(--textm)">'+(g.members||[]).length+' estudiantes</span></div>').join('')+'</div>':'';
+          return '<div class="flex flex-col gap-3">'+evHtml+missHtml+'</div>';
+        }
+
+        if(_tg.length===0) return '<p style="color:var(--textm);text-align:center;padding:30px">No hay grupos de aseo programados hoy</p>';
+
+        const _cards=_miss.map(g=>{
+          const mbs=(g.members||[]).map(m=>'<span style="font-size:10px;padding:2px 8px;border-radius:50px;background:rgba(6,182,212,.08);color:var(--textm)">'+m+'</span>').join('');
+          return '<div style="padding:12px 14px;background:rgba(239,68,68,.05);border-radius:10px;border:1px solid rgba(239,68,68,.15)"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span><p style="font-size:13px;font-weight:700">'+g.name+'</p></div><span style="font-size:11px;font-weight:600;color:#ef4444;background:rgba(239,68,68,.1);padding:2px 8px;border-radius:50px">Grado '+g.grade+'</span></div><div style="display:flex;flex-wrap:wrap;gap:4px">'+mbs+'</div></div>';
+        }).join('');
+        const _done=_gwe.size>0?'<p style="font-size:11px;color:#10b981;text-align:center;margin-top:4px">✅ '+_gwe.size+' grupo(s) ya cumplieron</p>':'';
+        return '<div><p style="font-size:12px;color:var(--textm);margin-bottom:12px">Grupos programados hoy sin evidencia:</p><div class="flex flex-col gap-2">'+_cards+_done+'</div></div>';
+            })()}
     </div>
 
     <div class="card" style="background:var(--surface)">
