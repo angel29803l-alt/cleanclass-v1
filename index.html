@@ -7,7 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <!-- SheetJS se carga dinámicamente al exportar Excel -->
+  <!-- SheetJS para exportar Excel semanal -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Chart.js para los gráficos analíticos (PUNTO 2) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -148,6 +149,11 @@
       </div>
 
       <div class="mt-auto pt-4 px-2" style="border-top:1px solid var(--border)">
+        <button onclick="confirmLogout()" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:none;background:rgba(239,68,68,.08);color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:8px"
+          onmouseover="this.style.background='rgba(239,68,68,.18)'" onmouseout="this.style.background='rgba(239,68,68,.08)'">
+          <i data-lucide="log-out" style="width:14px;height:14px"></i>
+          Cerrar sesión
+        </button>
         <p style="font-size:11px;color:var(--textm)">CleanClass v2.0</p>
       </div>
     </aside>
