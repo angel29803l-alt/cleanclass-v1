@@ -1128,11 +1128,16 @@ function rUsers(){
         const evs=D.evidence.filter(e=>e.student===s.name);
         const comp=evs.length?Math.round((evs.filter(e=>e.compliant||e.status==='Completado').length/evs.length)*100):null;
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
-        return `<tr>
+        const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
+        const _fc=_isFounder?(_isFounder.color||'#FFD700'):'';
+        return `<tr class="${_isFounder?'founder-row':''}">
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
-            <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${(()=>{const up=D.usersProfiles?.find(u=>u.email===s.email);const av=up?.avatar_url;return av?`<img src="${av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`;})()}</div>
-            <span style="font-weight:600;font-size:13px">${s.name}</span>
+            <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0;--fc:${_fc}" class="${_isFounder?'founder-avatar':''}">${(()=>{const up=D.usersProfiles?.find(u=>u.email===s.email);const av=up?.avatar_url;return av?`<img src="${av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`;})()}</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span class="${_isFounder?'founder-name':''}" style="${_isFounder?'--fc:'+_fc+';':''}font-weight:600;font-size:13px">${s.name}</span>
+              ${_isFounder?`<span class="founder-badge" style="--fc:${_fc}">★ Fundador</span>`:''}
+            </div>
           </div></td>
           <td><span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${s.grade}</span></td>
           <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
@@ -3250,4 +3255,187 @@ async function clearExpiredEarlyExits() {
     await sb.from('schedules').update({ early_exit_time: null, early_exit_date: null }).eq('id', s.id);
   }
   if(expired.length) await loadSchedules();
+}
+
+// ============================================================
+// FUNDADORES — gestión y marco animado
+// ============================================================
+// Los fundadores se guardan en localStorage para persistencia
+window._founders = JSON.parse(localStorage.getItem('cc_founders') || '[]');
+
+function saveFounders(){
+  localStorage.setItem('cc_founders', JSON.stringify(window._founders));
+}
+
+function openFounderManager(){
+  // Solo admin
+  if(!isAdmin()) return;
+  const existing = window._founders;
+  const allPeople = [
+    ...D.students.map(s=>({...s,role:'Estudiante'})),
+    ...D.teachers.map(t=>({...t,role:'Docente'}))
+  ];
+
+  const html = `
+  <div class="modal-bg" id="founderManagerBg" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:500px;background:#1e293b">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h2 style="font-size:16px;font-weight:700">⭐ Gestionar Fundadores</h2>
+        <button onclick="document.getElementById('founderManagerBg').remove()" class="pill pill-ghost" style="padding:4px 10px">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:16px">Marca a los fundadores para que aparezcan con marco animado y nombre dorado (o el color que elijas).</p>
+      <div style="max-height:340px;overflow-y:auto;display:flex;flex-col gap-2">
+        ${allPeople.map(p=>{
+          const f = existing.find(x=>x.email===p.email||x.name===p.name);
+          const color = f?.color||'#FFD700';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.1);margin-bottom:6px">
+            <input type="checkbox" id="f_${p.email}" ${f?'checked':''} style="width:16px;height:16px;accent-color:#06b6d4"
+              onchange="toggleFounder('${p.email}','${p.name}',this.checked,document.getElementById('fc_${p.email}').value)">
+            <div style="flex:1">
+              <p style="font-size:13px;font-weight:600">${p.name}</p>
+              <p style="font-size:11px;color:var(--textm)">${p.role} · ${p.email||'—'}</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <label style="font-size:11px;color:var(--textm)">Color:</label>
+              <input type="color" id="fc_${p.email}" value="${color}" style="width:32px;height:28px;padding:2px;border:none;border-radius:6px;cursor:pointer;background:transparent"
+                onchange="toggleFounder('${p.email}','${p.name}',document.getElementById('f_${p.email}').checked,this.value)">
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="pill pill-ghost" onclick="document.getElementById('founderManagerBg').remove()">Cerrar</button>
+        <button class="pill pill-primary" onclick="document.getElementById('founderManagerBg').remove();render()">Aplicar</button>
+      </div>
+    </div>
+  </div>`;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+}
+
+function toggleFounder(email, name, checked, color){
+  window._founders = window._founders.filter(f=>f.email!==email&&f.name!==name);
+  if(checked) window._founders.push({email, name, color: color||'#FFD700'});
+  saveFounders();
+}
+
+// ============================================================
+// PANEL CTRL+K — anuncios del admin en tiempo real
+// ============================================================
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey) && e.key==='k'){
+    e.preventDefault();
+    if(isAdmin()) openCmdPanel();
+  }
+});
+
+function openCmdPanel(){
+  if(document.getElementById('cmdPanel')) return;
+  const html = `
+  <div id="cmdPanel" onclick="if(event.target===this)closeCmdPanel()">
+    <div id="cmdBox">
+      <div id="cmdHeader">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#2563eb);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="megaphone" style="width:16px;height:16px;color:#fff"></i>
+          </div>
+          <div>
+            <p style="font-size:14px;font-weight:700">Enviar Anuncio</p>
+            <p style="font-size:11px;color:var(--textm)">Se mostrará a todos los usuarios conectados</p>
+          </div>
+        </div>
+        <button onclick="closeCmdPanel()" style="background:none;border:none;color:var(--textm);cursor:pointer;font-size:18px;padding:4px">✕</button>
+      </div>
+      <textarea id="cmdInput" placeholder="Escribe tu anuncio aquí..." rows="3"
+        style="width:100%;padding:16px 20px;background:transparent;border:none;outline:none;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;resize:none;border-bottom:1px solid rgba(6,182,212,.1)"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAnnounce();}if(event.key==='Escape')closeCmdPanel()"></textarea>
+      <div id="cmdFooter">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="pill pill-ghost" style="font-size:11px;padding:4px 10px" onclick="openFounderManager()">⭐ Fundadores</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--textm)">Enter para enviar · Shift+Enter nueva línea</span>
+          <button class="pill pill-primary" style="padding:7px 18px" onclick="sendAnnounce()">
+            <i data-lucide="send" style="width:14px;height:14px"></i> Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+  if(typeof lucide!=='undefined') lucide.createIcons();
+  setTimeout(()=>document.getElementById('cmdInput')?.focus(), 100);
+}
+
+function closeCmdPanel(){
+  const p = document.getElementById('cmdPanel');
+  if(p) p.remove();
+}
+
+function sendAnnounce(){
+  const input = document.getElementById('cmdInput');
+  const msg = input?.value?.trim();
+  if(!msg) return;
+
+  // Guardar en Supabase para que todos lo vean via realtime
+  sb.from('announcements').insert({
+    message: msg,
+    sender: currentSession?.name || 'Admin',
+    created_at: new Date().toISOString()
+  }).then(({error})=>{
+    if(error){
+      // Si la tabla no existe, mostrar igual localmente
+      console.warn('announcements table:', error.message);
+    }
+  });
+
+  // Mostrar localmente de inmediato
+  showAnnounce(msg, currentSession?.name||'Admin');
+  closeCmdPanel();
+}
+
+function showAnnounce(msg, sender){
+  const existing = document.getElementById('announceBanner');
+  if(existing) existing.remove();
+
+  const html = `
+  <div id="announceBanner">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex:1">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#06b6d4,#2563eb);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="megaphone" style="width:18px;height:18px;color:#fff"></i>
+        </div>
+        <div>
+          <p style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px">📢 ANUNCIO DE ${(sender||'ADMIN').toUpperCase()}</p>
+          <p style="font-size:14px;color:var(--text);line-height:1.5">${msg}</p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('announceBanner').remove()" style="background:none;border:none;color:var(--textm);cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+    </div>
+  </div>`;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+  if(typeof lucide!=='undefined') lucide.createIcons();
+
+  // Auto cerrar después de 10s
+  setTimeout(()=>{
+    const b = document.getElementById('announceBanner');
+    if(b){ b.style.animation='announceOut .3s ease forwards'; setTimeout(()=>b.remove(),300); }
+  }, 10000);
+}
+
+// Escuchar anuncios en tiempo real de otros usuarios
+function initAnnouncementsRealtime(){
+  sb.channel('announcements-channel')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'announcements'},
+      payload=>{
+        if(payload.new?.sender!==currentSession?.name){
+          showAnnounce(payload.new.message, payload.new.sender);
+        }
+      })
+    .subscribe();
 }

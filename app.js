@@ -390,6 +390,7 @@ async function doLogin(){
     }catch(e){}
     render();
     if (typeof initRealtime === 'function') initRealtime();
+    if (typeof initAnnouncementsRealtime === 'function') initAnnouncementsRealtime();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
     if (typeof syncPendingCheckins === 'function') syncPendingCheckins();
     setTimeout(() => {
@@ -773,6 +774,7 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       }
       render();
       if (typeof initRealtime === 'function') initRealtime();
+      if (typeof initAnnouncementsRealtime === 'function') initAnnouncementsRealtime();
       if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
       // Botón de notificaciones — actualizar estado real
       setTimeout(() => {
