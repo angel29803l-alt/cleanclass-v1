@@ -128,35 +128,60 @@ function rDashboardAdmin(){
   <div class="grid gap-6 lg:grid-cols-2">
     <div class="card" style="background:var(--surface)">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-bold text-lg">Evidencias de Hoy</h3>
-        <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${todayEvidence.length} total</span>
+        <h3 class="font-bold text-lg">Evidencias Recientes</h3>
+        <span class="badge" style="background:rgba(6,182,212,.15);color:var(--accent)">${todayEvidence.length} hoy</span>
       </div>
       ${(()=>{
-        const _DES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-        const _tdn=_DES[new Date().getDay()];
-        const _tg=D.cleanGroups.filter(g=>g.frequency==='weekly'||(g.frequency==='daily'&&g.day===_tdn));
-        const _gwe=new Set(todayEvidence.map(e=>e.group));
-        const _miss=_tg.filter(g=>!_gwe.has(g.name));
         const _stBg=s=>s==='Completado'?'#d1fae5;color:#059669':s==='Rechazado'?'#fee2e2;color:#dc2626':'#fef3c7;color:#92400e';
+        const _now=new Date();
+        const _nowMin=_now.getHours()*60+_now.getMinutes();
+        const _DES=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        const _noClassSet=new Set((D.noClassDays||[]).map(d=>d.date));
+        const _schedule=D.schedules&&D.schedules[0];
+        const _windowMin=_schedule?(_schedule.evidence_window_min||30):30;
+        const _cleanTime=_schedule?(_schedule.clean_time||'15:00').substring(0,5):'15:00';
+        const [_ch,_cm]=_cleanTime.split(':').map(Number);
+        const _deadlineMin=_ch*60+_cm+_windowMin;
 
-        if(todayEvidence.length>0){
-          const evHtml=[...todayEvidence].sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date)).map(e=>{
-            const imgTag=e.image?'<img src="'+e.image+'" style="width:56px;height:56px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="openImageFullscreen(decodeURIComponent(\''+encodeURIComponent(e.image)+'\'))">':'<div style="width:56px;height:56px;border-radius:8px;background:rgba(6,182,212,.1);display:flex;align-items:center;justify-content:center"><i data-lucide=\\"image\\" style=\\"width:22px;height:22px;color:rgba(6,182,212,.4)\\"></i></div>';
-            return '<div style="display:flex;gap:10px;padding:10px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.1)">'+imgTag+'<div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600">'+e.group+'</p><p style="font-size:11px;color:var(--textm)">'+e.student+' · '+(e.time||'')+'</p><span class="badge" style="font-size:10px;background:'+_stBg(e.status)+'">'+e.status+'</span></div></div>';
-          }).join('');
-          const missHtml=_miss.length>0?'<div style="margin-top:8px;padding:12px;background:rgba(239,68,68,.05);border-radius:10px;border:1px solid rgba(239,68,68,.15)"><p style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Sin evidencia aún ('+_miss.length+')</p>'+_miss.map(g=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(239,68,68,.08)"><div><p style="font-size:12px;font-weight:600">'+g.name+'</p><p style="font-size:11px;color:var(--textm)">Grado '+g.grade+'</p></div><span style="font-size:10px;color:var(--textm)">'+(g.members||[]).length+' estudiantes</span></div>').join('')+'</div>':'';
-          return '<div class="flex flex-col gap-3">'+evHtml+missHtml+'</div>';
+        // Incumplimientos últimos 7 días
+        const _incumplidos=[];
+        for(let _di=0;_di<7;_di++){
+          const _d=new Date(_now); _d.setDate(_d.getDate()-_di);
+          const _dStr=_d.toISOString().split('T')[0];
+          const _dDow=_d.getDay();
+          if(_dDow===0||_dDow===6||_noClassSet.has(_dStr)) continue;
+          if(_di===0&&_nowMin<_deadlineMin) continue;
+          const _dName=_DES[_dDow];
+          const _gruposDelDia=D.cleanGroups.filter(g=>g.frequency==='weekly'||(g.frequency==='daily'&&g.day===_dName));
+          for(const _g of _gruposDelDia){
+            if(D.evidence.filter(e=>e.group===_g.name&&e.date===_dStr).length===0){
+              _incumplidos.push({g:_g,date:_dStr,dn:_dName,di:_di});
+            }
+          }
         }
 
-        if(_tg.length===0) return '<p style="color:var(--textm);text-align:center;padding:30px">No hay grupos de aseo programados hoy</p>';
+        // Evidencias de hoy
+        const evHtml=todayEvidence.length>0
+          ?'<div class="flex flex-col gap-2 mb-4">'+[...todayEvidence].sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date)).map(e=>{
+              const imgTag=e.image?'<img src="'+e.image+'" style="width:48px;height:48px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="openImageFullscreen(this.src)">'
+                :'<div style="width:48px;height:48px;border-radius:8px;background:rgba(6,182,212,.1)"></div>';
+              return '<div style="display:flex;gap:10px;padding:8px;background:rgba(6,182,212,.05);border-radius:8px;border:1px solid rgba(6,182,212,.1)">'+imgTag+'<div style="flex:1;min-width:0"><p style="font-size:12px;font-weight:600">'+e.group+'</p><p style="font-size:11px;color:var(--textm)">'+e.student+'</p><span class="badge" style="font-size:10px;background:'+_stBg(e.status)+'">'+e.status+'</span></div></div>';
+            }).join('')+'</div>'
+          :'';
 
-        const _cards=_miss.map(g=>{
-          const mbs=(g.members||[]).map(m=>'<span style="font-size:10px;padding:2px 8px;border-radius:50px;background:rgba(6,182,212,.08);color:var(--textm)">'+m+'</span>').join('');
-          return '<div style="padding:12px 14px;background:rgba(239,68,68,.05);border-radius:10px;border:1px solid rgba(239,68,68,.15)"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span><p style="font-size:13px;font-weight:700">'+g.name+'</p></div><span style="font-size:11px;font-weight:600;color:#ef4444;background:rgba(239,68,68,.1);padding:2px 8px;border-radius:50px">Grado '+g.grade+'</span></div><div style="display:flex;flex-wrap:wrap;gap:4px">'+mbs+'</div></div>';
-        }).join('');
-        const _done=_gwe.size>0?'<p style="font-size:11px;color:#10b981;text-align:center;margin-top:4px">✅ '+_gwe.size+' grupo(s) ya cumplieron</p>':'';
-        return '<div><p style="font-size:12px;color:var(--textm);margin-bottom:12px">Grupos programados hoy sin evidencia:</p><div class="flex flex-col gap-2">'+_cards+_done+'</div></div>';
-            })()}
+        // Incumplimientos
+        const incHtml=_incumplidos.length>0
+          ?'<div><p style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">❌ Grupos sin evidencia ('+_incumplidos.length+')</p>'+
+            _incumplidos.map(({g,date:dt,dn,di})=>{
+              const mbs=(g.members||[]).map(m=>'<span style="font-size:10px;padding:2px 7px;border-radius:50px;background:rgba(6,182,212,.08);color:var(--textm)">'+m+'</span>').join('');
+              const lbl=di===0?'Hoy':di===1?'Ayer':dn+' '+dt.substring(5);
+              return '<div style="padding:10px 12px;background:rgba(239,68,68,.05);border-radius:10px;border:1px solid rgba(239,68,68,.15);margin-bottom:6px"><div class="flex items-center justify-between mb-1"><div class="flex items-center gap-2"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block"></span><p style="font-size:12px;font-weight:700">'+g.name+'</p></div><div class="flex items-center gap-2"><span style="font-size:10px;color:var(--textm)">'+lbl+'</span><span style="font-size:10px;font-weight:600;color:#ef4444;background:rgba(239,68,68,.1);padding:1px 7px;border-radius:50px">'+g.grade+'</span></div></div><div style="display:flex;flex-wrap:wrap;gap:3px">'+mbs+'</div></div>';
+            }).join('')+'</div>'
+          :'';
+
+        if(!evHtml&&!incHtml) return '<p style="color:var(--textm);text-align:center;padding:30px;font-size:13px">✅ Todo al día — sin incumplimientos recientes</p>';
+        return evHtml+incHtml;
+        })()}
     </div>
 
     <div class="card" style="background:var(--surface)">

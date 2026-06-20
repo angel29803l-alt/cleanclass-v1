@@ -5,6 +5,20 @@
 // ============================================================
 
 const formFields={
+  students:[
+    {k:'name',  l:'Nombre completo'},
+    {k:'email', l:'Correo electrónico'},
+    {k:'grade', l:'Grado', type:'select', options:()=>
+      [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
+    }
+  ],
+  teachers:[
+    {k:'name',  l:'Nombre completo'},
+    {k:'email', l:'Correo electrónico'},
+    {k:'grade', l:'Grado a cargo', type:'select', options:()=>
+      [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
+    }
+  ],
   rooms:[
     {k:'name',l:'Nombre del Salón'},
     {k:'capacity',l:'Capacidad',type:'number'},
