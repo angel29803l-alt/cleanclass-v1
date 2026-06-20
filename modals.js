@@ -136,6 +136,11 @@ function updateMemberCount(){
 function openModal(mode,col,id){
   let fields=formFields[col];
   if(typeof fields==='function') fields=fields();
+  if(!fields){
+    console.error('openModal: no hay formFields para "'+col+'"');
+    alert('Error: formulario no configurado para "'+col+'". Revisa la consola.');
+    return;
+  }
   let item={};
   if(mode==='edit'){
     const found=D[col].find(x=>x.id===id);
