@@ -17,7 +17,7 @@ body{box-sizing:border-box}
 
 .badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}
 
-.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
 .tbl th{text-align:left;padding:10px 12px;font-weight:600;border-bottom:2px solid var(--border)}
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--border)}
 .tbl tr:hover td{background:rgba(0,0,0,.02)}
@@ -277,8 +277,13 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   position:relative; width:34px; height:34px;
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0;
-  isolation:isolate;
-  will-change:transform;
+  overflow:visible;
+}
+/* Contener los anillos para que no causen scroll horizontal */
+.founder-frame-wrap::before,
+.founder-frame-wrap::after {
+  pointer-events:none;
+  overflow:hidden;
 }
 .founder-frame-wrap img,
 .founder-frame-wrap .founder-letter {
@@ -297,8 +302,8 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   content:''; position:absolute; border-radius:50%;
   pointer-events:none;
 }
-.founder-frame-wrap::before { inset:-4px; filter:blur(2px); z-index:1; animation:spin 2.5s linear infinite; }
-.founder-frame-wrap::after  { inset:-2px; filter:blur(1px); z-index:1; opacity:.7; animation:spinR 3.5s linear infinite; }
+.founder-frame-wrap::before { inset:-3px; filter:blur(1.5px); z-index:1; animation:spin 2.5s linear infinite; }
+.founder-frame-wrap::after  { inset:-1px; filter:blur(.5px); z-index:1; opacity:.7; animation:spinR 3.5s linear infinite; }
 
 /* nombre con shimmer */
 .founder-name {
