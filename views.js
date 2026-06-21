@@ -1156,18 +1156,18 @@ function rUsers(){
         const _up2=D.usersProfiles?.find(u=>u.email===s.email);
         const _av2=_up2?.avatar_url;
         const _avatarContent=_av2
-          ?`<img src="${_av2}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;position:relative;z-index:2">`
-          :`<div class="founder-letter" style="position:relative;z-index:2">${s.name.charAt(0)}</div>`;
+          ?`<img src="${_av2}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block;position:relative;z-index:2">`
+          :`<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700;position:relative;z-index:2">${s.name.charAt(0)}</div>`;
         const _avatarEl=_isFounder
-          ?`<div class="founder-frame-wrap founder-frame-${_ftype}">${_avatarContent}</div>`
+          ?`<div class="founder-frame-wrap founder-frame-${_ftype}" style="flex-shrink:0">${_avatarContent}</div>`
           :`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`;
         return `<tr class="${_isFounder?'founder-row':''}">
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
-          <td><div style="display:flex;align-items:center;gap:9px">
+          <td><div style="display:flex;align-items:center;gap:9px;min-width:0">
             ${_avatarEl}
-            <div style="display:flex;align-items:center;gap:4px">
-              <span class="${_isFounder?'founder-name':''}" style="${_isFounder?'--fc:'+_fc+';':''}font-weight:600;font-size:13px">${s.name}</span>
-              ${_isFounder?`<span class="founder-badge" style="--fc:${_fc}">★ Fundador</span>`:''}
+            <div style="display:flex;align-items:center;gap:4px;min-width:0;flex:1">
+              <span style="font-weight:600;font-size:13px;${_isFounder?`background:linear-gradient(90deg,${_fc},#fff,${_fc});background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:fShimmer 2.5s linear infinite;color:${_fc}`:'color:var(--text)'}">${s.name}</span>
+              ${_isFounder?`<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}15;flex-shrink:0">★ Fundador</span>`:''}
             </div>
           </div></td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
@@ -3332,24 +3332,17 @@ function openFounderManager(){
       </div>
       <p style="font-size:12px;color:var(--textm);margin-bottom:10px">Elige quién es fundador, su marco animado y color del nombre.</p>
 
-      <!-- Filtro por grado -->
-      <div style="margin-bottom:12px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button onclick="window._fmGrade=null;document.getElementById('founderManagerBg').remove();openFounderManager()"
-            style="padding:5px 12px;border-radius:50px;font-size:11px;font-weight:600;cursor:pointer;border:none;
-            background:${!window._fmGrade?'var(--accent)':'rgba(6,182,212,.1)'};color:${!window._fmGrade?'#fff':'var(--textm)'}">
-            Todos
-          </button>
-          ${allGrades.map(g=>`
-          <button onclick="window._fmGrade='${g}';document.getElementById('founderManagerBg').remove();openFounderManager()"
-            style="padding:5px 12px;border-radius:50px;font-size:11px;font-weight:600;cursor:pointer;border:none;
-            background:${window._fmGrade===g?'var(--accent)':'rgba(6,182,212,.1)'};color:${window._fmGrade===g?'#fff':'var(--textm)'}">
-            ${g}
-          </button>`).join('')}
-        </div>
-        <p style="font-size:11px;color:var(--textm);margin-top:6px">
-          ${allPeople.length} persona(s) · ${existing.length} fundador(es)
-        </p>
+      <!-- Filtro por grado — dropdown -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <select id="fmGradeSelect" onchange="window._fmGrade=this.value||null;document.getElementById('founderManagerBg').remove();openFounderManager()"
+          style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid rgba(6,182,212,.3);background:#0f172a;color:var(--text);font-size:13px;cursor:pointer;outline:none">
+          <option value="">📋 Todos los grados (${D.students.length + D.teachers.length} personas)</option>
+          ${allGrades.map(g=>{
+            const cnt=[...D.students,...D.teachers].filter(p=>p.grade===g).length;
+            return `<option value="${g}" ${window._fmGrade===g?'selected':''}>${g} · ${cnt} persona(s)</option>`;
+          }).join('')}
+        </select>
+        <span style="font-size:11px;color:var(--accent);font-weight:700;white-space:nowrap">${existing.length} fundador(es)</span>
       </div>
 
       <div style="display:flex;flex-col;gap:0">

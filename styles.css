@@ -350,7 +350,7 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 .founder-frame-ocean .founder-badge { border-color:#00b4d8; color:#00b4d8; background:rgba(0,180,216,.08); }
 
 /* ── CAOS (rojo/naranja/negro errático) ── */
-.founder-frame-chaos { animation:fChaos 1.3s ease-in-out infinite; }
+/* Sin animación en el wrapper para no mover la fila */
 .founder-frame-chaos::before { background:conic-gradient(from 0deg,#ff0000,#ff4500,#000,#ff6600,#8b0000,#ff2200,#000,#ff4500,#ff0000); animation-duration:.6s; filter:blur(3px); }
 .founder-frame-chaos::after  { background:conic-gradient(from 90deg,#000,#ff4500,#ff0000,#000,#ff6600,#8b0000,#000); animation:spinR .45s steps(10,end) infinite; opacity:.9; }
 .founder-frame-chaos img,
@@ -380,7 +380,7 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 .founder-frame-blackhole::before { background:conic-gradient(from 0deg,#4b0082,#8b00ff,#000080,#000,#4b0082,#ff00ff,#000,#8b00ff,#4b0082); animation-duration:2s; }
 .founder-frame-blackhole::after  { background:conic-gradient(from 180deg,#000,#8b00ff,#000,#4b0082,#000); animation-duration:1.5s; }
 .founder-frame-blackhole img,
-.founder-frame-blackhole .founder-letter { animation:fBH 3s ease-in-out infinite; background:radial-gradient(circle at 35% 30%,#1a0030,#000) !important; }
+.founder-frame-blackhole .founder-letter { box-shadow:inset 0 0 8px rgba(80,0,120,.3); background:radial-gradient(circle at 35% 30%,#1a0030,#000) !important; }
 .founder-frame-blackhole .founder-name { background-image:linear-gradient(90deg,#4b0082,#8b00ff,#c0c,#8b00ff,#4b0082); }
 .founder-frame-blackhole .founder-badge { border-color:#8b00ff; color:#8b00ff; background:rgba(139,0,255,.08); }
 
