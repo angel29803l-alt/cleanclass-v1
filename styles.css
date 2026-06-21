@@ -274,17 +274,10 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 
 /* Wrapper común */
 .founder-frame-wrap {
-  position:relative; width:32px; height:32px;
+  position:relative;
   display:inline-flex; align-items:center; justify-content:center;
   flex-shrink:0; flex-grow:0;
-  clip-path:circle(18px at center);
-}
-/* pero para evitar scroll los clipamos con clip-path en el padre */
-.founder-frame-clip {
-  position:relative;
   width:32px; height:32px;
-  flex-shrink:0;
-  clip-path:inset(-4px round 50%);
 }
 .founder-frame-wrap img,
 .founder-frame-wrap .founder-letter {
@@ -297,14 +290,16 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   display:flex; align-items:center; justify-content:center;
   font-size:11px; color:#fff; font-weight:700;
 }
-/* Anillos base */
+/* Anillos: position fixed para NO afectar el layout de la tabla */
 .founder-frame-wrap::before,
 .founder-frame-wrap::after {
   content:''; position:absolute; border-radius:50%;
-  pointer-events:none;
+  pointer-events:none; z-index:1;
+  /* inset negativo pequeño para no causar overflow */
+  inset:-3px;
 }
-.founder-frame-wrap::before { inset:-2px; filter:blur(1px); z-index:0; animation:spin 2.5s linear infinite; pointer-events:none; }
-.founder-frame-wrap::after  { inset:-1px; filter:blur(.5px); z-index:0; opacity:.7; animation:spinR 3.5s linear infinite; pointer-events:none; }
+.founder-frame-wrap::before { filter:blur(1px); animation:spin 2.5s linear infinite; }
+.founder-frame-wrap::after  { filter:blur(.5px); opacity:.7; animation:spinR 3.5s linear infinite; inset:-1px; }
 
 /* nombre con shimmer */
 .founder-name {
