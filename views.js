@@ -1172,11 +1172,9 @@ function rUsers(){
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:8px">
             ${_avatarEl}
-            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0">
-              ${_isFounder
-                ?`<span style="font-weight:800;font-size:13px;color:${_fc}">${s.name}</span>
-                  <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}22;flex-shrink:0">★ Fundador</span>`
-                :`<span style="font-weight:600;font-size:13px">${s.name}</span>`}
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font-weight:${_isFounder?'800':'600'};font-size:13px;color:${_isFounder?_fc:'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</span>
+              ${_isFounder?`<span style="display:inline-flex;align-items:center;gap:2px;padding:0px 6px;border-radius:50px;font-size:9px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}15;width:fit-content">★ Fundador</span>`:''}
             </div>
           </div></td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
