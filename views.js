@@ -1153,44 +1153,50 @@ function rUsers(){
         const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
         const _ftype=_isFounder?(_isFounder.type||'gold'):'';
         // Color automático según el tipo de marco
+        // Marco con SVG animado inline — no afecta layout de tabla
+        const _FRAME_SVG={
+          fire:    ['#ff4500','#ff8c00','#ffd700'],
+          gold:    ['#b8860b','#FFD700','#fffacd'],
+          electric:['#00f5ff','#0080ff','#7000ff'],
+          aurora:  ['#00ff88','#00cfff','#8000ff'],
+          rainbow: ['#ff0000','#00ff00','#0000ff'],
+          ocean:   ['#006994','#00b4d8','#90e0ef'],
+          chaos:   ['#ff0000','#ff4500','#8b0000'],
+          order:   ['#1e3a5f','#4a90d9','#ffffff'],
+          crystal: ['#7dd3fc','#b3ecff','#ffffff'],
+          poison:  ['#39ff14','#008000','#7fff00'],
+          blackhole:['#4b0082','#8b00ff','#000080'],
+          ice:     ['#a8e6f0','#5bc8e0','#ffffff'],
+        };
         const _FRAME_COLORS={
-          fire:    '#ff4500',  // conic-gradient color principal
-          gold:    '#FFD700',
-          electric:'#00f5ff',
-          aurora:  '#00ff88',
-          rainbow: '#ff0000',  // rota con hue-rotate
-          ocean:   '#00b4d8',
-          chaos:   '#ff4500',
-          order:   '#4a90d9',
-          crystal: '#b3ecff',
-          poison:  '#39ff14',
-          blackhole:'#8b00ff',
-          ice:     '#a8e6f0'
+          fire:'#ff4500', gold:'#FFD700', electric:'#00f5ff',
+          aurora:'#00ff88', rainbow:'#ff0000', ocean:'#00b4d8',
+          chaos:'#ff4500', order:'#4a90d9', crystal:'#b3ecff',
+          poison:'#39ff14', blackhole:'#8b00ff', ice:'#a8e6f0'
         };
-        // Color secundario para degradado (igual al segundo color del marco)
         const _FRAME_COLORS2={
-          fire:    '#ffd700',
-          gold:    '#fffacd',
-          electric:'#7000ff',
-          aurora:  '#8000ff',
-          rainbow: '#ff00ff',
-          ocean:   '#90e0ef',
-          chaos:   '#8b0000',
-          order:   '#ffffff',
-          crystal: '#ffffff',
-          poison:  '#7fff00',
-          blackhole:'#4b0082',
-          ice:     '#ffffff'
+          fire:'#ffd700', gold:'#fffacd', electric:'#7000ff',
+          aurora:'#8000ff', rainbow:'#ff00ff', ocean:'#90e0ef',
+          chaos:'#8b0000', order:'#ffffff', crystal:'#ffffff',
+          poison:'#7fff00', blackhole:'#4b0082', ice:'#ffffff'
         };
-        const _fc=_isFounder?(_FRAME_COLORS[_ftype]||'#FFD700'):'';
-        const _up2=D.usersProfiles?.find(u=>u.email===s.email);
-        const _av2=_up2?.avatar_url;
-        const _avatarContent=_av2
-          ?`<img src="${_av2}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block;position:relative;z-index:2">`
-          :`<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700;position:relative;z-index:2">${s.name.charAt(0)}</div>`;
+        const _sc=_FRAME_SVG[_ftype]||['#FFD700','#fff','#FFD700'];
+        const _fid='f'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+        const _svgFrame=`<svg width="38" height="38" viewBox="0 0 38 38" style="position:absolute;top:-3px;left:-3px;pointer-events:none;z-index:10;overflow:visible" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g${_fid}" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="${_sc[0]}"><animate attributeName="stop-color" values="${_sc[0]};${_sc[1]};${_sc[2]};${_sc[0]}" dur="2s" repeatCount="indefinite"/></stop>
+              <stop offset="100%" stop-color="${_sc[2]}"><animate attributeName="stop-color" values="${_sc[2]};${_sc[0]};${_sc[1]};${_sc[2]}" dur="2s" repeatCount="indefinite"/></stop>
+            </linearGradient>
+          </defs>
+          <circle cx="19" cy="19" r="17" fill="none" stroke="url(#g${_fid})" stroke-width="2.5" opacity="0.9"/>
+          <circle cx="19" cy="19" r="17" fill="none" stroke="url(#g${_fid})" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.6">
+            <animateTransform attributeName="transform" type="rotate" from="0 19 19" to="360 19 19" dur="3s" repeatCount="indefinite"/>
+          </circle>
+        </svg>`;
         const _avatarEl=_isFounder
-          ?`<div class="founder-frame-clip"><div class="founder-frame-wrap founder-frame-${_ftype}">${_avatarContent}</div></div>`
-          :`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`;
+          ?`<div style="position:relative;width:32px;height:32px;flex-shrink:0">${_svgFrame}${_avatarContent}</div>`
+          :`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`
         return `<tr class="${_isFounder?'founder-row':''}">
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:8px">
