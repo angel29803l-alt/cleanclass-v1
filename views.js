@@ -1193,7 +1193,7 @@ function rUsers(){
           :`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`;
         return `<tr class="${_isFounder?'founder-row':''}">
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
-          <td style="min-width:160px;max-width:300px"><div style="display:flex;align-items:center;gap:8px">
+          <td><div style="display:flex;align-items:center;gap:8px">
             ${_avatarEl}
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0">
               ${_isFounder
