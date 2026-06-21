@@ -277,6 +277,8 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   position:relative; width:34px; height:34px;
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0;
+  isolation:isolate;
+  will-change:transform;
 }
 .founder-frame-wrap img,
 .founder-frame-wrap .founder-letter {
@@ -293,9 +295,9 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 .founder-frame-wrap::before,
 .founder-frame-wrap::after {
   content:''; position:absolute; border-radius:50%;
-  animation:spin 2.5s linear infinite;
+  pointer-events:none;
 }
-.founder-frame-wrap::before { inset:-4px; filter:blur(2px); z-index:1; }
+.founder-frame-wrap::before { inset:-4px; filter:blur(2px); z-index:1; animation:spin 2.5s linear infinite; }
 .founder-frame-wrap::after  { inset:-2px; filter:blur(1px); z-index:1; opacity:.7; animation:spinR 3.5s linear infinite; }
 
 /* nombre con shimmer */

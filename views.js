@@ -1163,10 +1163,10 @@ function rUsers(){
           :`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`;
         return `<tr class="${_isFounder?'founder-row':''}">
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
-          <td><div style="display:flex;align-items:center;gap:9px;min-width:0">
+          <td style="min-width:160px;max-width:300px"><div style="display:flex;align-items:center;gap:8px">
             ${_avatarEl}
-            <div style="display:flex;align-items:center;gap:4px;min-width:0;flex:1">
-              <span style="font-weight:600;font-size:13px;${_isFounder?`background:linear-gradient(90deg,${_fc},#fff,${_fc});background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:fShimmer 2.5s linear infinite;color:${_fc}`:'color:var(--text)'}">${s.name}</span>
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0">
+              <span style="font-weight:${_isFounder?'800':'600'};font-size:13px;color:${_isFounder?_fc:'var(--text)'}${_isFounder?';text-shadow:0 0 8px '+_fc+'44':''}">${s.name}</span>
               ${_isFounder?`<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}15;flex-shrink:0">★ Fundador</span>`:''}
             </div>
           </div></td>
