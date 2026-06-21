@@ -17,7 +17,7 @@ body{box-sizing:border-box}
 
 .badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}
 
-.tbl{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .tbl th{text-align:left;padding:10px 12px;font-weight:600;border-bottom:2px solid var(--border)}
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--border)}
 .tbl tr:hover td{background:rgba(0,0,0,.02)}
@@ -277,13 +277,8 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   position:relative; width:34px; height:34px;
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0;
-  overflow:visible;
-}
-/* Contener los anillos para que no causen scroll horizontal */
-.founder-frame-wrap::before,
-.founder-frame-wrap::after {
-  pointer-events:none;
   overflow:hidden;
+  border-radius:50%;
 }
 .founder-frame-wrap img,
 .founder-frame-wrap .founder-letter {
