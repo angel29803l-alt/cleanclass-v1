@@ -1125,8 +1125,30 @@ function rUsers(){
       </tr></thead>
       <tbody>${filteredStudents.length>0?filteredStudents.map((s,i)=>{
         const group=D.cleanGroups.find(g=>g.members&&g.members.includes(s.name));
+        // Cumplimiento real del GRUPO (no individual):
+        // = evidencias aprobadas del grupo / total evidencias del grupo (incluyendo rechazadas y pendientes)
+        // Así si el grupo no subió un día, ese día cuenta como incumplimiento
+        const _grpEvs=group?D.evidence.filter(e=>e.group===group.name):[];
+        const _grpOk=_grpEvs.filter(e=>e.compliant||e.status==='Completado').length;
+        // Además: calcular días que el grupo debía hacer aseo en los últimos 30 días
+        // para penalizar también los días sin evidencia
+        const _now2=new Date();
+        const _DES2=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        let _dutyDays=0;
+        if(group){
+          for(let _di=0;_di<30;_di++){
+            const _d2=new Date(_now2); _d2.setDate(_d2.getDate()-_di);
+            const _dStr2=_d2.toISOString().split('T')[0];
+            const _dow2=_d2.getDay();
+            if(_dow2===0||_dow2===6) continue;
+            if((D.noClassDays||[]).some(nc=>nc.date===_dStr2)) continue;
+            const _dn2=_DES2[_dow2];
+            if(group.frequency==='weekly'||(group.frequency==='daily'&&group.day===_dn2)) _dutyDays++;
+          }
+        }
+        const _totalBase=Math.max(_grpEvs.length,_dutyDays);
+        const comp=_totalBase>0?Math.round((_grpOk/_totalBase)*100):null;
         const evs=D.evidence.filter(e=>e.student===s.name);
-        const comp=evs.length?Math.round((evs.filter(e=>e.compliant||e.status==='Completado').length/evs.length)*100):null;
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
         const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
         const _fc=_isFounder?(_isFounder.color||'#FFD700'):'';
@@ -3277,10 +3299,15 @@ function saveFounders(){
 function openFounderManager(){
   if(!isAdmin()) return;
   const existing = window._founders;
+  const allGrades = [...new Set([...D.students.map(s=>s.grade),...D.rooms.map(r=>r.grade)])].filter(Boolean).sort();
+  // Estado del filtro de grado — persiste mientras el modal está abierto
+  if(typeof window._fmGrade==='undefined') window._fmGrade=null;
+
   const allPeople = [
     ...D.students.map(s=>({...s,role:'Estudiante'})),
     ...D.teachers.map(t=>({...t,role:'Docente'}))
-  ];
+  ].filter(p=>!window._fmGrade||p.grade===window._fmGrade);
+
   const FRAME_TYPES = [
     {id:'fire',     label:'🔥 Fuego'},
     {id:'gold',     label:'✨ Dorado'},
@@ -3303,7 +3330,28 @@ function openFounderManager(){
         <h2 style="font-size:16px;font-weight:700">⭐ Gestionar Fundadores</h2>
         <button onclick="document.getElementById('founderManagerBg').remove()" class="pill pill-ghost" style="padding:4px 10px">✕</button>
       </div>
-      <p style="font-size:12px;color:var(--textm);margin-bottom:14px">Elige quién es fundador, su marco animado y color del nombre.</p>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:10px">Elige quién es fundador, su marco animado y color del nombre.</p>
+
+      <!-- Filtro por grado -->
+      <div style="margin-bottom:12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button onclick="window._fmGrade=null;document.getElementById('founderManagerBg').remove();openFounderManager()"
+            style="padding:5px 12px;border-radius:50px;font-size:11px;font-weight:600;cursor:pointer;border:none;
+            background:${!window._fmGrade?'var(--accent)':'rgba(6,182,212,.1)'};color:${!window._fmGrade?'#fff':'var(--textm)'}">
+            Todos
+          </button>
+          ${allGrades.map(g=>`
+          <button onclick="window._fmGrade='${g}';document.getElementById('founderManagerBg').remove();openFounderManager()"
+            style="padding:5px 12px;border-radius:50px;font-size:11px;font-weight:600;cursor:pointer;border:none;
+            background:${window._fmGrade===g?'var(--accent)':'rgba(6,182,212,.1)'};color:${window._fmGrade===g?'#fff':'var(--textm)'}">
+            ${g}
+          </button>`).join('')}
+        </div>
+        <p style="font-size:11px;color:var(--textm);margin-top:6px">
+          ${allPeople.length} persona(s) · ${existing.length} fundador(es)
+        </p>
+      </div>
+
       <div style="display:flex;flex-col;gap:0">
         ${allPeople.map(p=>{
           const f = existing.find(x=>x.email===p.email||x.name===p.name);
