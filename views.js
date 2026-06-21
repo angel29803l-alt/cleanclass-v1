@@ -1196,11 +1196,10 @@ function rUsers(){
           <td style="min-width:160px;max-width:300px"><div style="display:flex;align-items:center;gap:8px">
             ${_avatarEl}
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0">
-              ${_isFounder?(()=>{
-                const _fc2=_FRAME_COLORS2[_ftype]||'#fff';
-                return `<span style="display:inline-block;font-weight:800;font-size:13px;background:linear-gradient(90deg,${_fc},${_fc2},${_fc});background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:fShimmer 2.5s linear infinite;isolation:isolate">${s.name}</span>
-                <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}22;flex-shrink:0">★ Fundador</span>`;
-              })():`<span style="font-weight:600;font-size:13px">${s.name}</span>`}
+              ${_isFounder
+                ?`<span style="font-weight:800;font-size:13px;color:${_fc}">${s.name}</span>
+                  <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}22;flex-shrink:0">★ Fundador</span>`
+                :`<span style="font-weight:600;font-size:13px">${s.name}</span>`}
             </div>
           </div></td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
