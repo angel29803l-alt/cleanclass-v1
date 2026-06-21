@@ -382,7 +382,7 @@ function renderRoomsConfig(){
     </div>
     ${D.rooms.length>0?`
     <div style="overflow-x:auto">
-      <div style="overflow:hidden;border-radius:12px"><table class="tbl">
+      <table class="tbl">
         <thead><tr><th>Salón</th><th>Grado</th><th>Capacidad</th><th>Acciones</th></tr></thead>
         <tbody>
           ${D.rooms.map(r=>`<tr>
