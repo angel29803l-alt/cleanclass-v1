@@ -1151,8 +1151,38 @@ function rUsers(){
         const evs=D.evidence.filter(e=>e.student===s.name);
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
         const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
-        const _fc=_isFounder?(_isFounder.color||'#FFD700'):'';
         const _ftype=_isFounder?(_isFounder.type||'gold'):'';
+        // Color automático según el tipo de marco
+        const _FRAME_COLORS={
+          fire:    '#ff4500',  // conic-gradient color principal
+          gold:    '#FFD700',
+          electric:'#00f5ff',
+          aurora:  '#00ff88',
+          rainbow: '#ff0000',  // rota con hue-rotate
+          ocean:   '#00b4d8',
+          chaos:   '#ff4500',
+          order:   '#4a90d9',
+          crystal: '#b3ecff',
+          poison:  '#39ff14',
+          blackhole:'#8b00ff',
+          ice:     '#a8e6f0'
+        };
+        // Color secundario para degradado (igual al segundo color del marco)
+        const _FRAME_COLORS2={
+          fire:    '#ffd700',
+          gold:    '#fffacd',
+          electric:'#7000ff',
+          aurora:  '#8000ff',
+          rainbow: '#ff00ff',
+          ocean:   '#90e0ef',
+          chaos:   '#8b0000',
+          order:   '#ffffff',
+          crystal: '#ffffff',
+          poison:  '#7fff00',
+          blackhole:'#4b0082',
+          ice:     '#ffffff'
+        };
+        const _fc=_isFounder?(_FRAME_COLORS[_ftype]||'#FFD700'):'';
         const _up2=D.usersProfiles?.find(u=>u.email===s.email);
         const _av2=_up2?.avatar_url;
         const _avatarContent=_av2
@@ -1166,8 +1196,11 @@ function rUsers(){
           <td style="min-width:160px;max-width:300px"><div style="display:flex;align-items:center;gap:8px">
             ${_avatarEl}
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0">
-              <span style="font-weight:${_isFounder?'800':'600'};font-size:13px;color:${_isFounder?_fc:'var(--text)'}${_isFounder?';text-shadow:0 0 8px '+_fc+'44':''}">${s.name}</span>
-              ${_isFounder?`<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}15;flex-shrink:0">★ Fundador</span>`:''}
+              ${_isFounder?(()=>{
+                const _fc2=_FRAME_COLORS2[_ftype]||'#fff';
+                return `<span style="font-weight:800;font-size:13px;background:linear-gradient(90deg,${_fc},${_fc2},${_fc});background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:fShimmer 2.5s linear infinite">${s.name}</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:50px;font-size:10px;font-weight:700;border:1px solid ${_fc};color:${_fc};background:${_fc}22;flex-shrink:0;animation:fShimmer 2.5s linear infinite">★ Fundador</span>`;
+              })():`<span style="font-weight:600;font-size:13px">${s.name}</span>`}
             </div>
           </div></td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
@@ -3354,20 +3387,16 @@ function openFounderManager(){
           return `<div style="padding:10px 12px;border-radius:10px;background:${f?'rgba(6,182,212,.06)':'rgba(6,182,212,.02)'};border:1px solid ${f?'rgba(6,182,212,.2)':'rgba(6,182,212,.08)'};margin-bottom:8px">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:${f?'10px':'0'}">
               <input type="checkbox" id="f_${eid}" ${f?'checked':''} style="width:16px;height:16px;accent-color:#06b6d4;flex-shrink:0"
-                onchange="toggleFounder('${p.email}','${p.name}',this.checked,document.getElementById('fc_${eid}').value,document.getElementById('ft_${eid}').value);this.closest('div').style.background=this.checked?'rgba(6,182,212,.06)':'rgba(6,182,212,.02)';this.closest('div').style.border=this.checked?'1px solid rgba(6,182,212,.2)':'1px solid rgba(6,182,212,.08)';document.getElementById('fex_${eid}').style.display=this.checked?'flex':'none'">
+                onchange="toggleFounder('${p.email}','${p.name}',this.checked,document.getElementById('ft_${eid}').value);this.closest('div').parentElement.style.background=this.checked?'rgba(6,182,212,.06)':'rgba(6,182,212,.02)';this.closest('div').parentElement.style.border=this.checked?'1px solid rgba(6,182,212,.2)':'1px solid rgba(6,182,212,.08)';document.getElementById('fex_${eid}').style.display=this.checked?'flex':'none'">
               <div style="flex:1;min-width:0">
                 <p style="font-size:13px;font-weight:600">${p.name}</p>
                 <p style="font-size:11px;color:var(--textm)">${p.role} · ${p.email||'—'}</p>
               </div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <label style="font-size:11px;color:var(--textm)">Color:</label>
-                <input type="color" id="fc_${eid}" value="${color}" style="width:28px;height:24px;padding:1px;border:none;border-radius:6px;cursor:pointer;background:transparent"
-                  onchange="toggleFounder('${p.email}','${p.name}',document.getElementById('f_${eid}').checked,this.value,document.getElementById('ft_${eid}').value)">
-              </div>
+
             </div>
             <div id="fex_${eid}" style="display:${f?'flex':'none'};gap:6px;flex-wrap:wrap;margin-top:4px">
               <select id="ft_${eid}" style="font-size:11px;padding:4px 8px;border-radius:8px;border:1px solid rgba(6,182,212,.3);background:#0f172a;color:var(--text);cursor:pointer"
-                onchange="toggleFounder('${p.email}','${p.name}',true,document.getElementById('fc_${eid}').value,this.value)">
+                onchange="toggleFounder('${p.email}','${p.name}',true,this.value)">
                 ${FRAME_TYPES.map(t=>`<option value="${t.id}" ${ftype===t.id?'selected':''}>${t.label}</option>`).join('')}
               </select>
             </div>
@@ -3385,9 +3414,9 @@ function openFounderManager(){
   document.body.appendChild(div.firstElementChild);
 }
 
-function toggleFounder(email, name, checked, color, type){
+function toggleFounder(email, name, checked, type){
   window._founders = window._founders.filter(f=>f.email!==email&&f.name!==name);
-  if(checked) window._founders.push({email, name, color: color||'#FFD700', type: type||'gold'});
+  if(checked) window._founders.push({email, name, type: type||'gold'});
   saveFounders();
 }
 
