@@ -1152,6 +1152,8 @@ function rUsers(){
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
         const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
         const _ftype=_isFounder?(_isFounder.type||'gold'):'';
+        const _up2=D.usersProfiles?.find(u=>u.email===s.email);
+        const _av2=_up2?.avatar_url||null;
         // Color automático según el tipo de marco
         // Marco con SVG animado inline — no afecta layout de tabla
         const _FRAME_SVG={
