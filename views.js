@@ -1161,11 +1161,9 @@ function rUsers(){
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
             <div class="${_f?`founder-avatar founder-${_ft}`:''}" style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av?`<img src="${_av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>
-            <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
-              ${_f
-                ?`<span class="founder-name" style="color:${_fg[0]}">${s.name}</span>
-                  <span class="founder-badge" style="border:1px solid ${_fg[0]};color:${_fg[0]};background:${_fg[0]}22;font-size:10px;padding:1px 7px">★ Fundador</span>`
-                :`<span style="font-weight:600;font-size:13px">${s.name}</span>`}
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <span class="${_f?`founder-nm founder-nm-${_ft}`:''}" style="font-weight:${_f?'800':'600'};font-size:13px">${s.name}</span>
+              ${_f?`<span class="founder-badge founder-bd-${_ft}">★ Fundador</span>`:''}
             </div>
           </div></td>
           <td><span class="badge" style="background:rgba(6,182,212,.15);color:#06b6d4;font-size:11px">${s.grade||'—'}</span></td>
