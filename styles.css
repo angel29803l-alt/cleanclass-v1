@@ -257,43 +257,148 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 }
 
 /* ============================================================
-   FUNDADORES — marcos animados con SVG inline
+   FUNDADORES — estilos mínimos
    ============================================================ */
 @keyframes fShimmer { from{background-position:200% center} to{background-position:-200% center} }
-
 .founder-row { background:rgba(255,215,0,.02) !important; }
 
-.founder-badge {
-  display:inline-flex; align-items:center; gap:3px;
-  padding:1px 7px; border-radius:50px; font-size:10px; font-weight:700;
-  margin-left:5px; flex-shrink:0;
+/* ============================================================
+   FUNDADORES — marcos con box-shadow (no afecta layout)
+   ============================================================ */
+@keyframes fGlow {
+  0%,100% { box-shadow: 0 0 0 2px var(--fc), 0 0 8px 2px var(--fc); }
+  50%      { box-shadow: 0 0 0 3px var(--fc), 0 0 16px 4px var(--fc); }
+}
+@keyframes fSpin {
+  from { --fAngle: 0deg; }
+  to   { --fAngle: 360deg; }
+}
+@keyframes fShimmer {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
 }
 
-/* Los marcos SVG se aplican inline — no hay clases ::before/::after */
+.founder-avatar {
+  animation: fGlow 2s ease-in-out infinite;
+  border: 2px solid var(--fc, #FFD700) !important;
+  box-sizing: border-box;
+}
 
+/* Tipos de marco — solo cambian el color --fc */
+.founder-fire     { --fc: #ff4500; }
+.founder-gold     { --fc: #FFD700; }
+.founder-electric { --fc: #00f5ff; }
+.founder-aurora   { --fc: #00ff88; }
+.founder-rainbow  { --fc: #ff0000; animation: fGlow 2s ease-in-out infinite, fRainbow 3s linear infinite; }
+.founder-ocean    { --fc: #00b4d8; }
+.founder-chaos    { --fc: #ff4500; animation: fGlow .8s ease-in-out infinite; }
+.founder-order    { --fc: #4a90d9; animation: fGlow 4s ease-in-out infinite; }
+.founder-crystal  { --fc: #7dd3fc; }
+.founder-poison   { --fc: #39ff14; }
+.founder-blackhole{ --fc: #8b00ff; }
+.founder-ice      { --fc: #a8e6f0; }
 
+@keyframes fRainbow {
+  0%   { --fc: #ff0000; }
+  17%  { --fc: #ff8800; }
+  33%  { --fc: #ffff00; }
+  50%  { --fc: #00ff00; }
+  67%  { --fc: #0088ff; }
+  83%  { --fc: #8800ff; }
+  100% { --fc: #ff0000; }
+}
 
+.founder-name {
+  font-weight: 800 !important;
+  font-size: 13px;
+  white-space: nowrap;
+  color: inherit;
+}
 
+.founder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 50px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  width: fit-content;
+}
 
+/* Marco animado mejorado */
+@keyframes fGlowFire {
+  0%,100% { box-shadow: 0 0 0 2px #ff4500, 0 0 10px 3px #ff450088, 0 0 20px 5px #ff450033; }
+  50%      { box-shadow: 0 0 0 2px #ffd700, 0 0 14px 5px #ffd70088, 0 0 28px 8px #ffd70033; }
+}
+@keyframes fGlowGold {
+  0%,100% { box-shadow: 0 0 0 2px #b8860b, 0 0 10px 3px #FFD70088, 0 0 20px 5px #FFD70033; }
+  50%      { box-shadow: 0 0 0 2px #FFD700, 0 0 16px 6px #FFD700aa, 0 0 30px 8px #FFD70055; }
+}
+@keyframes fGlowElec {
+  0%,100% { box-shadow: 0 0 0 2px #00f5ff, 0 0 10px 3px #00f5ff88, 0 0 20px 5px #00f5ff33; }
+  25%      { box-shadow: 0 0 0 3px #7000ff, 0 0 14px 5px #7000ffaa; }
+  50%      { box-shadow: 0 0 0 2px #0080ff, 0 0 18px 6px #0080ffaa, 0 0 30px 8px #0080ff44; }
+  75%      { box-shadow: 0 0 0 3px #00f5ff, 0 0 12px 4px #00f5ffaa; }
+}
+@keyframes fGlowAurora {
+  0%   { box-shadow: 0 0 0 2px #00ff88, 0 0 12px 4px #00ff8888; }
+  33%  { box-shadow: 0 0 0 2px #00cfff, 0 0 14px 5px #00cfff88; }
+  66%  { box-shadow: 0 0 0 2px #8000ff, 0 0 14px 5px #8000ff88; }
+  100% { box-shadow: 0 0 0 2px #00ff88, 0 0 12px 4px #00ff8888; }
+}
+@keyframes fGlowRainbow {
+  0%   { box-shadow: 0 0 0 2px #ff0000, 0 0 12px 4px #ff000088; }
+  17%  { box-shadow: 0 0 0 2px #ff8800, 0 0 12px 4px #ff880088; }
+  33%  { box-shadow: 0 0 0 2px #ffff00, 0 0 12px 4px #ffff0088; }
+  50%  { box-shadow: 0 0 0 2px #00ff00, 0 0 12px 4px #00ff0088; }
+  67%  { box-shadow: 0 0 0 2px #0088ff, 0 0 12px 4px #0088ff88; }
+  83%  { box-shadow: 0 0 0 2px #8800ff, 0 0 12px 4px #8800ff88; }
+  100% { box-shadow: 0 0 0 2px #ff0000, 0 0 12px 4px #ff000088; }
+}
+@keyframes fGlowOcean {
+  0%,100% { box-shadow: 0 0 0 2px #00b4d8, 0 0 10px 3px #00b4d888; }
+  50%      { box-shadow: 0 0 0 2px #90e0ef, 0 0 16px 6px #90e0efaa; }
+}
+@keyframes fGlowChaos {
+  0%   { box-shadow: 0 0 0 2px #ff0000, 0 0 8px 2px #ff000088; }
+  20%  { box-shadow: 0 0 0 3px #000000, 0 0 12px 4px #ff450088; }
+  40%  { box-shadow: 0 0 0 2px #ff4500, 0 0 16px 6px #8b000088; }
+  60%  { box-shadow: 0 0 0 4px #8b0000, 0 0 6px 1px #ff000066; }
+  80%  { box-shadow: 0 0 0 2px #ff6600, 0 0 14px 5px #ff000088; }
+  100% { box-shadow: 0 0 0 2px #ff0000, 0 0 8px 2px #ff000088; }
+}
+@keyframes fGlowOrder {
+  0%,100% { box-shadow: 0 0 0 2px #1e3a5f, 0 0 8px 2px #4a90d966; }
+  50%      { box-shadow: 0 0 0 2px #4a90d9, 0 0 14px 5px #ffffffaa; }
+}
+@keyframes fGlowCrystal {
+  0%,100% { box-shadow: 0 0 0 2px #7dd3fc, 0 0 12px 4px #7dd3fc66; }
+  50%      { box-shadow: 0 0 0 2px #ffffff, 0 0 18px 7px #ffffffaa; }
+}
+@keyframes fGlowPoison {
+  0%,100% { box-shadow: 0 0 0 2px #39ff14, 0 0 10px 3px #39ff1488; }
+  50%      { box-shadow: 0 0 0 2px #7fff00, 0 0 18px 7px #39ff14aa; }
+}
+@keyframes fGlowBH {
+  0%,100% { box-shadow: 0 0 0 2px #4b0082, 0 0 12px 4px #8b00ff88, 0 0 24px 8px #4b008244; }
+  50%      { box-shadow: 0 0 0 3px #8b00ff, 0 0 20px 8px #8b00ffaa, 0 0 40px 12px #4b008266; }
+}
+@keyframes fGlowIce {
+  0%,100% { box-shadow: 0 0 0 2px #a8e6f0, 0 0 10px 3px #a8e6f088; }
+  50%      { box-shadow: 0 0 0 2px #ffffff, 0 0 16px 6px #5bc8e0aa; }
+}
 
-
-/* ── CAOS (rojo/naranja/negro errático) ── */
-/* Sin animación en el wrapper para no mover la fila */
-.founder-frame-chaos::before { background:conic-gradient(from 0deg,#ff0000,#ff4500,#000,#ff6600,#8b0000,#ff2200,#000,#ff4500,#ff0000); animation-duration:.6s; filter:blur(3px); }
-.founder-frame-chaos::after  { background:conic-gradient(from 90deg,#000,#ff4500,#ff0000,#000,#ff6600,#8b0000,#000); animation:spinR .45s steps(10,end) infinite; opacity:.9; }
-.founder-frame-chaos img,
-.founder-frame-chaos .founder-letter { animation:fWobble 1.6s ease-in-out infinite; }
-.founder-frame-chaos .founder-name { background-image:linear-gradient(90deg,#8b0000,#ff4500,#ff0000,#ff6600,#000,#ff4500,#8b0000); animation-duration:.8s; }
-.founder-frame-chaos .founder-badge { border-color:#ff4500; color:#ff4500; background:rgba(255,69,0,.08); }
-
-
-
-
-
-/* ── HIELO (escarcha SVG) ── */
-.founder-frame-ice::before { background:conic-gradient(from 0deg,transparent 0deg,rgba(168,230,240,.9) 15deg,transparent 30deg,rgba(220,245,255,.6) 45deg,transparent 60deg,rgba(168,230,240,.8) 75deg,transparent 90deg,rgba(255,255,255,.9) 105deg,transparent 120deg,rgba(168,230,240,.7) 135deg,transparent 150deg,transparent 210deg,rgba(168,230,240,.9) 225deg,transparent 240deg,rgba(255,255,255,.7) 285deg,transparent 300deg,rgba(168,230,240,.8) 315deg,transparent 330deg,rgba(255,255,255,.9) 345deg,transparent 360deg); animation-duration:6s; filter:blur(.5px); }
-.founder-frame-ice::after  { background:conic-gradient(from 120deg,#a8e6f0,transparent 8deg,#fff,transparent 8deg,#5bc8e0,transparent 8deg,#b3ecff,transparent 8deg,#a8e6f0); animation-duration:4s; opacity:.8; filter:blur(.3px); }
-.founder-frame-ice img,
-.founder-frame-ice .founder-letter { animation:fIce 2.5s ease-in-out infinite; background:linear-gradient(135deg,#06192e,#061525) !important; color:#a8e6f0 !important; }
-.founder-frame-ice .founder-name { background-image:linear-gradient(90deg,#5bc8e0,#fff,#a8e6f0,#7dd3fc,#fff,#5bc8e0); animation-duration:3s; }
-.founder-frame-ice .founder-badge { border-color:#5bc8e0; color:#5bc8e0; background:rgba(91,200,224,.08); }
+.founder-fire      { border: 2px solid #ff4500 !important; animation: fGlowFire 2s ease-in-out infinite; }
+.founder-gold      { border: 2px solid #FFD700 !important; animation: fGlowGold 2s ease-in-out infinite; }
+.founder-electric  { border: 2px solid #00f5ff !important; animation: fGlowElec 1.5s ease-in-out infinite; }
+.founder-aurora    { border: 2px solid #00ff88 !important; animation: fGlowAurora 3s ease-in-out infinite; }
+.founder-rainbow   { border: 2px solid #ff0000 !important; animation: fGlowRainbow 2s linear infinite; }
+.founder-ocean     { border: 2px solid #00b4d8 !important; animation: fGlowOcean 2.5s ease-in-out infinite; }
+.founder-chaos     { border: 2px solid #ff4500 !important; animation: fGlowChaos .9s ease-in-out infinite; }
+.founder-order     { border: 2px solid #4a90d9 !important; animation: fGlowOrder 4s ease-in-out infinite; }
+.founder-crystal   { border: 2px solid #7dd3fc !important; animation: fGlowCrystal 3s ease-in-out infinite; }
+.founder-poison    { border: 2px solid #39ff14 !important; animation: fGlowPoison 2s ease-in-out infinite; }
+.founder-blackhole { border: 2px solid #8b00ff !important; animation: fGlowBH 2.5s ease-in-out infinite; }
+.founder-ice       { border: 2px solid #a8e6f0 !important; animation: fGlowIce 3s ease-in-out infinite; }

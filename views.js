@@ -1150,25 +1150,26 @@ function rUsers(){
         const comp=_totalBase>0?Math.round((_grpOk/_totalBase)*100):null;
         const evs=D.evidence.filter(e=>e.student===s.name);
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
-        const _isFounder=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
-        const _ftype=_isFounder?(_isFounder.type||'gold'):'';
-        const _FCOLOR={'fire':'#ff4500','gold':'#FFD700','electric':'#00f5ff','aurora':'#00ff88','rainbow':'#ff0000','ocean':'#00b4d8','chaos':'#ff4500','order':'#4a90d9','crystal':'#7dd3fc','poison':'#39ff14','blackhole':'#8b00ff','ice':'#a8e6f0'};
-        const _fc=_isFounder?(_FCOLOR[_ftype]||'#FFD700'):'';
-        const _up2=D.usersProfiles?.find(u=>u.email===s.email);
-        const _av2=_up2?.avatar_url||null;
-
-        // Avatar normal — sin nada que afecte el layout
-        const _avatarEl=`<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0;${_isFounder?'border:2px solid '+_fc+';box-shadow:0 0 10px '+_fc+'99':''}">${_av2?`<img src="${_av2}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>`;
-
-        return `<tr class="${_isFounder?'founder-row':''}">
+        // Fundadores
+        const _f=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
+        const _ft=_f?(_f.type||'gold'):'';
+        const _FGRAD={'fire':'#ff4500,#ffd700,#ff4500','gold':'#b8860b,#FFD700,#fffacd','electric':'#0080ff,#00f5ff,#7000ff','aurora':'#00ff88,#00cfff,#8000ff','rainbow':'#ff0000,#00ff00,#ff0000','ocean':'#006994,#00b4d8,#90e0ef','chaos':'#8b0000,#ff4500,#ff0000','order':'#1e3a5f,#4a90d9,#ffffff','crystal':'#7dd3fc,#ffffff,#b3ecff','poison':'#004d00,#39ff14,#7fff00','blackhole':'#4b0082,#8b00ff,#000080','ice':'#5bc8e0,#ffffff,#a8e6f0'};
+        const _fg=_f?(_FGRAD[_ft]||'#FFD700,#fff,#FFD700').split(','):[];
+        const _up=D.usersProfiles?.find(u=>u.email===s.email);
+        const _av=_up?.avatar_url||null;
+        return `<tr>
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
-            ${_avatarEl}
-            <div style="display:flex;flex-direction:column;gap:1px">
-              <span style="font-weight:${_isFounder?'800':'600'};font-size:13px;color:${_isFounder?_fc:'var(--text)'}">${s.name}</span>
-              ${_isFounder?`<span style="font-size:9px;font-weight:700;color:${_fc}">★ Fundador</span>`:''}
+            <div class="${_f?`founder-avatar founder-${_ft}`:''}" style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0">${_av?`<img src="${_av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>
+            <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+              ${_f
+                ?`<span class="founder-name" style="color:${_fg[0]}">${s.name}</span>
+                  <span class="founder-badge" style="border:1px solid ${_fg[0]};color:${_fg[0]};background:${_fg[0]}22;font-size:10px;padding:1px 7px">★ Fundador</span>`
+                :`<span style="font-weight:600;font-size:13px">${s.name}</span>`}
             </div>
           </div></td>
+          <td><span class="badge" style="background:rgba(6,182,212,.15);color:#06b6d4;font-size:11px">${s.grade||'—'}</span></td>
+          <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
           <td style="text-align:center">${comp!==null?`<div style="display:flex;align-items:center;gap:7px;justify-content:center">
             <div style="width:50px;height:5px;border-radius:3px;background:rgba(6,182,212,.1);overflow:hidden"><div style="width:${comp}%;height:100%;background:${cc}"></div></div>
