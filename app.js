@@ -391,6 +391,7 @@ async function doLogin(){
     render();
     if (typeof initRealtime === 'function') initRealtime();
     if (typeof initAnnouncementsRealtime === 'function') initAnnouncementsRealtime();
+    if (typeof initFounders === 'function') initFounders();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
     if (typeof syncPendingCheckins === 'function') syncPendingCheckins();
     setTimeout(() => {

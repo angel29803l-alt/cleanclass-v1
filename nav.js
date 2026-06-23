@@ -63,8 +63,31 @@ function buildNav(){
   lucide.createIcons();
 }
 
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('hidden');}
-function closeSidebar(){if(window.innerWidth<768)document.getElementById('sidebar').classList.add('hidden');}
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar');
+  const isHidden=sb.classList.contains('hidden');
+  if(isHidden){
+    sb.classList.remove('hidden');
+    // Crear overlay para cerrar al tocar afuera
+    if(!document.getElementById('sidebarOverlay')){
+      const ov=document.createElement('div');
+      ov.id='sidebarOverlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:49;background:rgba(0,0,0,.4)';
+      ov.onclick=()=>closeSidebar();
+      document.body.appendChild(ov);
+    }
+  } else {
+    closeSidebar();
+  }
+}
+
+function closeSidebar(){
+  if(window.innerWidth<768){
+    document.getElementById('sidebar').classList.add('hidden');
+    const ov=document.getElementById('sidebarOverlay');
+    if(ov) ov.remove();
+  }
+}
 
 function toggleSidebarHide(){
   const sb=document.getElementById('sidebar');

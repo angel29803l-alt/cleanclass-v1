@@ -1167,7 +1167,7 @@ function rUsers(){
             </div>
           </div></td>
           <td><span class="badge" style="background:rgba(6,182,212,.15);color:#06b6d4;font-size:11px">${s.grade||'—'}</span></td>
-          <td style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
+          <td class="col-hide-mobile" style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
           <td style="text-align:center">${comp!==null?`<div style="display:flex;align-items:center;gap:7px;justify-content:center">
             <div style="width:50px;height:5px;border-radius:3px;background:rgba(6,182,212,.1);overflow:hidden"><div style="width:${comp}%;height:100%;background:${cc}"></div></div>
@@ -3287,11 +3287,25 @@ async function clearExpiredEarlyExits() {
 // ============================================================
 // FUNDADORES — gestión y marco animado
 // ============================================================
-// Los fundadores se guardan en localStorage para persistencia
+// FUNDADORES — guardados en Supabase para persistir en APK
 window._founders = JSON.parse(localStorage.getItem('cc_founders') || '[]');
 
-function saveFounders(){
-  localStorage.setItem('cc_founders', JSON.stringify(window._founders));
+async function loadFounders(){
+  try {
+    const {data} = await sb.from('app_settings').select('value').eq('key','founders').maybeSingle();
+    if(data?.value){
+      window._founders = JSON.parse(data.value);
+      localStorage.setItem('cc_founders', data.value);
+    }
+  } catch(e){ console.log('founders from localStorage'); }
+}
+
+async function saveFounders(){
+  const val = JSON.stringify(window._founders);
+  localStorage.setItem('cc_founders', val);
+  try {
+    await sb.from('app_settings').upsert({key:'founders', value:val},{onConflict:'key'});
+  } catch(e){ console.log('saveFounders local only'); }
 }
 
 function openFounderManager(){
@@ -3494,6 +3508,13 @@ function showAnnounce(msg, sender){
 }
 
 // Escuchar anuncios en tiempo real de otros usuarios
+// Cargar fundadores desde Supabase al iniciar
+async function initFounders(){
+  await loadFounders();
+  // Re-renderizar si ya hay una vista activa
+  if(typeof render==='function') render();
+}
+
 function initAnnouncementsRealtime(){
   sb.channel('announcements-channel')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'announcements'},
