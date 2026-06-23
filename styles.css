@@ -287,7 +287,8 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 @keyframes nmIce{0%,100%{color:#a8e6f0}50%{color:#ffffff}}
 @keyframes bdPulse{0%,100%{opacity:.8}50%{opacity:1}}
 
-.founder-avatar{border:2px solid transparent;flex-shrink:0}
+.founder-avatar{border:2px solid transparent;flex-shrink:0;overflow:visible!important;border-radius:50%}
+.founder-avatar img{border-radius:50%;display:block;width:100%;height:100%;object-fit:cover}
 .founder-fire    {border-color:#ff4500!important;animation:gFire 2s ease-in-out infinite}
 .founder-gold    {border-color:#FFD700!important;animation:gGold 2s ease-in-out infinite}
 .founder-electric{border-color:#00f5ff!important;animation:gElec 1.4s ease-in-out infinite}

@@ -1160,7 +1160,7 @@ function rUsers(){
         return `<tr>
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
-            <div class="${_f?`founder-avatar founder-${_ft}`:''}" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0;overflow:${_f?'visible':'hidden'}">${_av?`<img src="${_av}" style="width:100%;height:100%;object-fit:cover">`:`${s.name.charAt(0)}`}</div>
+            <div class="${_f?`founder-avatar founder-${_ft}`:''}" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0;overflow:${_f?'visible':'hidden'}">${_av?`<img src="${_av}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`:`${s.name.charAt(0)}`}</div>
             <div style="display:flex;flex-direction:column;gap:1px">
               <span class="${_f?`founder-nm founder-nm-${_ft}`:''}" style="font-weight:${_f?'800':'600'};font-size:13px">${s.name}</span>
               ${_f?`<span class="founder-badge founder-bd-${_ft}" style="font-size:9px;padding:1px 6px;width:fit-content">★</span>`:''}
@@ -1608,42 +1608,6 @@ function capturePhoto(){
   if(_camStream) _camStream.getTracks().forEach(t=>t.stop());
 }
 
-function loadFromFile(input){
-  const file=input.files[0];
-  if(!file) return;
-  const now=new Date();
-  const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  _capturedStamp=`${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
-
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    // Dibujar imagen + sello en canvas
-    const img=new Image();
-    img.onload=()=>{
-      const canvas=document.getElementById('camCanvas');
-      canvas.width=img.width; canvas.height=img.height;
-      const ctx=canvas.getContext('2d');
-      ctx.drawImage(img,0,0);
-      const stamp=_capturedStamp;
-      ctx.fillStyle='rgba(0,0,0,.65)';
-      ctx.fillRect(10,canvas.height-38,ctx.measureText(stamp).width+20,28);
-      ctx.fillStyle='#ffffff';
-      ctx.font='bold 14px DM Sans, sans-serif';
-      ctx.fillText(stamp,20,canvas.height-18);
-      _capturedDataUrl=canvas.toDataURL('image/jpeg',0.85);
-
-      const preview=document.getElementById('camPreview');
-      preview.src=_capturedDataUrl;
-      preview.style.display='block';
-      document.getElementById('camVideo').style.display='none';
-      document.getElementById('camBtns').style.display='none';
-      document.getElementById('camRetakeBtns').style.display='flex';
-      if(_camStream) _camStream.getTracks().forEach(t=>t.stop());
-    };
-    img.src=ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
 
 function retakePhoto(){
   _capturedDataUrl=null;
@@ -3357,7 +3321,7 @@ function openFounderManager(){
         <span style="font-size:11px;color:var(--accent);font-weight:700;white-space:nowrap">${existing.length} fundador(es)</span>
       </div>
 
-      <div style="display:flex;flex-col;gap:0">
+      <div style="display:flex;flex-direction:column;gap:0">
         ${allPeople.map(p=>{
           const f = existing.find(x=>x.email===p.email||x.name===p.name);
           const color = f?.color||'#FFD700';
