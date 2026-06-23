@@ -392,6 +392,7 @@ async function doLogin(){
     if (typeof initRealtime === 'function') initRealtime();
     if (typeof initAnnouncementsRealtime === 'function') initAnnouncementsRealtime();
     if (typeof initFounders === 'function') initFounders();
+    if (typeof initCapacitorNotifications === 'function') initCapacitorNotifications();
     if (typeof clearExpiredEarlyExits === 'function') clearExpiredEarlyExits();
     if (typeof syncPendingCheckins === 'function') syncPendingCheckins();
     setTimeout(() => {
@@ -1212,3 +1213,49 @@ function doCheckin(groupName){
 // triggers en la DB (trg_notify_evidence, trg_notify_incident)
 // que llaman a la Edge Function send-notifications automáticamente.
 
+
+// ── Notificaciones nativas para APK (Capacitor Firebase) ──
+async function initCapacitorNotifications(){
+  try {
+    // Solo en APK nativo, no en navegador
+    if(!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
+    
+    const { FirebaseMessaging } = await import('@capacitor-firebase/messaging');
+    
+    // Pedir permiso
+    const { receive } = await FirebaseMessaging.requestPermissions();
+    if(receive !== 'granted') return;
+    
+    // Obtener token FCM
+    const { token } = await FirebaseMessaging.getToken();
+    console.log('FCM Token APK:', token);
+    
+    // Guardar token en Supabase
+    if(token && currentSession?.email){
+      await sb.from('users').update({ fcm_token: token }).eq('email', currentSession.email);
+      console.log('✅ Token FCM guardado en Supabase');
+    }
+    
+    // Escuchar notificaciones en primer plano
+    FirebaseMessaging.addListener('notificationReceived', notification => {
+      const { title, body } = notification.notification;
+      const n = document.createElement('div');
+      n.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e293b;border:1px solid rgba(6,182,212,.4);border-radius:14px;padding:14px 18px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+      n.innerHTML = `<p style="font-size:13px;font-weight:700;color:#f1f5f9;margin:0 0 4px">${title||'CleanClass'}</p><p style="font-size:12px;color:#94a3b8;margin:0">${body||''}</p>`;
+      document.body.appendChild(n);
+      setTimeout(()=>n.remove(), 5000);
+    });
+    
+    // Al tocar una notificación — navegar a la sección correcta
+    FirebaseMessaging.addListener('notificationActionPerformed', action => {
+      const url = action.notification?.data?.url || '';
+      if(url.includes('validation')) { cur='validation'; render(); }
+      else if(url.includes('incidents')) { cur='incidents'; render(); }
+      else if(url.includes('reports')) { cur='reports'; render(); }
+      else if(url.includes('dashboard')) { cur='dashboard'; render(); }
+    });
+    
+  } catch(e) {
+    console.log('Capacitor notifications not available:', e.message);
+  }
+}
