@@ -12,13 +12,20 @@ const formFields={
       [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
     }
   ],
-  teachers:[
-    {k:'name',  l:'Nombre completo'},
-    {k:'email', l:'Correo electrónico'},
-    {k:'grade', l:'Grado a cargo', type:'select', options:()=>
-      [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
+  teachers:(mode)=>{
+    const base=[
+      {k:'name',  l:'Nombre completo'},
+      {k:'email', l:'Correo electrónico'},
+      {k:'grade', l:'Grado a cargo', type:'select', options:()=>
+        [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
+      }
+    ];
+    // La contraseña solo se pide al crear el docente (no al editar)
+    if(mode==='add'){
+      base.push({k:'password', l:'Contraseña', type:'password'});
     }
-  ],
+    return base;
+  },
   rooms:[
     {k:'name',l:'Nombre del Salón'},
     {k:'capacity',l:'Capacidad',type:'number'},
@@ -135,7 +142,7 @@ function updateMemberCount(){
 
 function openModal(mode,col,id){
   let fields=formFields[col];
-  if(typeof fields==='function') fields=fields();
+  if(typeof fields==='function') fields=fields(mode);
   if(!fields){
     console.error('openModal: no hay formFields para "'+col+'"');
     alert('Error: formulario no configurado para "'+col+'". Revisa la consola.');
@@ -199,6 +206,9 @@ function openModal(mode,col,id){
           }else if(f.type==='number'){
             return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
               <input class="inp mt-1" name="${f.k}" type="number" value="${item[f.k]||''}" required></div>`;
+          }else if(f.type==='password'){
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <input class="inp mt-1" name="${f.k}" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres" required></div>`;
           }else{
             return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
               <input class="inp mt-1" name="${f.k}" type="text" value="${(item[f.k]||'').toString().replace(/"/g,'&quot;')}" required></div>`;
@@ -308,7 +318,7 @@ function openModal(mode,col,id){
       }
     }else{
       fields.forEach(f=>{
-        if(f.type==='file'||f.type==='radio'||f.type==='multiselect'||f.type==='camera') return;
+        if(f.type==='file'||f.type==='radio'||f.type==='multiselect'||f.type==='camera'||f.type==='password') return;
         obj[f.k]=f.type==='number'?Number(fd.get(f.k)):fd.get(f.k);
       });
       if(col==='cleanGroups'){
@@ -323,6 +333,23 @@ function openModal(mode,col,id){
 
     if(mode==='add'){obj.id=nid();D[col].push(obj);}
     else{const idx=D[col].findIndex(x=>x.id===id);if(idx>=0){obj.id=id;Object.assign(D[col][idx],obj);}}
+
+    // ---- DOCENTES: crea usuario en Supabase Auth + guarda en tabla teachers ----
+    if(col==='teachers'){
+      if(mode==='add'){
+        const password=fd.get('password');
+        const submitBtn=e.target.querySelector('button[type="submit"]');
+        if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Creando...';}
+        createTeacherWithAuth(obj, password).then(ok=>{
+          closeModal(); render();
+        });
+      }else{
+        saveTeacher(obj);
+        closeModal(); render();
+      }
+      return;
+    }
+
     // Guardar en Supabase
     if(col==='cleanGroups') saveCleanGroup(obj);
     else if(col==='evidence') saveEvidence(obj);

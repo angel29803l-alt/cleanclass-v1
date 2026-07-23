@@ -86,6 +86,41 @@ async function sbSave(table, payload, loadFn) {
 
 async function saveStudent(student)   { await sbSave('students',    student,  loadStudents);    }
 async function saveTeacher(teacher)   { await sbSave('teachers',    teacher,  loadTeachers);    }
+
+// Crea el docente en Supabase Auth (para que pueda iniciar sesión) y en la tabla teachers.
+// Usa una Edge Function porque crear usuarios en Auth requiere la service_role key,
+// que nunca debe exponerse en el frontend.
+async function createTeacherWithAuth(teacher, password) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-teacher`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({
+        email: teacher.email,
+        password: password,
+        name: teacher.name,
+        grade: teacher.grade
+      })
+    });
+    const result = await res.json();
+
+    if (!res.ok || result.error) {
+      console.error('❌ createTeacherWithAuth error:', result.error);
+      showDbError('docente', result.error || 'No se pudo crear el usuario.');
+      return false;
+    }
+
+    await loadTeachers();
+    return true;
+  } catch (err) {
+    console.error('❌ createTeacherWithAuth error:', err.message);
+    showDbError('docente', 'No se pudo conectar con el servidor. ' + err.message);
+    return false;
+  }
+}
 async function saveCleanGroup(group)  { await sbSave('clean_groups',group,    loadCleanGroups); }
 async function saveEvidence(evidence) { await sbSave('evidence',    evidence, loadEvidence);    }
 async function saveIncident(incident) { await sbSave('incidents',   incident, loadIncidents);   }
