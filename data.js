@@ -92,7 +92,7 @@ async function saveTeacher(teacher)   { await sbSave('teachers',    teacher,  lo
 // que nunca debe exponerse en el frontend.
 async function createTeacherWithAuth(teacher, password) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-teacher`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/dynamic-task`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
