@@ -5,13 +5,19 @@
 // ============================================================
 
 const formFields={
-  students:[
-    {k:'name',  l:'Nombre completo'},
-    {k:'email', l:'Correo electrónico'},
-    {k:'grade', l:'Grado', type:'select', options:()=>
-      [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
+  students:(mode)=>{
+    const base=[
+      {k:'name',  l:'Nombre completo'},
+      {k:'email', l:'Correo electrónico'},
+      {k:'grade', l:'Grado', type:'select', options:()=>
+        [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort().map(g=>({id:g,name:g}))
+      }
+    ];
+    if(mode==='add'){
+      base.push({k:'password', l:'Contraseña', type:'password'});
     }
-  ],
+    return base;
+  },
   teachers:(mode)=>{
     const base=[
       {k:'name',  l:'Nombre completo'},
@@ -350,11 +356,28 @@ function openModal(mode,col,id){
       return;
     }
 
+    // ---- ESTUDIANTES: crea usuario en Supabase Auth + guarda en tabla students ----
+    if(col==='students'){
+      if(mode==='add'){
+        const password=fd.get('password');
+        const submitBtn=e.target.querySelector('button[type="submit"]');
+        if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Creando...';}
+        createStudentWithAuth(obj, password).then(()=>{
+          closeModal(); render();
+        });
+      }else{
+        saveStudent(obj);
+        closeModal(); render();
+      }
+      return;
+    }
+
     // Guardar en Supabase
     if(col==='cleanGroups') saveCleanGroup(obj);
     else if(col==='evidence') saveEvidence(obj);
     else if(col==='incidents') saveIncident(obj);
     else if(col==='rooms') saveRoom(obj);
+    else if(col==='students') saveStudent(obj);
     closeModal(); render();
   };
 }
