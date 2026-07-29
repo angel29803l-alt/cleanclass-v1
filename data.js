@@ -435,27 +435,62 @@ function generateAttendanceCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-// Marca presente a todo el grupo cuando alguien sube la primera evidencia del día,
-// dentro de la ventana horaria de aseo. Reemplaza el check-in por GPS.
-async function markGroupAttendanceFromEvidence(groupName, grade) {
-  const group = D.cleanGroups.find(g => g.name === groupName);
-  if (!group || !group.members?.length) return false;
-
+// Marca presente solo a quien sube la primera evidencia del día,
+// y devuelve el código para que se lo pase de palabra a sus compañeros.
+async function markGroupAttendanceFromEvidence(groupName, grade, student) {
   const today = new Date().toISOString().split('T')[0];
   const code = generateAttendanceCode();
 
-  const rows = group.members.map(student => ({
+  const { error } = await sb.from('attendance_checkins').insert({
     student, grade, group_name: groupName, date: today,
     code, lat: null, lng: null, distance_m: null
-  }));
-
-  const { error } = await sb.from('attendance_checkins').insert(rows);
+  });
   if (error) {
     console.error('❌ markGroupAttendanceFromEvidence error:', error.message);
-    return false;
+    return null;
   }
   await loadTodayCheckins();
-  return true;
+  return code;
+}
+
+// Cada compañero escribe el código que le pasó quien subió la evidencia,
+// para marcar SU propia asistencia (uno por uno, no todo el grupo junto).
+async function submitAttendanceCode(groupName, grade, student, code) {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Verificar que sigamos dentro del horario de aseo de ese grado
+  const sch = (D.schedules||[]).find(s=>s.grade===grade);
+  if(sch?.clean_time){
+    const now = new Date();
+    const currentHM = now.getHours()*60+now.getMinutes();
+    const [nh,nm] = sch.clean_time.substring(0,5).split(':').map(Number);
+    const closeHM = (nh*60+nm) + (sch.evidence_window_min||30);
+    if(currentHM > closeHM){
+      return { ok: false, error: 'La ventana de aseo ya cerró.' };
+    }
+  }
+
+  // ¿Existe ese código, para ese grupo, hoy?
+  const { data: match, error: findErr } = await sb.from('attendance_checkins')
+    .select('id').eq('group_name', groupName).eq('date', today)
+    .eq('code', code.trim().toUpperCase()).limit(1);
+
+  if (findErr || !match || !match.length) {
+    return { ok: false, error: 'Código incorrecto o vencido.' };
+  }
+
+  // ¿Ya se había marcado este estudiante hoy?
+  const already = D.checkins.find(c => c.student === student && c.group_name === groupName && c.date === today);
+  if (already) return { ok: true };
+
+  const { error } = await sb.from('attendance_checkins').insert({
+    student, grade, group_name: groupName, date: today,
+    code: code.trim().toUpperCase(), lat: null, lng: null, distance_m: null
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await loadTodayCheckins();
+  return { ok: true };
 }
 
 async function saveCheckin(student, grade, groupName, lat, lng, distance_m) {

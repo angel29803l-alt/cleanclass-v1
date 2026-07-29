@@ -1116,3 +1116,4 @@ async function initCapacitorNotifications(){
     console.log('Capacitor notifications not available:', e.message);
   }
 }
+

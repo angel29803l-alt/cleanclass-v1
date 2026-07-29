@@ -1199,7 +1199,7 @@ function renderAttendanceList(groupName, dateStr){
   const checkins = (D.checkins||[]).filter(c=>c.group_name===groupName && c.date===dateStr);
 
   return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-    <p style="font-size:10px;color:var(--textm);font-weight:600;margin-bottom:4px">ASISTENCIA (automática al subir evidencia)</p>
+    <p style="font-size:10px;color:var(--textm);font-weight:600;margin-bottom:4px">ASISTENCIA (código de evidencia)</p>
     ${group.members.map(name=>{
       const c = checkins.find(x=>x.student===name);
       if(c){
@@ -1366,9 +1366,14 @@ function rEvidence(){
       const windowMin = sch?.evidence_window_min || 30;
       const closeHM = cleanHM + windowMin;
       const hasEvidenceToday = D.evidence.some(e=>e.group===myGroup.name && e.date===todayStr2);
+      const todayCode = new Date().toISOString().split('T')[0];
+      const iAlreadyMarked = (D.checkins||[]).some(c=>c.student===currentSession?.name && c.group_name===myGroup.name && c.date===todayCode);
 
       if(currentHM <= closeHM){
-        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
+        if(iAlreadyMarked) return `<span style="font-size:13px;color:#16a34a;font-style:italic"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Ya registraste tu asistencia hoy</span>`;
+        const label = hasEvidenceToday ? 'Marcar mi asistencia' : 'Tomar Foto';
+        const icon = hasEvidenceToday ? 'key' : 'camera';
+        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="${icon}" style="width:16px;height:16px"></i>${label}</button>`;
       }
       if(hasEvidenceToday) return '';
       return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>⏰ Ventana cerrada — no se subió evidencia</span>`;
@@ -1435,17 +1440,44 @@ function openCameraModal(){
 
   // Obtener el grupo del estudiante automáticamente
   const myGroup = D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
-
-  // Verificar si ya subió evidencia hoy para este grupo
   const today = now.toISOString().split('T')[0];
-  const alreadyUploaded = myGroup && D.evidence.some(e=>
-    e.group===myGroup.name &&
-    e.student===currentSession?.name &&
-    e.date===today
-  );
 
-  if(alreadyUploaded){
+  if(!myGroup){ alert('No estás en ningún grupo de aseo.'); return; }
+
+  // Verificar que sigamos dentro del horario de aseo (misma ventana que la evidencia)
+  const sch = (D.schedules||[]).find(s=>s.grade===(myGroup.grade||myGrade));
+  const cleanTime = sch?.clean_time?.substring(0,5);
+  if(cleanTime){
+    const currentHM = now.getHours()*60+now.getMinutes();
+    const [nh,nm] = cleanTime.split(':').map(Number);
+    const closeHM = (nh*60+nm) + (sch?.evidence_window_min||30);
+    if(currentHM > closeHM){
+      alert('⏰ La ventana de aseo ya cerró. No se puede registrar evidencia ni asistencia.');
+      return;
+    }
+  }
+
+  const alreadyUploadedByMe = D.evidence.some(e=>
+    e.group===myGroup.name && e.student===currentSession?.name && e.date===today
+  );
+  if(alreadyUploadedByMe){
     alert('Ya subiste una evidencia hoy para este grupo.');
+    return;
+  }
+
+  const iAlreadyMarked = (D.checkins||[]).some(c=>
+    c.student===currentSession?.name && c.group_name===myGroup.name && c.date===today
+  );
+  if(iAlreadyMarked){
+    alert('Ya registraste tu asistencia hoy.');
+    return;
+  }
+
+  const groupHasEvidenceToday = D.evidence.some(e=>e.group===myGroup.name && e.date===today);
+
+  // Si un compañero ya subió la evidencia hoy, en vez de cámara pedimos el código
+  if(groupHasEvidenceToday){
+    openAttendanceCodeModal(myGroup);
     return;
   }
 
@@ -1619,10 +1651,15 @@ async function saveEvidence(){
 
     const ok = await saveEvidenceWithImage(ev, file);
     if(ok){
-      // Primera evidencia del grupo hoy: marca presente a todo el grupo (reemplaza el check-in GPS)
+      // Primera evidencia del grupo hoy: marca presente a quien la subió y genera el código
       if(isFirstEvidenceToday){
         const grp = D.cleanGroups.find(g=>g.name===group);
-        if(grp) await markGroupAttendanceFromEvidence(group, grp.grade);
+        if(grp){
+          const code = await markGroupAttendanceFromEvidence(group, grp.grade, student);
+          if(code){
+            alert(`✅ Evidencia guardada y asistencia registrada.\n\nCódigo para tus compañeros: ${code}\n\nDíselo de palabra — cada uno debe escribirlo en "Marcar mi asistencia" dentro de su grupo.`);
+          }
+        }
       }
       closeCameraModal();
       render();
@@ -1634,6 +1671,55 @@ async function saveEvidence(){
     console.error('Error guardando evidencia:', e);
     if(err){err.textContent='Error al guardar: '+e.message;err.style.display='block';}
     if(btn){btn.textContent='Guardar Evidencia';btn.disabled=false;}
+  }
+}
+
+// Modal para que un compañero escriba el código y marque su propia asistencia.
+// Solo aparece si un compañero ya subió la evidencia hoy, y solo dentro del horario de aseo.
+function openAttendanceCodeModal(myGroup){
+  const html=`<div class="modal-bg" onclick="if(event.target===this)closeCameraModal()">
+    <div class="modal fade-in" style="max-width:400px">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg flex items-center gap-2">
+          <i data-lucide="key" style="width:18px;height:18px;color:var(--accent)"></i>
+          Marcar mi asistencia
+        </h2>
+        <button onclick="closeCameraModal()" class="pill pill-ghost" style="padding:5px">
+          <i data-lucide="x" style="width:17px;height:17px"></i>
+        </button>
+      </div>
+      <p style="font-size:13px;color:var(--textm);margin-bottom:14px">
+        Un compañero de <b>${myGroup.name}</b> ya subió la evidencia de hoy. Pídele el código y escríbelo acá para marcar tu asistencia.
+      </p>
+      <input id="attCodeInput" class="inp" placeholder="Código" style="text-transform:uppercase;text-align:center;font-size:18px;letter-spacing:3px;font-weight:700" maxlength="10">
+      <p id="attCodeError" style="color:#ef4444;font-size:12px;text-align:center;margin-top:8px;display:none"></p>
+      <button class="pill pill-primary w-full mt-4" onclick="submitAttendanceCodeFromModal('${myGroup.name}')">
+        <i data-lucide="check" style="width:15px;height:15px;display:inline;margin-right:5px"></i>Confirmar
+      </button>
+    </div>
+  </div>`;
+  const wrap=document.getElementById('cameraModalWrap');
+  wrap.innerHTML=html;
+  if(typeof lucide!=='undefined') lucide.createIcons();
+}
+
+async function submitAttendanceCodeFromModal(groupName){
+  const input = document.getElementById('attCodeInput');
+  const err = document.getElementById('attCodeError');
+  const code = input?.value?.trim();
+  if(!code){ if(err){err.textContent='Escribe el código.';err.style.display='block';} return; }
+
+  const myGrade = getCurrentGrade();
+  const grp = D.cleanGroups.find(g=>g.name===groupName);
+  const grade = grp?.grade || myGrade;
+
+  const result = await submitAttendanceCode(groupName, grade, currentSession?.name, code);
+  if(result.ok){
+    closeCameraModal();
+    render();
+  } else if(err){
+    err.textContent = result.error || 'Código incorrecto.';
+    err.style.display='block';
   }
 }
 
