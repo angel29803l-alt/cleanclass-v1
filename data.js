@@ -430,6 +430,34 @@ async function loadTodayCheckins() {
   if (!error && data) D.checkins = data;
 }
 
+// Genera un código corto al azar (solo como comprobante interno, no se pide a nadie)
+function generateAttendanceCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+// Marca presente a todo el grupo cuando alguien sube la primera evidencia del día,
+// dentro de la ventana horaria de aseo. Reemplaza el check-in por GPS.
+async function markGroupAttendanceFromEvidence(groupName, grade) {
+  const group = D.cleanGroups.find(g => g.name === groupName);
+  if (!group || !group.members?.length) return false;
+
+  const today = new Date().toISOString().split('T')[0];
+  const code = generateAttendanceCode();
+
+  const rows = group.members.map(student => ({
+    student, grade, group_name: groupName, date: today,
+    code, lat: null, lng: null, distance_m: null
+  }));
+
+  const { error } = await sb.from('attendance_checkins').insert(rows);
+  if (error) {
+    console.error('❌ markGroupAttendanceFromEvidence error:', error.message);
+    return false;
+  }
+  await loadTodayCheckins();
+  return true;
+}
+
 async function saveCheckin(student, grade, groupName, lat, lng, distance_m) {
   const today = new Date().toISOString().split('T')[0];
   const { error } = await sb.from('attendance_checkins').insert({

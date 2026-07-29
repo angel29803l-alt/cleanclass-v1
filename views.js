@@ -117,7 +117,7 @@ function rDashboardAdmin(){
             <span class="font-bold">${g.grade}</span>
             <span class="badge-pill" style="background:${colors[status]}15;color:${colors[status]};font-size:10px"><i data-lucide="${icons[status]}" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px"></i>${labels[status]}</span>
           </div>
-          <p style="font-size:11px;color:var(--textm)">${g.groups} grupo(s) · ${g.checkins}/${g.totalMembers} asistencia GPS · ${g.evidenceCount} evidencia(s)</p>
+          <p style="font-size:11px;color:var(--textm)">${g.groups} grupo(s) · ${g.checkins}/${g.totalMembers} asistencia · ${g.evidenceCount} evidencia(s)</p>
         </div>`;
       }).filter(Boolean).join('')}
       ${gradeStatus.every(g=>g.groups===0)?'<p style="color:var(--textm);text-align:center;padding:20px">No hay grupos de aseo asignados</p>':''}
@@ -329,35 +329,6 @@ function renderSchedulesConfig(grades){
   </div>
 
   <button class="pill pill-primary mt-4" onclick="saveUniversalSchedule()"><i data-lucide="save" style="width:15px;height:15px"></i> Guardar Horarios</button>
-
-  <!-- BLOQUE 1.5: UBICACIÓN DEL COLEGIO -->
-  <div style="margin-top:20px">
-    <h2 class="font-bold text-base mb-3"><i data-lucide="map-pin" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Ubicación del Colegio</h2>
-    <div class="card" style="background:var(--surface);padding:16px">
-      <p style="font-size:12px;color:var(--textm);margin-bottom:10px">
-        Define la ubicación del colegio para validar el check-in de asistencia al aseo (GPS).
-      </p>
-      <div class="grid grid-cols-2 gap-3 mb-3">
-        <div>
-          <label class="auth-label">Latitud</label>
-          <input type="number" step="any" class="inp" id="schoolLat" value="${D.schoolConfig?.lat ?? ''}" placeholder="Ej: 4.6097">
-        </div>
-        <div>
-          <label class="auth-label">Longitud</label>
-          <input type="number" step="any" class="inp" id="schoolLng" value="${D.schoolConfig?.lng ?? ''}" placeholder="Ej: -74.0817">
-        </div>
-      </div>
-      <div class="mb-3">
-        <label class="auth-label">Radio permitido (metros)</label>
-        <input type="number" class="inp" id="schoolRadius" value="${D.schoolConfig?.radius_meters ?? 150}" placeholder="150">
-      </div>
-      <div class="flex gap-2 flex-wrap">
-        <button class="pill pill-ghost" style="font-size:12px" onclick="useMyLocationForSchool()"><i data-lucide="crosshair" style="width:14px;height:14px"></i> Usar mi ubicación actual</button>
-        <button class="pill pill-primary" style="font-size:12px" onclick="saveSchoolLocationFromForm()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
-      </div>
-      <p id="schoolLocMsg" style="font-size:12px;color:#22c55e;margin-top:8px;display:none"></p>
-    </div>
-  </div>
 
   <!-- BLOQUE 2: DÍAS SIN CLASE -->
   <div style="margin-top:20px">
@@ -609,7 +580,7 @@ function rReportsAdmin(){
           <div style="padding:14px;background:rgba(37,99,235,.08);border-radius:10px;border:1px solid rgba(37,99,235,.2)">
             <i data-lucide="user-check" style="width:18px;height:18px;color:#2563eb;margin-bottom:8px;display:block"></i>
             <p style="font-weight:700;font-size:13px;margin-bottom:2px">2. Asistencia</p>
-            <p style="font-size:11px;color:var(--textm)">Check-in GPS por grado y día</p>
+            <p style="font-size:11px;color:var(--textm)">Asistencia automática por grado y día</p>
           </div>
           <div style="padding:14px;background:rgba(124,58,237,.08);border-radius:10px;border:1px solid rgba(124,58,237,.2)">
             <i data-lucide="camera" style="width:18px;height:18px;color:#7c3aed;margin-bottom:8px;display:block"></i>
@@ -1151,7 +1122,7 @@ function rUsers(){
         const evs=D.evidence.filter(e=>e.student===s.name);
         const cc=comp===null?'var(--textm)':comp>=70?'#10b981':comp>=40?'#f59e0b':'#ef4444';
         // Fundadores
-        const _f=window._founders&&window._founders.find(f=>f.email===s.email||f.name===s.name);
+        const _f=window._founders&&window._founders.find(f=>f.email===s.email);
         const _ft=_f?(_f.type||'gold'):'';
         const _FGRAD={'fire':'#ff4500,#ffd700,#ff4500','gold':'#b8860b,#FFD700,#fffacd','electric':'#0080ff,#00f5ff,#7000ff','aurora':'#00ff88,#00cfff,#8000ff','rainbow':'#ff0000,#00ff00,#ff0000','ocean':'#006994,#00b4d8,#90e0ef','chaos':'#8b0000,#ff4500,#ff0000','order':'#1e3a5f,#4a90d9,#ffffff','crystal':'#7dd3fc,#ffffff,#b3ecff','poison':'#004d00,#39ff14,#7fff00','blackhole':'#4b0082,#8b00ff,#000080','ice':'#5bc8e0,#ffffff,#a8e6f0'};
         const _fg=_f?(_FGRAD[_ft]||'#FFD700,#fff,#FFD700').split(','):[];
@@ -1221,35 +1192,25 @@ function rUsers(){
 // ============================================================
 // EVIDENCIAS — cámara directa con sello de fecha/hora/día
 // ============================================================
-// ---- Lista de asistencia GPS para una evidencia (grupo + fecha) ----
+// ---- Lista de asistencia para una evidencia (grupo + fecha) ----
 function renderAttendanceList(groupName, dateStr){
   const group = D.cleanGroups.find(g=>g.name===groupName);
   if(!group || !group.members?.length) return '';
   const checkins = (D.checkins||[]).filter(c=>c.group_name===groupName && c.date===dateStr);
-  const myName = currentSession?.name;
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isToday = dateStr===todayStr;
 
   return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-    <p style="font-size:10px;color:var(--textm);font-weight:600;margin-bottom:4px">ASISTENCIA (GPS)</p>
+    <p style="font-size:10px;color:var(--textm);font-weight:600;margin-bottom:4px">ASISTENCIA (automática al subir evidencia)</p>
     ${group.members.map(name=>{
       const c = checkins.find(x=>x.student===name);
       if(c){
         return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#16a34a;padding:2px 0">
-          <i data-lucide="check-circle" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(${Math.round(c.distance_m)}m)</span>
-        </div>`;
-      }
-      // Si es el propio usuario y aún no marcó, puede tocar su nombre para registrar
-      if(name===myName && isToday){
-        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#f59e0b;padding:2px 0;cursor:pointer;text-decoration:underline" onclick="doCheckin('${groupName}')">
-          <i data-lucide="map-pin" style="width:12px;height:12px"></i> ${name} — Toca para registrar tu asistencia
+          <i data-lucide="check-circle" style="width:12px;height:12px"></i> ${name}
         </div>`;
       }
       return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#ef4444;padding:2px 0">
         <i data-lucide="x-circle" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(no registró)</span>
       </div>`;
     }).join('')}
-    <p id="checkinMsg" style="font-size:11px;margin-top:4px;display:none"></p>
   </div>`;
 }
 
@@ -1640,9 +1601,11 @@ async function saveEvidence(){
   if(btn){btn.textContent='Guardando...';btn.disabled=true;}
 
   const now=new Date();
+  const todayStrEv = now.toISOString().split('T')[0];
+  const isFirstEvidenceToday = !D.evidence.some(e=>e.group===group && e.date===todayStrEv);
   const ev={
     group, student,
-    date: now.toISOString().split('T')[0],
+    date: todayStrEv,
     status:'Pendiente',
     compliant:false,
     reviewed_by:null, observation:null, reviewed_at:null
@@ -1656,6 +1619,11 @@ async function saveEvidence(){
 
     const ok = await saveEvidenceWithImage(ev, file);
     if(ok){
+      // Primera evidencia del grupo hoy: marca presente a todo el grupo (reemplaza el check-in GPS)
+      if(isFirstEvidenceToday){
+        const grp = D.cleanGroups.find(g=>g.name===group);
+        if(grp) await markGroupAttendanceFromEvidence(group, grp.grade);
+      }
       closeCameraModal();
       render();
     } else {
@@ -2814,7 +2782,7 @@ ${xmlF}${xmlBg}${xmlBr}
       {v:nOk,        l:'Aprobadas',        fg:P.VFg},
       {v:nRj,        l:'Rechazadas',       fg:P.RFg},
       {v:nPd,        l:'Pendientes',       fg:P.AFg},
-      {v:wCk.length, l:'Check-ins GPS',    fg:P.AZ},
+      {v:wCk.length, l:'Asistencias',    fg:P.AZ},
       {v:wInc.length,l:'Incidentes',       fg:P.AZ},
       {v:wInc.filter(i=>i.status==='Abierto').length,l:'Inc. Abiertos',fg:P.RFg},
     ];
