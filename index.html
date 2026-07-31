@@ -21,8 +21,12 @@
 </head>
 <body class="h-full" style="background:var(--bg);color:var(--text)">
 
+  <div id="helpModalWrap"></div>
+
   <!-- AUTH -->
-  <div id="authWrap" style="display:none;justify-content:center;align-items:center;min-height:100vh;padding:20px">
+  <div id="authWrap" style="display:none;justify-content:center;align-items:center;min-height:100vh;padding:20px;position:relative">
+
+    <button onclick="openHelpModal()" style="position:absolute;top:20px;right:20px;padding:9px 18px;border-radius:50px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px">¿AYUDA?</button>
 
     <!-- LOGIN -->
     <div id="screen-login" class="auth-screen auth-active">

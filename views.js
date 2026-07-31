@@ -221,12 +221,12 @@ function rConfig(){
   let html=`
   <div style="margin-bottom:20px">
     <h1 class="text-2xl font-bold mb-1"><i data-lucide="settings" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px"></i>Configuración</h1>
-    <p style="color:var(--textm);font-size:13px;margin-bottom:16px">Ajusta los horarios de aseo, la ubicación del colegio, los días sin clase y los salones</p>
-    <p style="color:var(--textm);font-size:13px">Horarios, ubicación GPS, días sin clase y salones</p>
+    <p style="color:var(--textm);font-size:13px;margin-bottom:16px">Ajusta los horarios de aseo, los días sin clase, los salones y el Centro de Ayuda</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
     ${tabBtn('schedules','Horarios','clock')}
     ${tabBtn('rooms','Salones','door-open')}
+    ${tabBtn('help','Ayuda','help-circle')}
   </div>`;
 
   // ── TAB: HORARIOS (extraído de rAdminPanel) ──
@@ -238,6 +238,11 @@ function rConfig(){
   // ── TAB: SALONES ──
   if(ct==='rooms'){
     html+=renderRoomsConfig();
+  }
+
+  // ── TAB: AYUDA ──
+  if(ct==='help'){
+    html+=renderHelpConfig();
   }
 
   return html;
@@ -344,6 +349,384 @@ function renderSchedulesConfig(grades){
 }
 
 // Helper: renderiza config de salones
+// ============================================================
+// CENTRO DE AYUDA — gestión admin + vista pública (FAQ)
+// ============================================================
+
+// --- Vista admin: lista de temas con editar/borrar ---
+// --- Control del asistente de 2 pasos: título → contenido → finalizar ---
+function startNewHelpTopic(){
+  window._helpWizardStep='title';
+  window._helpWizardTopicId=null;
+  render();
+}
+
+async function confirmHelpWizardTitle(){
+  const input = document.getElementById('helpWizardTitleInput');
+  const err = document.getElementById('helpWizardError');
+  const title = input.value.trim();
+  if(!title){ err.textContent='Escribe un título.'; err.style.display='block'; return; }
+
+  const created = await createHelpTopic(title, D.helpTopics.length);
+
+  if(!created){
+    err.textContent='No se pudo crear el tema. Revisa la conexión o el mensaje de error arriba a la derecha.';
+    err.style.display='block';
+    return;
+  }
+
+  window._helpWizardTopicId = created.id;
+  window._helpWizardStep = 'body';
+  render();
+}
+
+function editHelpTopicWizard(id){
+  window._helpWizardTopicId = id;
+  window._helpWizardStep = 'body';
+  render();
+}
+
+async function finalizeHelpTopic(){
+  const rawBody = document.getElementById('helpPagesContainer').innerHTML.trim();
+  // Guardamos las páginas como no-editables (el modo edición se re-activa solo al volver a abrir el tema)
+  const body = rawBody.replace(/class="help-page" contenteditable="true"/g, 'class="help-page" contenteditable="false"');
+  const topic = D.helpTopics.find(h=>h.id===window._helpWizardTopicId);
+  if(!topic){
+    alert('No se encontró el tema (probablemente no se creó bien en el Paso 1). Cancelá y empezá de nuevo.');
+    return;
+  }
+  const ok = await updateHelpTopic(topic.id, { title: topic.title, body, sort_order: topic.sort_order });
+
+  if(!ok){
+    alert('No se pudo guardar. Revisa el mensaje de error arriba a la derecha (probablemente un problema de conexión con Supabase).');
+    return;
+  }
+
+  window._helpWizardStep = null;
+  window._helpWizardTopicId = null;
+  render();
+}
+
+// --- Herramientas del editor de páginas (barra de texto) ---
+function saveHelpSelection(){
+  const sel = window.getSelection();
+  if(sel.rangeCount>0){
+    window._helpSavedRange = sel.getRangeAt(0).cloneRange();
+  }
+}
+
+function applyHelpFontSize(px){
+  if(!px || !window._helpSavedRange) return;
+  const range = window._helpSavedRange;
+  if(range.collapsed) return;
+  try{
+    const span=document.createElement('span');
+    span.style.fontSize=px;
+    range.surroundContents(span);
+  }catch(err){
+    console.warn('No se pudo aplicar el tamaño a esa selección (cruza varios elementos).');
+  }
+}
+
+function applyHelpPageColor(color){
+  const page = window._helpActivePage || document.querySelector('#helpPagesContainer .help-page');
+  if(page) page.style.background = color;
+}
+
+function applyHelpTextColor(color){
+  if(!window._helpSavedRange) return;
+  const range = window._helpSavedRange;
+  if(range.collapsed) return;
+  try{
+    const span=document.createElement('span');
+    span.style.color=color;
+    range.surroundContents(span);
+  }catch(err){
+    console.warn('No se pudo aplicar el color a esa selección (cruza varios elementos).');
+  }
+}
+
+// --- Páginas del editor (como hojas de Word) ---
+function addHelpPage(){
+  const container=document.getElementById('helpPagesContainer');
+  const div=document.createElement('div');
+  div.className='help-page';
+  div.contentEditable='true';
+  div.style.cssText='position:relative;width:700px;max-width:100%;min-height:990px;margin:0 auto 20px;background:#fff;color:#111;border:1px solid var(--border);border-radius:4px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,.25)';
+  div.addEventListener('focus', ()=>{ window._helpActivePage = div; });
+  div.addEventListener('mouseup', saveHelpSelection);
+  div.addEventListener('keyup', saveHelpSelection);
+  container.appendChild(div);
+  window._helpActivePage = div;
+  div.focus();
+  div.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// --- Insertar imagen flotante: se puede mover y agrandar/achicar libremente ---
+async function insertHelpFloatingImage(input){
+  const file = input.files[0];
+  if(!file) return;
+  const activePage = window._helpActivePage || document.querySelector('#helpPagesContainer .help-page');
+  if(!activePage){ alert('Agrega una página primero.'); return; }
+
+  const url = await uploadHelpImage(file, document.getElementById('helpTopicId').value || Date.now());
+  if(!url){ alert('No se pudo subir la imagen.'); input.value=''; return; }
+
+  const box=document.createElement('div');
+  box.className='help-img-box';
+  box.setAttribute('contenteditable','false');
+  box.setAttribute('onmousedown','startHelpImgDrag(event,this)');
+  box.style.cssText='position:absolute;left:24px;top:24px;width:220px;height:160px;resize:both;overflow:hidden;cursor:move;border-radius:6px;border:1px solid #ccc';
+  box.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">`;
+  activePage.appendChild(box);
+  input.value='';
+}
+
+// Arrastrar una imagen flotante a cualquier parte de la página (sin salirse de ella)
+function startHelpImgDrag(e, el){
+  const rect = el.getBoundingClientRect();
+  const isResizeZone = (e.clientX > rect.right-18) && (e.clientY > rect.bottom-18);
+  if(isResizeZone) return; // esa esquina la usa el navegador para cambiar el tamaño
+
+  e.preventDefault();
+  const page = el.closest('.help-page');
+  const startX=e.clientX, startY=e.clientY;
+  const startLeft=el.offsetLeft, startTop=el.offsetTop;
+
+  function onMove(ev){
+    let nl = startLeft + (ev.clientX-startX);
+    let nt = startTop + (ev.clientY-startY);
+    nl = Math.max(0, Math.min(nl, page.clientWidth-el.offsetWidth));
+    nt = Math.max(0, Math.min(nt, page.clientHeight-el.offsetHeight));
+    el.style.left = nl+'px';
+    el.style.top = nt+'px';
+  }
+  function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+async function cancelHelpWizard(){
+  // Si ya se había creado el tema (paso 2) y se cancela, lo borramos para no dejar temas vacíos
+  if(window._helpWizardStep==='body' && window._helpWizardTopicId){
+    const topic = D.helpTopics.find(h=>h.id===window._helpWizardTopicId);
+    if(topic && !topic.body){
+      await deleteHelpTopic(topic.id);
+    }
+  }
+  window._helpWizardStep = null;
+  window._helpWizardTopicId = null;
+  render();
+}
+
+function renderHelpConfig(){
+  const step = window._helpWizardStep;
+
+  // ---- PASO 1: solo el título ----
+  if(step==='title'){
+    return `
+    <div class="card" style="background:var(--surface);padding:24px;max-width:520px;margin:0 auto">
+      <h2 class="font-bold text-lg mb-4"><i data-lucide="help-circle" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px"></i>Nuevo Tema — Paso 1 de 2</h2>
+      <label class="auth-label">Título</label>
+      <input id="helpWizardTitleInput" class="inp mb-4" placeholder="Ej: ¿Cómo subo una evidencia?" autofocus>
+      <p id="helpWizardError" style="color:#ef4444;font-size:12px;margin-bottom:10px;display:none"></p>
+      <div class="flex gap-2">
+        <button class="pill pill-ghost flex-1" onclick="cancelHelpWizard()">Cancelar</button>
+        <button class="pill pill-primary flex-1" onclick="confirmHelpWizardTitle()"><i data-lucide="arrow-right" style="width:14px;height:14px"></i> Crear</button>
+      </div>
+    </div>`;
+  }
+
+  // ---- PASO 2: armar el contenido, por páginas tipo Word ----
+  if(step==='body'){
+    const topic = D.helpTopics.find(h=>h.id===window._helpWizardTopicId);
+    let pagesHtml;
+    if(topic?.body && topic.body.includes('help-page')){
+      pagesHtml = topic.body.replace(/class="help-page" contenteditable="false"/g, 'class="help-page" contenteditable="true"');
+    } else {
+      pagesHtml = `<div class="help-page" contenteditable="true" onfocus="window._helpActivePage=this" onmouseup="saveHelpSelection()" onkeyup="saveHelpSelection()" style="position:relative;width:700px;max-width:100%;min-height:990px;margin:0 auto 20px;background:#fff;color:#111;border:1px solid var(--border);border-radius:4px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,.25)">${topic?.body||''}</div>`;
+    }
+    return `
+    <div>
+      <h2 class="font-bold text-lg mb-1"><i data-lucide="help-circle" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px"></i>${topic?.title||''} — Paso 2 de 2</h2>
+      <p style="color:var(--textm);font-size:12px;margin-bottom:14px">Escribe el contenido e inserta imágenes donde quieras. Cuando termines, tocá Finalizar.</p>
+
+      <div class="flex gap-2 mb-3 flex-wrap items-center" style="padding:8px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+        <button type="button" class="pill pill-ghost" style="padding:6px 10px" onclick="document.execCommand('justifyLeft')" title="Alinear izquierda"><i data-lucide="align-left" style="width:13px;height:13px"></i></button>
+        <button type="button" class="pill pill-ghost" style="padding:6px 10px" onclick="document.execCommand('justifyCenter')" title="Centrar"><i data-lucide="align-center" style="width:13px;height:13px"></i></button>
+        <select onchange="applyHelpFontSize(this.value)" class="inp" style="width:auto;padding:6px 8px;font-size:12px">
+          <option value="">Tamaño letra</option>
+          <option value="12px">12</option>
+          <option value="14px">14</option>
+          <option value="16px">16</option>
+          <option value="20px">20</option>
+          <option value="26px">26</option>
+          <option value="34px">34</option>
+        </select>
+        <span style="width:1px;height:20px;background:var(--border)"></span>
+        <label style="font-size:11px;color:var(--textm);display:flex;align-items:center;gap:4px">Hoja <input type="color" value="#ffffff" onchange="applyHelpPageColor(this.value)" style="width:26px;height:26px;padding:0;border:none;background:none;cursor:pointer"></label>
+        <label style="font-size:11px;color:var(--textm);display:flex;align-items:center;gap:4px">Letra <input type="color" value="#111111" onchange="applyHelpTextColor(this.value)" style="width:26px;height:26px;padding:0;border:none;background:none;cursor:pointer"></label>
+        <span style="width:1px;height:20px;background:var(--border)"></span>
+        <button type="button" class="pill pill-ghost" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('helpInlineImgInput').click()"><i data-lucide="image-plus" style="width:13px;height:13px"></i> Insertar imagen</button>
+        <input id="helpInlineImgInput" type="file" accept="image/*" style="display:none" onchange="insertHelpFloatingImage(this)">
+      </div>
+
+      <div id="helpPagesContainer" style="display:flex;flex-direction:column;max-height:65vh;overflow-y:auto;padding:14px;background:rgba(0,0,0,.15);border-radius:10px">
+        ${pagesHtml}
+      </div>
+      <button type="button" class="pill pill-ghost mt-2" onclick="addHelpPage()"><i data-lucide="plus" style="width:13px;height:13px"></i> Agregar página</button>
+
+      <input id="helpTopicId" type="hidden" value="${topic?.id||''}">
+      <div class="flex gap-2 mt-4">
+        <button class="pill pill-ghost" onclick="cancelHelpWizard()">Cancelar</button>
+        <button class="pill pill-primary" onclick="finalizeHelpTopic()"><i data-lucide="check" style="width:14px;height:14px"></i> Finalizar</button>
+      </div>
+    </div>`;
+  }
+
+  // ---- LISTA NORMAL ----
+  return `
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-base"><i data-lucide="help-circle" style="width:15px;height:15px;display:inline-block;vertical-align:middle"></i> Centro de Ayuda</h2>
+      <button class="pill pill-primary" onclick="startNewHelpTopic()"><i data-lucide="plus" style="width:14px;height:14px"></i> Nuevo Tema</button>
+    </div>
+    <p style="color:var(--textm);font-size:12px;margin-bottom:14px">Estos temas son los que ven docentes y estudiantes al tocar "¿Ayuda?".</p>
+    ${D.helpTopics.length>0?`
+    <div class="flex flex-col gap-2">
+      ${D.helpTopics.map(h=>{
+        const plainText = (h.body||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+        const firstImg = (h.body||'').match(/<img[^>]+src="([^"]+)"/);
+        return `
+        <div class="card" style="background:var(--surface);padding:12px 14px;display:flex;align-items:center;gap:10px">
+          ${firstImg?`<img src="${firstImg[1]}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">`:`<div style="width:44px;height:44px;border-radius:8px;background:rgba(6,182,212,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="file-text" style="width:18px;height:18px;color:var(--accent)"></i></div>`}
+          <div style="flex:1;min-width:0">
+            <p style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.title||'Sin título'}</p>
+            <p style="font-size:11px;color:var(--textm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${plainText.substring(0,80)}</p>
+          </div>
+          <div class="flex gap-1" style="flex-shrink:0">
+            <button class="pill pill-ghost" style="padding:6px 9px;font-size:11px" onclick="editHelpTopicWizard(${h.id})"><i data-lucide="pencil" style="width:12px;height:12px"></i></button>
+            <button class="pill pill-danger" style="padding:6px 9px;font-size:11px" onclick="if(confirm('¿Eliminar este tema de ayuda?'))deleteHelpTopic(${h.id}).then(()=>render())"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">Todavía no hay temas de ayuda cargados</p>`}
+  </div>`;
+}
+
+// --- Modal admin: crear/editar un tema (título + texto + imagen) ---
+function openHelpTopicForm(id){
+  const topic = id ? D.helpTopics.find(h=>h.id===id) : null;
+  const html=`<div class="modal-bg" onclick="if(event.target===this)closeHelpFormModal()">
+    <div class="modal fade-in" style="max-width:900px;width:94vw;max-height:94vh;overflow-y:auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg">${topic?'Editar Tema':'Nuevo Tema de Ayuda'}</h2>
+        <button onclick="closeHelpFormModal()" class="pill pill-ghost" style="padding:5px"><i data-lucide="x" style="width:17px;height:17px"></i></button>
+      </div>
+      <label class="auth-label">Título</label>
+      <input id="helpTitleInput" class="inp mb-3" value="${topic?.title||''}" placeholder="Ej: ¿Cómo subo una evidencia?">
+      <label class="auth-label">Texto (podés insertar imágenes donde quieras)</label>
+      <div class="flex gap-2 mb-2">
+        <button type="button" class="pill pill-ghost" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('helpInlineImgInput').click()"><i data-lucide="image-plus" style="width:13px;height:13px"></i> Insertar imagen</button>
+        <input id="helpInlineImgInput" type="file" accept="image/*" style="display:none" onchange="insertHelpInlineImage(this)">
+      </div>
+      <div id="helpBodyEditor" contenteditable="true" class="inp mb-3" style="min-height:480px;max-height:70vh;overflow-y:auto;line-height:1.6;font-size:14px">${topic?.body||''}</div>
+      <input id="helpTopicId" type="hidden" value="${topic?.id||''}">
+      <p id="helpFormError" style="color:#ef4444;font-size:12px;margin-bottom:8px;display:none"></p>
+      <button class="pill pill-primary w-full" onclick="submitHelpTopic()"><i data-lucide="check" style="width:15px;height:15px"></i> Guardar</button>
+    </div>
+  </div>`;
+  let wrap=document.getElementById('helpFormModalWrap');
+  if(!wrap){ wrap=document.createElement('div'); wrap.id='helpFormModalWrap'; document.body.appendChild(wrap); }
+  wrap.innerHTML=html;
+  if(typeof lucide!=='undefined') lucide.createIcons();
+}
+
+function closeHelpFormModal(){
+  const wrap=document.getElementById('helpFormModalWrap');
+  if(wrap) wrap.innerHTML='';
+}
+
+async function submitHelpTopic(){
+  const title = document.getElementById('helpTitleInput').value.trim();
+  const body = document.getElementById('helpBodyEditor').innerHTML.trim();
+  const idVal = document.getElementById('helpTopicId').value;
+  const errEl = document.getElementById('helpFormError');
+
+  if(!title){ errEl.textContent='El título es obligatorio.'; errEl.style.display='block'; return; }
+
+  const topic = { title, body };
+  topic.id = idVal ? Number(idVal) : nid();
+  topic.sort_order = idVal ? (D.helpTopics.find(h=>h.id===Number(idVal))?.sort_order ?? D.helpTopics.length) : D.helpTopics.length;
+
+  await saveHelpTopic(topic);
+  closeHelpFormModal();
+  render();
+}
+
+// --- Vista pública tipo FAQ: la ven todos (incluso sin loguearse, desde el login) ---
+async function openHelpModal(){
+  let wrap=document.getElementById('helpModalWrap');
+  if(!wrap){ wrap=document.createElement('div'); wrap.id='helpModalWrap'; document.body.appendChild(wrap); }
+
+  wrap.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeHelpModal()">
+    <div class="modal fade-in" style="max-width:480px;text-align:center;padding:40px">
+      <p style="color:var(--textm)">Cargando ayuda...</p>
+    </div>
+  </div>`;
+
+  await loadHelpTopics();
+  window._openHelpTopicId = null;
+  renderHelpModalContent();
+}
+
+function renderHelpModalContent(){
+  const wrap=document.getElementById('helpModalWrap');
+  if(!wrap) return;
+  const openId = window._openHelpTopicId;
+  const openTopic = openId ? D.helpTopics.find(h=>h.id===openId) : null;
+
+  let inner;
+  if(openTopic){
+    inner=`
+      <button onclick="window._openHelpTopicId=null;renderHelpModalContent()" class="pill pill-ghost" style="padding:5px 10px;font-size:12px;margin-bottom:14px"><i data-lucide="arrow-left" style="width:13px;height:13px"></i> Volver</button>
+      <h2 class="font-bold text-lg mb-3">${openTopic.title}</h2>
+      <div style="color:var(--textm);font-size:14px;line-height:1.6">${openTopic.body||''}</div>
+    `;
+  } else {
+    inner=`
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg"><i data-lucide="help-circle" style="width:18px;height:18px;color:var(--accent);display:inline-block;vertical-align:middle;margin-right:6px"></i>Centro de Ayuda</h2>
+        <button onclick="closeHelpModal()" class="pill pill-ghost" style="padding:5px"><i data-lucide="x" style="width:17px;height:17px"></i></button>
+      </div>
+      ${D.helpTopics.length>0?`
+        <div class="flex flex-col gap-2">
+          ${D.helpTopics.map(h=>`
+            <button onclick="window._openHelpTopicId=${h.id};renderHelpModalContent()" style="text-align:left;width:100%;display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15);cursor:pointer">
+              <i data-lucide="chevron-right" style="width:15px;height:15px;color:var(--accent);flex-shrink:0"></i>
+              <span style="font-size:13px;font-weight:600;color:var(--text)">${h.title}</span>
+            </button>`).join('')}
+        </div>`:`<p style="color:var(--textm);text-align:center;padding:20px">Todavía no hay temas de ayuda cargados.</p>`}
+    `;
+  }
+
+  wrap.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeHelpModal()">
+    <div class="modal fade-in" style="max-width:640px;width:92vw;max-height:85vh;overflow-y:auto">
+      ${openTopic?`<div class="flex justify-end mb-2"><button onclick="closeHelpModal()" class="pill pill-ghost" style="padding:5px"><i data-lucide="x" style="width:17px;height:17px"></i></button></div>`:''}
+      ${inner}
+    </div>
+  </div>`;
+  if(typeof lucide!=='undefined') lucide.createIcons();
+}
+
+function closeHelpModal(){
+  const wrap=document.getElementById('helpModalWrap');
+  if(wrap) wrap.innerHTML='';
+}
+
 function renderRoomsConfig(){
   return `
   <div>
@@ -2284,6 +2667,7 @@ function rSettings(){
   
   return `<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div><h1 class="text-2xl font-bold">Perfil y Configuración</h1><p style="color:var(--textm)" class="text-sm">Gestión de cuenta y preferencias</p></div>
+    <button class="pill pill-ghost" onclick="openHelpModal()"><i data-lucide="help-circle" style="width:14px;height:14px"></i> ¿Ayuda?</button>
   </div>
   
   <!-- Pestañas -->

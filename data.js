@@ -44,6 +44,11 @@ async function loadNoClassDays() {
   if (!error && data) D.noClassDays = data;
 }
 
+async function loadHelpTopics() {
+  const { data, error } = await sb.from('help_topics').select('*').order('sort_order', { ascending: true });
+  if (!error && data) D.helpTopics = data;
+}
+
 async function loadAllData() {
   await Promise.all([
     loadStudents(),
@@ -54,6 +59,7 @@ async function loadAllData() {
     loadRooms(),
     loadUsers(),
     loadNoClassDays(),
+    loadHelpTopics(),
     loadSchedules(),
     loadSchoolConfig(),
     loadTodayCheckins()
@@ -86,6 +92,57 @@ async function sbSave(table, payload, loadFn) {
 
 async function saveStudent(student)   { await sbSave('students',    student,  loadStudents);    }
 async function saveTeacher(teacher)   { await sbSave('teachers',    teacher,  loadTeachers);    }
+async function saveHelpTopic(topic)   { await sbSave('help_topics', topic,    loadHelpTopics);  }
+
+// Crea el tema y devuelve la fila real (con el id que generó Supabase),
+// para no depender del id local que arma nid() — evita que se pierda la referencia.
+async function createHelpTopic(title, sort_order) {
+  const { data, error } = await sb.from('help_topics')
+    .insert({ title, body: '', sort_order }).select().single();
+  if (error) {
+    console.error('❌ createHelpTopic error:', error.message);
+    showDbError('tema de ayuda', error.message);
+    return null;
+  }
+  await loadHelpTopics();
+  return data;
+}
+
+// Actualiza un tema por su id real (sin heurísticas de "nuevo vs existente")
+async function updateHelpTopic(id, fields) {
+  const { error } = await sb.from('help_topics').update(fields).eq('id', id);
+  if (error) {
+    console.error('❌ updateHelpTopic error:', error.message);
+    showDbError('tema de ayuda', error.message);
+    return false;
+  }
+  await loadHelpTopics();
+  return true;
+}
+
+async function deleteHelpTopic(id) {
+  const { error } = await sb.from('help_topics').delete().eq('id', Number(id));
+  if (error) { console.error('❌ deleteHelpTopic error:', error.message); showDbError('tema de ayuda', error.message); return; }
+  await loadHelpTopics();
+}
+
+// Sube la imagen de un tema de ayuda y devuelve la URL pública
+async function uploadHelpImage(file, topicId) {
+  const ext = file.name.split('.').pop();
+  const fileName = `ayuda_${topicId || Date.now()}_${Date.now()}.${ext}`;
+
+  const { error } = await sb.storage
+    .from('ayuda')
+    .upload(fileName, file, { upsert: true });
+
+  if (error) {
+    console.error('Error subiendo imagen de ayuda:', error.message);
+    return null;
+  }
+
+  const { data } = sb.storage.from('ayuda').getPublicUrl(fileName);
+  return data.publicUrl;
+}
 
 // Crea el estudiante en Supabase Auth (para que pueda iniciar sesión) y en la tabla students.
 async function createStudentWithAuth(student, password) {
@@ -194,6 +251,7 @@ const D={
   users:[],
   usersProfiles:[],
   noClassDays:[],
+  helpTopics:[],
   schedules:[],
   schoolConfig:{lat:null,lng:null,radius_meters:150},
   checkins:[],
