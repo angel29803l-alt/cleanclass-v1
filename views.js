@@ -477,14 +477,32 @@ async function insertHelpFloatingImage(input){
   box.setAttribute('contenteditable','false');
   box.setAttribute('onmousedown','startHelpImgDrag(event,this)');
   box.style.cssText='position:absolute;left:24px;top:24px;width:220px;height:160px;resize:both;overflow:hidden;cursor:move;border-radius:6px;border:1px solid #ccc';
-  box.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none"><button type="button" class="help-img-remove-btn" onclick="this.parentElement.remove()" title="Quitar imagen" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:none;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:5">✕</button>`;
+  box.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">`;
   activePage.appendChild(box);
   input.value='';
+}
+
+// Marca visualmente qué imagen está seleccionada, para poder borrarla desde la barra
+function selectHelpImage(el){
+  document.querySelectorAll('.help-img-box').forEach(b=>b.style.outline='none');
+  el.style.outline='3px solid #06b6d4';
+  window._helpSelectedImgBox = el;
+}
+
+function removeSelectedHelpImage(){
+  if(!window._helpSelectedImgBox){
+    alert('Primero tocá la imagen que querés quitar.');
+    return;
+  }
+  window._helpSelectedImgBox.remove();
+  window._helpSelectedImgBox = null;
 }
 
 // Arrastrar una imagen flotante a cualquier parte de la página (sin salirse de ella)
 function startHelpImgDrag(e, el){
   if(e.target.closest && e.target.closest('.help-img-remove-btn')) return; // dejar que el botón ✕ funcione
+
+  selectHelpImage(el);
 
   const rect = el.getBoundingClientRect();
   const isResizeZone = (e.clientX > rect.right-18) && (e.clientY > rect.bottom-18);
@@ -573,6 +591,7 @@ function renderHelpConfig(){
         <label style="font-size:11px;color:var(--textm);display:flex;align-items:center;gap:4px">Letra <input type="color" value="#111111" onchange="applyHelpTextColor(this.value)" style="width:26px;height:26px;padding:0;border:none;background:none;cursor:pointer"></label>
         <span style="width:1px;height:20px;background:var(--border)"></span>
         <button type="button" class="pill pill-ghost" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('helpInlineImgInput').click()"><i data-lucide="image-plus" style="width:13px;height:13px"></i> Insertar imagen</button>
+        <button type="button" class="pill pill-danger" style="font-size:12px;padding:6px 12px" onclick="removeSelectedHelpImage()"><i data-lucide="image-off" style="width:13px;height:13px"></i> Quitar imagen</button>
         <input id="helpInlineImgInput" type="file" accept="image/*" style="display:none" onchange="insertHelpFloatingImage(this)">
       </div>
 
