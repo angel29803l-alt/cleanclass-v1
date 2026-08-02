@@ -3939,6 +3939,8 @@ async function initFounders(){
 }
 
 function initAnnouncementsRealtime(){
+  if (window._announcementsRealtimeInitialized) return;
+  window._announcementsRealtimeInitialized = true;
   sb.channel('announcements-channel')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'announcements'},
       payload=>{
