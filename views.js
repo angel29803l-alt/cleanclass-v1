@@ -477,13 +477,15 @@ async function insertHelpFloatingImage(input){
   box.setAttribute('contenteditable','false');
   box.setAttribute('onmousedown','startHelpImgDrag(event,this)');
   box.style.cssText='position:absolute;left:24px;top:24px;width:220px;height:160px;resize:both;overflow:hidden;cursor:move;border-radius:6px;border:1px solid #ccc';
-  box.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">`;
+  box.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none"><button type="button" class="help-img-remove-btn" onclick="this.parentElement.remove()" title="Quitar imagen" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:none;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:5">✕</button>`;
   activePage.appendChild(box);
   input.value='';
 }
 
 // Arrastrar una imagen flotante a cualquier parte de la página (sin salirse de ella)
 function startHelpImgDrag(e, el){
+  if(e.target.closest && e.target.closest('.help-img-remove-btn')) return; // dejar que el botón ✕ funcione
+
   const rect = el.getBoundingClientRect();
   const isResizeZone = (e.clientX > rect.right-18) && (e.clientY > rect.bottom-18);
   if(isResizeZone) return; // esa esquina la usa el navegador para cambiar el tamaño
