@@ -8,8 +8,8 @@ self.addEventListener('push', e => {
   const data = e.data?.json() || {};
   e.waitUntil(self.registration.showNotification(data.title || '🧹 ¡Hora del Aseo!', {
     body: data.body || 'Es hora de limpiar el salón',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/assets/icons/icon-192.png',
+    badge: '/assets/icons/icon-192.png',
     vibrate: [200, 100, 200, 100, 200],
     tag: 'aseo',
     data
@@ -35,8 +35,8 @@ self.addEventListener('message', e => {
     setTimeout(() => {
       self.registration.showNotification(title || '🧹 ¡Hora del Aseo!', {
         body: body || 'Es hora de limpiar el salón',
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
+        icon: '/assets/icons/icon-192.png',
+        badge: '/assets/icons/icon-192.png',
         vibrate: [200, 100, 200, 100, 200],
         tag: 'aseo'
       });

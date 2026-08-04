@@ -12,12 +12,14 @@
   <!-- Chart.js para los gráficos analíticos (PUNTO 2) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#06b6d4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="CleanClass">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 </head>
 <body class="h-full" style="background:var(--bg);color:var(--text)">
 
@@ -176,12 +178,23 @@
 
   <!-- MÓDULOS JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="data.js"></script>
-  <script src="i18n.js"></script>
-  <script src="nav.js"></script>
-  <script src="views.js"></script>
-  <script src="modals.js"></script>
-  <script src="app.js"></script>
+  <script src="js/config/constants.js"></script>
+  <script src="js/services/storage.service.js"></script>
+  <script src="js/services/api.service.js"></script>
+  <script src="js/config/i18n.js"></script>
+  <script src="js/modules/nav.js"></script>
+  <script src="js/modules/dashboard.js"></script>
+  <script src="js/modules/admin-config.js"></script>
+  <script src="js/modules/users-evidence.js"></script>
+  <script src="js/modules/groups-validation.js"></script>
+  <script src="js/modules/settings-reports.js"></script>
+  <script src="js/modules/schedule-misc.js"></script>
+  <script src="js/modules/founders-announcements.js"></script>
+  <script src="js/modules/modals.js"></script>
+  <script src="js/utils/dom.js"></script>
+  <script src="js/utils/validators.js"></script>
+  <script src="js/modules/auth.js"></script>
+  <script src="js/app.js"></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -199,7 +212,7 @@
     window._fcmMessaging = firebase.messaging();
 
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('/service-worker.js')
+      navigator.serviceWorker.register('/sw.js')
         .then(reg => { window._swReg = reg; console.log('✅ SW registrado'); })
         .catch(err => console.error('SW error:', err));
       navigator.serviceWorker.register('/firebase-messaging-sw.js')

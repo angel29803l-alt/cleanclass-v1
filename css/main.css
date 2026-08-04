@@ -1,0 +1,64 @@
+/* ============================================================
+   main.css — CleanClass
+   Variables globales, reset, layout base y pantallas de auth
+   ============================================================ */
+
+:root{
+  --bg:#0f172a;
+  --surface:#1e293b;
+  --text:#f1f5f9;
+  --textm:#cbd5e1;
+  --accent:#06b6d4;
+  --border:#334155;
+}
+
+*{font-family:'DM Sans',sans-serif;margin:0;box-sizing:border-box}
+body{box-sizing:border-box}
+
+.fade-in{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.sidebar-btn{transition:all .2s;border-radius:10px}
+.sidebar-btn:hover{background:rgba(6,182,212,.15)!important;color:var(--accent)!important;transform:translateX(3px)}
+.sidebar-btn.active{background:var(--accent)!important;color:#1e293b!important;box-shadow:0 4px 12px rgba(6,182,212,.35)}
+
+#sidebar.sidebar-hidden{width:0;overflow:hidden;transition:width .3s ease;position:fixed;z-index:50;height:100%;left:0;top:0}
+#sidebar{transition:width .25s ease,padding .25s ease,overflow .25s ease}
+
+/* ============================================================
+   AUTH SCREENS
+   ============================================================ */
+.auth-screen{display:none;width:420px;max-width:100%;padding:40px;background:#1e293b;border-radius:20px;box-shadow:0 0 40px rgba(0,0,0,.5)}
+.auth-screen.auth-active{display:block}
+.auth-title{text-align:center;margin:0 0 5px;font-size:24px;font-weight:700;color:var(--text)}
+.auth-welcome{text-align:center;font-weight:700;margin:0 0 4px;color:var(--text)}
+.auth-sub{text-align:center;color:var(--textm);margin:0 0 20px;font-size:14px}
+.auth-label{font-size:12px;color:var(--textm);display:block;margin-bottom:4px}
+.auth-input{width:100%;padding:12px;margin:0 0 14px;border:1px solid rgba(6,182,212,.15);border-radius:8px;background:#273449;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
+.auth-input:focus{border-color:var(--accent)}
+.auth-btn-primary{width:55%;padding:11px;border:none;border-radius:50px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin:24px auto 0;display:block;transition:all .2s;box-shadow:0 4px 16px rgba(6,182,212,.3)}
+.auth-btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.auth-btn-primary.auth-success{background:#22c55e!important;box-shadow:0 4px 16px rgba(34,197,94,.3)}
+.auth-btn-secondary{padding:9px 20px;border:none;border-radius:50px;background:#273449;color:var(--text);font-size:13px;cursor:pointer;transition:background .15s}
+.auth-btn-secondary:hover{background:#334155}
+.auth-mini-btn{padding:6px 14px;border:none;border-radius:50px;background:#273449;color:var(--text);font-size:12px;cursor:pointer;transition:background .15s}
+.auth-mini-btn:hover{background:#334155}
+.auth-link{color:#06b6d4;font-size:12px}
+.auth-row{display:flex;justify-content:space-between;align-items:center}
+.auth-olvido{margin-bottom:8px}
+.auth-bottom{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:16px}
+.auth-count{font-size:12px;color:var(--accent)}
+.auth-pw-box{position:relative;width:100%}
+.auth-pw-box .auth-input{padding-right:38px;margin-bottom:14px}
+.auth-eye{position:absolute;right:11px;top:calc(50% - 7px);width:18px;height:18px;cursor:pointer;opacity:.7}
+.auth-eye::before{content:"";position:absolute;width:18px;height:10px;border:2px solid #9CA3AF;border-radius:50%;top:4px;left:0}
+.auth-eye::after{content:"";position:absolute;width:4px;height:4px;background:#9CA3AF;border-radius:50%;top:7px;left:6px}
+.auth-eye.active::before{border-color:var(--accent)}
+.auth-eye.active::after{background:var(--accent)}
+
+/* ============================================================
+   SELECTS
+   ============================================================ */
+select.inp{appearance:none;-webkit-appearance:none;background-color:#0b1d35;background-image:linear-gradient(180deg,#0f2545 0%,#091829 100%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat,no-repeat;background-position:0 0,right 12px center;background-size:100% 100%,18px 18px;border:1.5px solid #1d4ed8;color:#bfdbfe;padding:10px 40px 10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;width:100%;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:border-color .2s,box-shadow .2s}
+select.inp:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.3),0 4px 16px rgba(59,130,246,.15)}
+select.inp option{background:#0f172a;color:#e2e8f0}

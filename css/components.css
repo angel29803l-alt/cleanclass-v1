@@ -1,16 +1,8 @@
 /* ============================================================
-   styles.css — CleanClass v3.0
+   components.css — CleanClass
+   Botones, tarjetas, modales, tablas, badges, pills, gráficos,
+   ranking, fundadores, panel de comandos
    ============================================================ */
-
-*{font-family:'DM Sans',sans-serif;margin:0;box-sizing:border-box}
-body{box-sizing:border-box}
-
-.fade-in{animation:fadeIn .3s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-.sidebar-btn{transition:all .2s;border-radius:10px}
-.sidebar-btn:hover{background:rgba(6,182,212,.15)!important;color:var(--accent)!important;transform:translateX(3px)}
-.sidebar-btn.active{background:var(--accent)!important;color:#1e293b!important;box-shadow:0 4px 12px rgba(6,182,212,.35)}
 
 .card{border-radius:12px;padding:20px;transition:box-shadow .2s;border:1px solid rgba(6,182,212,.15)}
 .card:hover{box-shadow:0 8px 32px rgba(6,182,212,.2)}
@@ -40,56 +32,6 @@ body{box-sizing:border-box}
 .tab{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--textm);transition:all .2s;position:relative}
 .tab.active{background:var(--accent);color:#fff}
 .tab:hover:not(.active){color:var(--accent);background:rgba(6,182,212,.08)}
-
-#sidebar.sidebar-hidden{width:0;overflow:hidden;transition:width .3s ease;position:fixed;z-index:50;height:100%;left:0;top:0}
-#sidebar{transition:width .25s ease,padding .25s ease,overflow .25s ease}
-
-:root{
-  --bg:#0f172a;
-  --surface:#1e293b;
-  --text:#f1f5f9;
-  --textm:#cbd5e1;
-  --accent:#06b6d4;
-  --border:#334155;
-}
-
-/* ============================================================
-   AUTH SCREENS
-   ============================================================ */
-.auth-screen{display:none;width:420px;max-width:100%;padding:40px;background:#1e293b;border-radius:20px;box-shadow:0 0 40px rgba(0,0,0,.5)}
-.auth-screen.auth-active{display:block}
-.auth-title{text-align:center;margin:0 0 5px;font-size:24px;font-weight:700;color:var(--text)}
-.auth-welcome{text-align:center;font-weight:700;margin:0 0 4px;color:var(--text)}
-.auth-sub{text-align:center;color:var(--textm);margin:0 0 20px;font-size:14px}
-.auth-label{font-size:12px;color:var(--textm);display:block;margin-bottom:4px}
-.auth-input{width:100%;padding:12px;margin:0 0 14px;border:1px solid rgba(6,182,212,.15);border-radius:8px;background:#273449;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
-.auth-input:focus{border-color:var(--accent)}
-.auth-btn-primary{width:55%;padding:11px;border:none;border-radius:50px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin:24px auto 0;display:block;transition:all .2s;box-shadow:0 4px 16px rgba(6,182,212,.3)}
-.auth-btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px)}
-.auth-btn-primary.auth-success{background:#22c55e!important;box-shadow:0 4px 16px rgba(34,197,94,.3)}
-.auth-btn-secondary{padding:9px 20px;border:none;border-radius:50px;background:#273449;color:var(--text);font-size:13px;cursor:pointer;transition:background .15s}
-.auth-btn-secondary:hover{background:#334155}
-.auth-mini-btn{padding:6px 14px;border:none;border-radius:50px;background:#273449;color:var(--text);font-size:12px;cursor:pointer;transition:background .15s}
-.auth-mini-btn:hover{background:#334155}
-.auth-link{color:#06b6d4;font-size:12px}
-.auth-row{display:flex;justify-content:space-between;align-items:center}
-.auth-olvido{margin-bottom:8px}
-.auth-bottom{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:16px}
-.auth-count{font-size:12px;color:var(--accent)}
-.auth-pw-box{position:relative;width:100%}
-.auth-pw-box .auth-input{padding-right:38px;margin-bottom:14px}
-.auth-eye{position:absolute;right:11px;top:calc(50% - 7px);width:18px;height:18px;cursor:pointer;opacity:.7}
-.auth-eye::before{content:"";position:absolute;width:18px;height:10px;border:2px solid #9CA3AF;border-radius:50%;top:4px;left:0}
-.auth-eye::after{content:"";position:absolute;width:4px;height:4px;background:#9CA3AF;border-radius:50%;top:7px;left:6px}
-.auth-eye.active::before{border-color:var(--accent)}
-.auth-eye.active::after{background:var(--accent)}
-
-/* ============================================================
-   SELECTS
-   ============================================================ */
-select.inp{appearance:none;-webkit-appearance:none;background-color:#0b1d35;background-image:linear-gradient(180deg,#0f2545 0%,#091829 100%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat,no-repeat;background-position:0 0,right 12px center;background-size:100% 100%,18px 18px;border:1.5px solid #1d4ed8;color:#bfdbfe;padding:10px 40px 10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;width:100%;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:border-color .2s,box-shadow .2s}
-select.inp:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.3),0 4px 16px rgba(59,130,246,.15)}
-select.inp option{background:#0f172a;color:#e2e8f0}
 
 /* ============================================================
    ANIMACIONES
@@ -200,8 +142,6 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 .notif-pill-btn:hover{background:rgba(6,182,212,.22)!important;transform:translateY(-2px);animation:none;box-shadow:0 6px 20px rgba(6,182,212,.4)}
 .notif-pill-btn:active{transform:scale(.97)}
 
-
-
 /* ============================================================
    PANEL CTRL+K — anuncios del admin
    ============================================================ */
@@ -255,7 +195,6 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
   box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 1px rgba(6,182,212,.2);
   animation: announceIn .35s cubic-bezier(.175,.885,.32,1.275) both;
 }
-
 
 /* ============================================================
    FUNDADORES — marcos + nombres animados
@@ -331,79 +270,3 @@ tr.non-compliant-row:hover td{background:rgba(239,68,68,.08)!important}
 .founder-bd-ice     {border-color:#a8e6f0;color:#a8e6f0;background:#a8e6f018}
 
 .founder-row{background:rgba(255,255,255,.02)!important}
-
-/* ============================================================
-   RESPONSIVE MÓVIL — pantallas < 640px
-   ============================================================ */
-@media (max-width: 640px) {
-
-  /* Contenido principal */
-  #main { padding: 12px !important; }
-
-  /* Tipografía */
-  h1.text-2xl, .text-2xl { font-size: 18px !important; }
-  h1.text-3xl, .text-3xl { font-size: 20px !important; }
-
-  /* KPI cards — 2 columnas en móvil */
-  .kpi-card { padding: 12px !important; }
-  .kpi-card .text-3xl { font-size: 22px !important; }
-
-  /* Cards genéricas */
-  .card { padding: 14px !important; }
-
-  /* Tablas — scroll horizontal */
-  .tbl { font-size: 12px !important; }
-  .tbl th, .tbl td { padding: 8px 8px !important; }
-
-  /* Botones pill más compactos */
-  .pill { padding: 7px 14px !important; font-size: 12px !important; }
-
-  /* Badges */
-  .badge { font-size: 10px !important; padding: 2px 7px !important; }
-
-  /* Modal más ancho en móvil */
-  .modal { width: 96% !important; max-width: 96% !important; padding: 16px !important; }
-
-  /* Sidebar overlay */
-  #sidebar { width: 240px !important; }
-
-  /* Charts */
-  .chart-wrap { padding: 12px !important; }
-  .chart-wrap canvas { max-height: 200px !important; }
-
-  /* Grid de 2 columnas → 1 columna */
-  .grid.grid-cols-2 { grid-template-columns: 1fr 1fr !important; }
-
-  /* Ocultar columnas no esenciales en tablas */
-  .tbl .col-hide-mobile { display: none !important; }
-
-  /* Formularios */
-  .inp { font-size: 16px !important; } /* evita zoom en iOS */
-
-  /* Header mobile */
-  #mobileHeader { padding: 10px 14px !important; }
-
-  /* Rank cards */
-  .rank-card { padding: 10px 12px !important; gap: 10px !important; }
-
-  /* Notif button */
-  .notif-pill-btn { font-size: 12px !important; padding: 9px !important; }
-
-  /* Tabs */
-  .tab { padding: 5px 10px !important; font-size: 12px !important; }
-
-  /* Flex wrap en headers de sección */
-  .flex.items-start.justify-between { flex-wrap: wrap !important; gap: 8px !important; }
-
-  /* Calendario */
-  .grid.grid-cols-7 span { font-size: 11px !important; padding: 4px 2px !important; }
-}
-
-/* ============================================================
-   RESPONSIVE TABLETS — pantallas 641px - 1024px
-   ============================================================ */
-@media (min-width: 641px) and (max-width: 1024px) {
-  #main { padding: 16px !important; }
-  .kpi-card { padding: 14px !important; }
-  .chart-wrap canvas { max-height: 250px !important; }
-}

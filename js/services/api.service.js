@@ -1,12 +1,3 @@
-// ============================================================
-// data.js — CleanClass v2.0
-// Base de datos centralizada + roles + grados
-// ============================================================
-
-// ---- CONEXIÓN SUPABASE ----
-const SUPABASE_URL = 'https://etschfdwbvxsbdmcsrai.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_kjviJYqxK-Xt0sld4Qf8pg_jtnaiNCN';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---- FUNCIONES PARA LEER DATOS DESDE SUPABASE ----
 async function loadStudents() {
@@ -127,24 +118,6 @@ async function deleteHelpTopic(id) {
 }
 
 // Sube la imagen de un tema de ayuda y devuelve la URL pública
-async function uploadHelpImage(file, topicId) {
-  const ext = file.name.split('.').pop();
-  const fileName = `ayuda_${topicId || Date.now()}_${Date.now()}.${ext}`;
-
-  const { error } = await sb.storage
-    .from('ayuda')
-    .upload(fileName, file, { upsert: true });
-
-  if (error) {
-    console.error('Error subiendo imagen de ayuda:', error.message);
-    return null;
-  }
-
-  const { data } = sb.storage.from('ayuda').getPublicUrl(fileName);
-  return data.publicUrl;
-}
-
-// Crea el estudiante en Supabase Auth (para que pueda iniciar sesión) y en la tabla students.
 async function createStudentWithAuth(student, password) {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/create-student`, {
@@ -335,34 +308,6 @@ D.nid = 400;
 // ---- FUNCIONES PARA IMÁGENES (STORAGE) ----
 
 // Sube una foto y devuelve la URL pública
-async function uploadEvidenceImage(file, evidenceId) {
-  const ext = file.name.split('.').pop();
-  const fileName = `evidencia_${evidenceId}_${Date.now()}.${ext}`;
-
-  const { error } = await sb.storage
-    .from('evidencias')
-    .upload(fileName, file, { upsert: true });
-
-  if (error) {
-    console.error('Error subiendo imagen:', error.message);
-    return null;
-  }
-
-  const { data } = sb.storage
-    .from('evidencias')
-    .getPublicUrl(fileName);
-
-  return data.publicUrl;
-}
-
-// Elimina una foto del storage
-async function deleteEvidenceImage(imageUrl) {
-  if (!imageUrl) return;
-  const fileName = imageUrl.split('/evidencias/').pop();
-  await sb.storage.from('evidencias').remove([fileName]);
-}
-
-// Sube foto y guarda la evidencia en la base de datos
 async function saveEvidenceWithImage(evidenceData, imageFile) {
   let imageUrl = evidenceData.image || null;
 

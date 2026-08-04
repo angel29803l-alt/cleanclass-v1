@@ -1,0 +1,80 @@
+/* ============================================================
+   responsive.css — CleanClass
+   Media queries para móvil y tablet
+   ============================================================ */
+
+/* ============================================================
+   RESPONSIVE MÓVIL — pantallas < 640px
+   ============================================================ */
+@media (max-width: 640px) {
+
+  /* Contenido principal */
+  #main { padding: 12px !important; }
+
+  /* Tipografía */
+  h1.text-2xl, .text-2xl { font-size: 18px !important; }
+  h1.text-3xl, .text-3xl { font-size: 20px !important; }
+
+  /* KPI cards — 2 columnas en móvil */
+  .kpi-card { padding: 12px !important; }
+  .kpi-card .text-3xl { font-size: 22px !important; }
+
+  /* Cards genéricas */
+  .card { padding: 14px !important; }
+
+  /* Tablas — scroll horizontal */
+  .tbl { font-size: 12px !important; }
+  .tbl th, .tbl td { padding: 8px 8px !important; }
+
+  /* Botones pill más compactos */
+  .pill { padding: 7px 14px !important; font-size: 12px !important; }
+
+  /* Badges */
+  .badge { font-size: 10px !important; padding: 2px 7px !important; }
+
+  /* Modal más ancho en móvil */
+  .modal { width: 96% !important; max-width: 96% !important; padding: 16px !important; }
+
+  /* Sidebar overlay */
+  #sidebar { width: 240px !important; }
+
+  /* Charts */
+  .chart-wrap { padding: 12px !important; }
+  .chart-wrap canvas { max-height: 200px !important; }
+
+  /* Grid de 2 columnas → 1 columna */
+  .grid.grid-cols-2 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Ocultar columnas no esenciales en tablas */
+  .tbl .col-hide-mobile { display: none !important; }
+
+  /* Formularios */
+  .inp { font-size: 16px !important; } /* evita zoom en iOS */
+
+  /* Header mobile */
+  #mobileHeader { padding: 10px 14px !important; }
+
+  /* Rank cards */
+  .rank-card { padding: 10px 12px !important; gap: 10px !important; }
+
+  /* Notif button */
+  .notif-pill-btn { font-size: 12px !important; padding: 9px !important; }
+
+  /* Tabs */
+  .tab { padding: 5px 10px !important; font-size: 12px !important; }
+
+  /* Flex wrap en headers de sección */
+  .flex.items-start.justify-between { flex-wrap: wrap !important; gap: 8px !important; }
+
+  /* Calendario */
+  .grid.grid-cols-7 span { font-size: 11px !important; padding: 4px 2px !important; }
+}
+
+/* ============================================================
+   RESPONSIVE TABLETS — pantallas 641px - 1024px
+   ============================================================ */
+@media (min-width: 641px) and (max-width: 1024px) {
+  #main { padding: 16px !important; }
+  .kpi-card { padding: 14px !important; }
+  .chart-wrap canvas { max-height: 250px !important; }
+}
