@@ -1,0 +1,8 @@
+﻿android/
+node_modules/
+CleanClass.apk
+capacitor.config.json
+package.json
+package-lock.json
+ic_launcher_*.png
+icon-*.png
