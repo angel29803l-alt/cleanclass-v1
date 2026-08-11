@@ -1,6 +1,19 @@
 
 // ---- AUTH ----
 function showScreen(name){
+  // Si se sale de la pantalla de recuperación, cortar el contador y desbloquear
+  if(name !== 'verificacion' && typeof authTimer !== 'undefined' && authTimer){
+    clearInterval(authTimer);
+    authTimer = null;
+    authTime = 0;
+    const btn = document.querySelector('#screen-verificacion .auth-btn-primary');
+    const emailInput = document.getElementById('recoveryEmail');
+    const countEl = document.getElementById('authCount');
+    if(btn){ btn.disabled = false; btn.textContent = 'Enviar enlace'; btn.style.opacity = ''; btn.style.cursor = ''; }
+    if(emailInput) emailInput.disabled = false;
+    if(countEl) countEl.textContent = '';
+  }
+
   document.querySelectorAll('.auth-screen').forEach(s=>s.classList.remove('auth-active'));
   const target=document.getElementById('screen-'+name);
   if(target) target.classList.add('auth-active');
@@ -11,34 +24,52 @@ async function startAuthTimer(){
   // Obtener el correo ingresado
   const emailInput = document.getElementById('recoveryEmail');
   const emailVal = (emailInput?.value||'').trim();
+  const countEl = document.getElementById('authCount');
+  const btn = document.querySelector('#screen-verificacion .auth-btn-primary');
+
+  // Si el contador sigue corriendo, no permitir reenviar
+  if(authTimer && authTime > 0) return;
 
   if(!emailVal){
-    const countEl = document.getElementById('authCount');
     if(countEl) countEl.textContent = '⚠ Ingresa tu correo primero';
     return;
   }
+
+  // Bloquear mientras se envía
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando...'; btn.style.opacity = '.6'; btn.style.cursor = 'not-allowed'; }
+  if(emailInput) emailInput.disabled = true;
 
   // Enviar correo de recuperación con Supabase
   const { error } = await sb.auth.resetPasswordForEmail(emailVal, {
     redirectTo: window.location.origin + '/?recovery=true'
   });
 
-  const countEl = document.getElementById('authCount');
   if(error){
     if(countEl) countEl.textContent = '⚠ Error: ' + error.message;
+    // Desbloquear para que pueda reintentar
+    if(btn){ btn.disabled = false; btn.textContent = 'Enviar enlace'; btn.style.opacity = ''; btn.style.cursor = ''; }
+    if(emailInput) emailInput.disabled = false;
     return;
   }
 
   if(countEl) countEl.textContent = '✅ Correo enviado. Revisa tu bandeja.';
 
-  // Iniciar contador para reenvío
+  // Iniciar contador para reenvío — botón y campo siguen bloqueados
   clearInterval(authTimer); authTime=60;
+  if(btn) btn.textContent = 'Espera ' + authTime + ' s';
+
   authTimer=setInterval(()=>{
     authTime--;
     if(countEl) countEl.textContent='Reenviar en: '+authTime+' s';
+    if(btn) btn.textContent = 'Espera ' + authTime + ' s';
+
     if(authTime<=0){
       clearInterval(authTimer);
-      if(countEl) countEl.textContent='Reenviar código';
+      authTimer = null;
+      if(countEl) countEl.textContent='Ya puedes reenviar el enlace';
+      // Desbloquear
+      if(btn){ btn.disabled = false; btn.textContent = 'Reenviar enlace'; btn.style.opacity = ''; btn.style.cursor = ''; }
+      if(emailInput) emailInput.disabled = false;
     }
   },1000);
 }
