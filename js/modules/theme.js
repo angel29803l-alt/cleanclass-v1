@@ -88,7 +88,37 @@ function applyTheme(prefs){
       root.style.removeProperty(v);
     });
   }
+
+  // Guardar en el dispositivo para aplicarlo al instante la próxima vez
+  // (incluye la pantalla de login y la carga inicial, antes de saber quién es el usuario)
+  try{
+    localStorage.setItem('cc_prefs', JSON.stringify(p));
+  }catch(e){}
 }
+
+// Aplica el tema guardado en el dispositivo lo antes posible,
+// para que el login y la pantalla de carga ya salgan con el tema correcto.
+(function applyStoredThemeEarly(){
+  try{
+    const saved = localStorage.getItem('cc_prefs');
+    if(saved){
+      const p = JSON.parse(saved);
+      userPrefs = { ...userPrefs, ...p };
+      const root = document.documentElement;
+      if(p.theme && p.theme !== 'dark') root.setAttribute('data-theme', p.theme);
+      const scale = FONT_SIZES[p.font_size]?.scale || 1;
+      root.style.setProperty('--font-scale', scale);
+      if(p.theme === 'custom'){
+        root.style.setProperty('--text', p.custom_text_color);
+        root.style.setProperty('--accent', p.custom_accent_color);
+        root.style.setProperty('--bg', p.custom_bg_color);
+        root.style.setProperty('--surface', lightenColor(p.custom_bg_color, 12));
+        root.style.setProperty('--textm', fadeColor(p.custom_text_color, 0.75));
+        root.style.setProperty('--border', lightenColor(p.custom_bg_color, 25));
+      }
+    }
+  }catch(e){}
+})();
 
 // Aclara un color hex en un porcentaje dado
 function lightenColor(hex, percent){
@@ -125,6 +155,7 @@ async function loadUserPrefs(){
         custom_accent_color: data.custom_accent_color || '#06b6d4',
         custom_bg_color: data.custom_bg_color || '#0f172a'
       };
+      console.log('✅ Apariencia cargada:', userPrefs.theme, '| tamaño:', userPrefs.font_size);
     }
   }catch(err){
     console.warn('No se pudieron cargar las preferencias de apariencia:', err.message);
@@ -132,10 +163,31 @@ async function loadUserPrefs(){
   applyTheme();
 }
 
+// Vigila la sesión y carga las preferencias apenas exista, sin importar
+// si el usuario acaba de iniciar sesión o si recargó la página con sesión activa.
+(function watchSessionForPrefs(){
+  let cargado = false;
+  const revisar = setInterval(() => {
+    if(cargado) return clearInterval(revisar);
+    if(typeof currentSession !== 'undefined' && currentSession?.id){
+      cargado = true;
+      clearInterval(revisar);
+      loadUserPrefs();
+    }
+  }, 400);
+  // Dejar de intentar después de 30 segundos
+  setTimeout(() => clearInterval(revisar), 30000);
+})();
+
 // ---- Guarda las preferencias en Supabase ----
 async function saveUserPrefs(){
   applyTheme();
-  if(!currentSession?.id) return false;
+
+  if(!currentSession?.id){
+    console.warn('⚠ Tema aplicado solo en este dispositivo: no hay sesión activa todavía.');
+    return false;
+  }
+
   const { error } = await sb.from('users').update({
     theme: userPrefs.theme,
     font_size: userPrefs.font_size,
@@ -145,9 +197,13 @@ async function saveUserPrefs(){
   }).eq('id', currentSession.id);
 
   if(error){
-    console.error('❌ saveUserPrefs error:', error.message);
+    console.error('❌ No se pudo guardar el tema en Supabase:', error.message);
+    console.error('   → Revisa que la tabla "users" tenga las columnas: theme, font_size, custom_text_color, custom_accent_color, custom_bg_color');
+    if(typeof showDbError === 'function') showDbError('tema', error.message);
     return false;
   }
+
+  console.log('✅ Tema guardado:', userPrefs.theme, '| tamaño:', userPrefs.font_size);
   return true;
 }
 
