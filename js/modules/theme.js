@@ -151,19 +151,31 @@ async function saveUserPrefs(){
   return true;
 }
 
+// Redibuja solo la pestaña de apariencia, sin recargar toda la pantalla
+// (así no vuelve a "Mi Perfil" cada vez que se cambia algo).
+function refreshAppearanceTab(){
+  const cont = document.getElementById('settingsAppearance');
+  if(cont){
+    cont.innerHTML = renderAppearanceTab();
+    if(typeof lucide !== 'undefined') lucide.createIcons();
+  } else if(typeof render === 'function'){
+    render();
+  }
+}
+
 // ---- Acciones desde la interfaz ----
 function selectTheme(themeKey){
   userPrefs.theme = themeKey;
   applyTheme();
   saveUserPrefs();
-  render();
+  refreshAppearanceTab();
 }
 
 function selectFontSize(sizeKey){
   userPrefs.font_size = sizeKey;
   applyTheme();
   saveUserPrefs();
-  render();
+  refreshAppearanceTab();
 }
 
 function updateCustomColor(which, value){
@@ -172,6 +184,12 @@ function updateCustomColor(which, value){
   if(which === 'bg')     userPrefs.custom_bg_color = value;
   userPrefs.theme = 'custom';
   applyTheme();
+  // Marcar visualmente la tarjeta "Personalizado" sin redibujar
+  // (redibujar cerraría el selector de color que el usuario tiene abierto)
+  document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+  const cards = document.querySelectorAll('.theme-card');
+  if(cards.length) cards[cards.length - 1].classList.add('selected');
+
   clearTimeout(window._prefsSaveTimer);
   window._prefsSaveTimer = setTimeout(saveUserPrefs, 600);
 }
@@ -186,7 +204,7 @@ function resetAppearance(){
   };
   applyTheme();
   saveUserPrefs();
-  render();
+  refreshAppearanceTab();
 }
 
 // ---- Pantalla de apariencia (pestaña dentro de Perfil y Configuración) ----
@@ -281,25 +299,47 @@ function renderAppearanceTab(){
   </div>`;
 }
 
-// ---- Compatibilidad con el sistema de pestañas existente ----
-// Reemplaza switchSettingsTab para que también reconozca la pestaña 'appearance'.
-window.addEventListener('load', () => {
-  window.switchSettingsTab = function(tab){
-    document.querySelectorAll('.settings-tab').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+// ---- Sistema de pestañas de Perfil y Configuración ----
+// Reemplaza switchSettingsTab para que reconozca la pestaña 'appearance'
+// y recuerde cuál estaba abierta si la pantalla se vuelve a dibujar.
+window._activeSettingsTab = 'profile';
 
-    const map = {
-      profile:    'settingsProfile',
-      appearance: 'settingsAppearance',
-      about:      'settingsAbout'
-    };
-    const target = document.getElementById(map[tab]);
-    if(target) target.style.display = 'block';
+window.switchSettingsTab = function(tab){
+  window._activeSettingsTab = tab;
 
-    const idx = Object.keys(map).indexOf(tab);
-    const botones = document.querySelectorAll('.tab');
-    if(idx >= 0 && botones[idx]) botones[idx].classList.add('active');
+  document.querySelectorAll('.settings-tab').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
 
-    if(typeof lucide !== 'undefined') lucide.createIcons();
+  const map = {
+    profile:    'settingsProfile',
+    appearance: 'settingsAppearance',
+    about:      'settingsAbout'
   };
+  const target = document.getElementById(map[tab]);
+  if(target) target.style.display = 'block';
+
+  const idx = Object.keys(map).indexOf(tab);
+  const botones = document.querySelectorAll('.tab');
+  if(idx >= 0 && botones[idx]) botones[idx].classList.add('active');
+
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+};
+
+// Tras cualquier render de la pantalla de configuración, restaurar la pestaña abierta.
+// Se observa el contenedor principal en vez de tocar render(), para no interferir
+// con el resto de la aplicación.
+window.addEventListener('load', () => {
+  const main = document.getElementById('main');
+  if(!main) return;
+  new MutationObserver(() => {
+    if(document.getElementById('settingsAppearance') && window._activeSettingsTab !== 'profile'){
+      const target = document.getElementById(
+        window._activeSettingsTab === 'appearance' ? 'settingsAppearance' : 'settingsAbout'
+      );
+      // Solo actuar si la pestaña guardada no es la que se está mostrando
+      if(target && target.style.display === 'none'){
+        switchSettingsTab(window._activeSettingsTab);
+      }
+    }
+  }).observe(main, { childList: true });
 });
