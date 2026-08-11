@@ -3,6 +3,7 @@
    Variables globales, reset, layout base y pantallas de auth
    ============================================================ */
 
+/* ---- TEMA OSCURO (por defecto) ---- */
 :root{
   --bg:#0f172a;
   --surface:#1e293b;
@@ -10,10 +11,126 @@
   --textm:#cbd5e1;
   --accent:#06b6d4;
   --border:#334155;
+
+  /* Colores semánticos — cambian según el tema para accesibilidad */
+  --ok:#22c55e;
+  --err:#ef4444;
+  --warn:#f59e0b;
+  --info:#3b82f6;
+
+  /* Escala de texto (modo personalizado) */
+  --font-scale:1;
 }
 
+/* ---- TEMA CLARO ---- */
+[data-theme="light"]{
+  --bg:#f1f5f9;
+  --surface:#ffffff;
+  --text:#0f172a;
+  --textm:#475569;
+  --accent:#0891b2;
+  --border:#cbd5e1;
+
+  --ok:#15803d;
+  --err:#b91c1c;
+  --warn:#b45309;
+  --info:#1d4ed8;
+}
+
+/* ---- ALTO CONTRASTE ---- */
+[data-theme="contrast"]{
+  --bg:#000000;
+  --surface:#000000;
+  --text:#ffffff;
+  --textm:#ffffff;
+  --accent:#ffff00;
+  --border:#ffffff;
+
+  --ok:#00ff00;
+  --err:#ff5555;
+  --warn:#ffaa00;
+  --info:#00ffff;
+}
+[data-theme="contrast"] .card,
+[data-theme="contrast"] .modal,
+[data-theme="contrast"] .kpi-card,
+[data-theme="contrast"] .rank-card,
+[data-theme="contrast"] .chart-wrap,
+[data-theme="contrast"] .auth-screen{
+  border:2px solid #ffffff!important;
+  box-shadow:none!important;
+  background:#000000!important;
+}
+[data-theme="contrast"] .pill,
+[data-theme="contrast"] .btn{
+  border:2px solid #ffffff!important;
+  box-shadow:none!important;
+}
+[data-theme="contrast"] .pill-primary,
+[data-theme="contrast"] .btn-p,
+[data-theme="contrast"] .auth-btn-primary{
+  background:#ffff00!important;
+  color:#000000!important;
+}
+[data-theme="contrast"] .sidebar-btn.active{
+  background:#ffff00!important;
+  color:#000000!important;
+}
+[data-theme="contrast"] *{
+  text-shadow:none!important;
+}
+
+/* ---- DALTONISMO: protanopía / deuteranopía (rojo-verde) ----
+   Se reemplaza el par rojo/verde por azul/naranja, que sí distinguen. */
+[data-theme="deuter"]{
+  --bg:#0f172a;
+  --surface:#1e293b;
+  --text:#f1f5f9;
+  --textm:#cbd5e1;
+  --accent:#0072b2;
+  --border:#334155;
+
+  --ok:#56b4e9;    /* azul claro en lugar de verde */
+  --err:#e69f00;   /* naranja en lugar de rojo */
+  --warn:#f0e442;  /* amarillo */
+  --info:#0072b2;  /* azul */
+}
+
+/* ---- DALTONISMO: tritanopía (azul-amarillo) ---- */
+[data-theme="trita"]{
+  --bg:#0f172a;
+  --surface:#1e293b;
+  --text:#f1f5f9;
+  --textm:#cbd5e1;
+  --accent:#d55e00;
+  --border:#334155;
+
+  --ok:#009e73;    /* verde azulado */
+  --err:#cc79a7;   /* rosa */
+  --warn:#d55e00;  /* naranja fuerte */
+  --info:#000000;
+}
+
+/* En modos daltónicos, reforzar con formas además de color */
+[data-theme="deuter"] .badge-bien::before,
+[data-theme="trita"] .badge-bien::before{content:"✔ "}
+[data-theme="deuter"] .badge-mal::before,
+[data-theme="trita"] .badge-mal::before{content:"✘ "}
+[data-theme="deuter"] .badge-pendiente::before,
+[data-theme="trita"] .badge-pendiente::before{content:"◷ "}
+
+/* Los badges y estados usan las variables semánticas en todos los temas */
+.badge-bien,.badge-pill-green{background:color-mix(in srgb,var(--ok) 15%,transparent)!important;color:var(--ok)!important;border-color:color-mix(in srgb,var(--ok) 35%,transparent)!important}
+.badge-mal,.badge-pill-red{background:color-mix(in srgb,var(--err) 15%,transparent)!important;color:var(--err)!important;border-color:color-mix(in srgb,var(--err) 35%,transparent)!important}
+.badge-pendiente,.badge-pill-amber{background:color-mix(in srgb,var(--warn) 15%,transparent)!important;color:var(--warn)!important;border-color:color-mix(in srgb,var(--warn) 35%,transparent)!important}
+.badge-pill-blue{background:color-mix(in srgb,var(--info) 15%,transparent)!important;color:var(--info)!important}
+
+/* ---- ESCALA DE TEXTO (modo personalizado) ---- */
+html{font-size:calc(16px * var(--font-scale))}
+body,.card,.modal,.inp,.pill,.btn,.tbl,.tab{font-size:calc(1rem * .875)}
+
 *{font-family:'DM Sans',sans-serif;margin:0;box-sizing:border-box}
-body{box-sizing:border-box}
+body{box-sizing:border-box;background:var(--bg);color:var(--text);transition:background .25s ease,color .25s ease}
 
 .fade-in{animation:fadeIn .3s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -28,22 +145,22 @@ body{box-sizing:border-box}
 /* ============================================================
    AUTH SCREENS
    ============================================================ */
-.auth-screen{display:none;width:420px;max-width:100%;padding:40px;background:#1e293b;border-radius:20px;box-shadow:0 0 40px rgba(0,0,0,.5)}
+.auth-screen{display:none;width:420px;max-width:100%;padding:40px;background:var(--surface);border-radius:20px;box-shadow:0 0 40px rgba(0,0,0,.5)}
 .auth-screen.auth-active{display:block}
 .auth-title{text-align:center;margin:0 0 5px;font-size:24px;font-weight:700;color:var(--text)}
 .auth-welcome{text-align:center;font-weight:700;margin:0 0 4px;color:var(--text)}
 .auth-sub{text-align:center;color:var(--textm);margin:0 0 20px;font-size:14px}
 .auth-label{font-size:12px;color:var(--textm);display:block;margin-bottom:4px}
-.auth-input{width:100%;padding:12px;margin:0 0 14px;border:1px solid rgba(6,182,212,.15);border-radius:8px;background:#273449;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
+.auth-input{width:100%;padding:12px;margin:0 0 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
 .auth-input:focus{border-color:var(--accent)}
 .auth-btn-primary{width:55%;padding:11px;border:none;border-radius:50px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin:24px auto 0;display:block;transition:all .2s;box-shadow:0 4px 16px rgba(6,182,212,.3)}
 .auth-btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px)}
-.auth-btn-primary.auth-success{background:#22c55e!important;box-shadow:0 4px 16px rgba(34,197,94,.3)}
-.auth-btn-secondary{padding:9px 20px;border:none;border-radius:50px;background:#273449;color:var(--text);font-size:13px;cursor:pointer;transition:background .15s}
-.auth-btn-secondary:hover{background:#334155}
-.auth-mini-btn{padding:6px 14px;border:none;border-radius:50px;background:#273449;color:var(--text);font-size:12px;cursor:pointer;transition:background .15s}
-.auth-mini-btn:hover{background:#334155}
-.auth-link{color:#06b6d4;font-size:12px}
+.auth-btn-primary.auth-success{background:var(--ok)!important;box-shadow:0 4px 16px rgba(34,197,94,.3)}
+.auth-btn-secondary{padding:9px 20px;border:none;border-radius:50px;background:var(--bg);color:var(--text);font-size:13px;cursor:pointer;transition:background .15s;border:1px solid var(--border)}
+.auth-btn-secondary:hover{background:var(--border)}
+.auth-mini-btn{padding:6px 14px;border:none;border-radius:50px;background:var(--bg);color:var(--text);font-size:12px;cursor:pointer;transition:background .15s;border:1px solid var(--border)}
+.auth-mini-btn:hover{background:var(--border)}
+.auth-link{color:var(--accent);font-size:12px}
 .auth-row{display:flex;justify-content:space-between;align-items:center}
 .auth-olvido{margin-bottom:8px}
 .auth-bottom{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:16px}
@@ -59,6 +176,15 @@ body{box-sizing:border-box}
 /* ============================================================
    SELECTS
    ============================================================ */
-select.inp{appearance:none;-webkit-appearance:none;background-color:#0b1d35;background-image:linear-gradient(180deg,#0f2545 0%,#091829 100%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat,no-repeat;background-position:0 0,right 12px center;background-size:100% 100%,18px 18px;border:1.5px solid #1d4ed8;color:#bfdbfe;padding:10px 40px 10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;width:100%;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:border-color .2s,box-shadow .2s}
-select.inp:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.3),0 4px 16px rgba(59,130,246,.15)}
-select.inp option{background:#0f172a;color:#e2e8f0}
+select.inp{appearance:none;-webkit-appearance:none;background-color:var(--bg);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:18px 18px;border:1.5px solid var(--border);color:var(--text);padding:10px 40px 10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;width:100%;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:border-color .2s,box-shadow .2s}
+select.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}
+select.inp option{background:var(--surface);color:var(--text)}
+
+/* ============================================================
+   SELECTOR DE TEMA (tarjetas de la pantalla de apariencia)
+   ============================================================ */
+.theme-card{border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .2s;background:var(--surface);text-align:left;width:100%}
+.theme-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.theme-card.selected{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.theme-swatch{display:flex;gap:4px;margin-bottom:10px}
+.theme-swatch span{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.2)}

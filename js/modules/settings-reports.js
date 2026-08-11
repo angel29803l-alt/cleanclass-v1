@@ -31,6 +31,9 @@ function rSettings(){
     <button class="tab active" onclick="switchSettingsTab('profile')">
       <i data-lucide="user" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Mi Perfil
     </button>
+    <button class="tab" onclick="switchSettingsTab('appearance')">
+      <i data-lucide="palette" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Apariencia
+    </button>
     <button class="tab" onclick="switchSettingsTab('about')">
       <i data-lucide="info" style="width:14px;height:14px;display:inline;margin-right:6px"></i>Acerca de
     </button>
@@ -140,6 +143,10 @@ function rSettings(){
     </div>
   </div>
   
+  <div id="settingsAppearance" class="settings-tab" style="display:none">
+    ${renderAppearanceTab()}
+  </div>
+
   <div id="settingsAbout" class="settings-tab" style="display:none">
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Información del sistema -->
