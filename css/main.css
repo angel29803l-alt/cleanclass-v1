@@ -36,6 +36,32 @@
   --warn:#b45309;
   --info:#1d4ed8;
 }
+[data-theme="light"] .auth-screen{
+  box-shadow:0 4px 24px rgba(0,0,0,.12);
+}
+[data-theme="light"] .auth-input,
+[data-theme="light"] .inp,
+[data-theme="light"] select.inp,
+[data-theme="light"] textarea.inp{
+  background:#ffffff!important;
+  color:#0f172a!important;
+  border:1px solid #cbd5e1!important;
+  box-shadow:none!important;
+}
+[data-theme="light"] .auth-btn-secondary,
+[data-theme="light"] .auth-mini-btn{
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+}
+[data-theme="light"] .sidebar-btn.active{
+  color:#ffffff!important;
+}
+[data-theme="light"] .card,
+[data-theme="light"] .kpi-card,
+[data-theme="light"] .rank-card,
+[data-theme="light"] .chart-wrap{
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
 
 /* ---- ALTO CONTRASTE ---- */
 [data-theme="contrast"]{
@@ -78,6 +104,82 @@
 }
 [data-theme="contrast"] *{
   text-shadow:none!important;
+}
+
+/* Alto contraste — pantallas de login, registro, recuperación y nueva contraseña */
+[data-theme="contrast"] body,
+[data-theme="contrast"] #authWrap,
+[data-theme="contrast"] #app,
+[data-theme="contrast"] #main{
+  background:#000000!important;
+  color:#ffffff!important;
+}
+[data-theme="contrast"] .auth-title,
+[data-theme="contrast"] .auth-welcome,
+[data-theme="contrast"] .auth-sub,
+[data-theme="contrast"] .auth-label{
+  color:#ffffff!important;
+}
+[data-theme="contrast"] .auth-input{
+  background:#000000!important;
+  color:#ffffff!important;
+  border:2px solid #ffffff!important;
+}
+[data-theme="contrast"] .auth-input::placeholder{
+  color:#cccccc!important;
+}
+[data-theme="contrast"] .auth-input:focus{
+  border-color:#ffff00!important;
+  outline:2px solid #ffff00!important;
+}
+[data-theme="contrast"] .auth-btn-primary{
+  border:2px solid #ffffff!important;
+}
+[data-theme="contrast"] .auth-btn-secondary,
+[data-theme="contrast"] .auth-mini-btn{
+  background:#000000!important;
+  color:#ffffff!important;
+  border:2px solid #ffffff!important;
+}
+[data-theme="contrast"] .auth-btn-secondary:hover,
+[data-theme="contrast"] .auth-mini-btn:hover{
+  background:#ffff00!important;
+  color:#000000!important;
+}
+[data-theme="contrast"] .auth-link,
+[data-theme="contrast"] .auth-count{
+  color:#ffff00!important;
+}
+[data-theme="contrast"] .auth-eye::before{border-color:#ffffff!important}
+[data-theme="contrast"] .auth-eye::after{background:#ffffff!important}
+[data-theme="contrast"] .auth-eye.active::before{border-color:#ffff00!important}
+[data-theme="contrast"] .auth-eye.active::after{background:#ffff00!important}
+[data-theme="contrast"] .auth-btn-primary.auth-success{
+  background:#00ff00!important;
+  color:#000000!important;
+}
+/* Sidebar, header móvil y campos generales */
+[data-theme="contrast"] #sidebar,
+[data-theme="contrast"] #mobileHeader{
+  background:#000000!important;
+  border-color:#ffffff!important;
+}
+[data-theme="contrast"] .inp,
+[data-theme="contrast"] select.inp,
+[data-theme="contrast"] textarea.inp{
+  background:#000000!important;
+  color:#ffffff!important;
+  border:2px solid #ffffff!important;
+}
+[data-theme="contrast"] .inp::placeholder{color:#cccccc!important}
+[data-theme="contrast"] .tab.active{background:#ffff00!important;color:#000000!important}
+[data-theme="contrast"] .theme-card{background:#000000!important;border-color:#ffffff!important}
+[data-theme="contrast"] .theme-card.selected{border-color:#ffff00!important;box-shadow:0 0 0 3px #ffff00!important}
+[data-theme="contrast"] .notif-pill-btn{
+  background:#000000!important;
+  color:#ffff00!important;
+  border:2px solid #ffff00!important;
+  animation:none!important;
 }
 
 /* ---- DALTONISMO: protanopía / deuteranopía (rojo-verde) ----
@@ -130,6 +232,7 @@ html{font-size:calc(16px * var(--font-scale))}
 body,.card,.modal,.inp,.pill,.btn,.tbl,.tab{font-size:calc(1rem * .875)}
 
 *{font-family:'DM Sans',sans-serif;margin:0;box-sizing:border-box}
+html{background:var(--bg)}
 body{box-sizing:border-box;background:var(--bg);color:var(--text);transition:background .25s ease,color .25s ease}
 
 .fade-in{animation:fadeIn .3s ease}
