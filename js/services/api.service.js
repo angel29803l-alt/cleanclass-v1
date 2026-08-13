@@ -53,7 +53,8 @@ async function loadAllData() {
     loadHelpTopics(),
     loadSchedules(),
     loadSchoolConfig(),
-    loadTodayCheckins()
+    loadTodayCheckins(),
+    loadExcuses()
   ]);
   console.log('✅ Datos cargados desde Supabase');
 }
@@ -228,6 +229,7 @@ const D={
   schedules:[],
   schoolConfig:{lat:null,lng:null,radius_meters:150},
   checkins:[],
+  excuses:[],
 
   // Estudiantes — se cargan desde Supabase
   students:[],
@@ -427,10 +429,98 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
 }
 
 // ---- CHECK-IN DE ASISTENCIA AL ASEO ----
+// Se cargan todos los registros (no solo los de hoy) porque el módulo de
+// justificaciones necesita ver los días anteriores para detectar las faltas.
 async function loadTodayCheckins() {
-  const today = new Date().toISOString().split('T')[0];
-  const { data, error } = await sb.from('attendance_checkins').select('*').eq('date', today);
+  const { data, error } = await sb.from('attendance_checkins').select('*');
   if (!error && data) D.checkins = data;
+}
+
+// ---- JUSTIFICACIÓN DE INASISTENCIAS ----
+async function loadExcuses() {
+  const { data, error } = await sb.from('excuses').select('*').order('created_at', { ascending: false });
+  if (!error && data) D.excuses = data;
+}
+
+// Sube la foto de la excusa al Storage y devuelve su URL pública
+async function uploadExcuseImage(file, student, date) {
+  const ext = file.name.split('.').pop();
+  const limpio = (student || 'alumno').replace(/[^a-zA-Z0-9]/g, '_');
+  const fileName = `excusa_${limpio}_${date}_${Date.now()}.${ext}`;
+
+  const { error } = await sb.storage.from('excusas').upload(fileName, file, { upsert: true });
+  if (error) {
+    console.error('❌ Error subiendo la excusa:', error.message);
+    showDbError('excusa', 'No se pudo subir la foto. Verifica el bucket "excusas" en Supabase Storage.');
+    return null;
+  }
+
+  const { data } = sb.storage.from('excusas').getPublicUrl(fileName);
+  return data.publicUrl;
+}
+
+// Guarda (o reemplaza) la justificación de un estudiante para un día concreto
+async function saveExcuse(excuseData, imageFile) {
+  const imageUrl = await uploadExcuseImage(imageFile, excuseData.student, excuseData.date);
+  if (!imageUrl) return false;
+
+  // Si ya había una excusa para ese día y grupo, se reemplaza
+  const { data: existente } = await sb.from('excuses')
+    .select('id')
+    .eq('student', excuseData.student)
+    .eq('group_name', excuseData.group_name)
+    .eq('date', excuseData.date)
+    .maybeSingle();
+
+  const payload = {
+    ...excuseData,
+    image_url: imageUrl,
+    status: 'Pendiente',
+    reviewed_by: null,
+    reviewed_at: null
+  };
+
+  let error;
+  if (existente) {
+    ({ error } = await sb.from('excuses').update(payload).eq('id', existente.id));
+  } else {
+    ({ error } = await sb.from('excuses').insert(payload));
+  }
+
+  if (error) {
+    console.error('❌ saveExcuse error:', error.message);
+    showDbError('excusa', error.message);
+    return false;
+  }
+
+  await loadExcuses();
+  return true;
+}
+
+// El docente aprueba (Excusado) o rechaza (Rechazado) la justificación
+async function updateExcuseStatus(id, status, reviewer) {
+  const { error } = await sb.from('excuses').update({
+    status,
+    reviewed_by: reviewer || null,
+    reviewed_at: status === 'Pendiente' ? null : new Date().toISOString()
+  }).eq('id', id);
+
+  if (error) {
+    console.error('❌ updateExcuseStatus error:', error.message);
+    showDbError('excusa', error.message);
+    return false;
+  }
+
+  await loadExcuses();
+  return true;
+}
+
+// Devuelve el estado de un alumno en un día: 'Excusado' si su falta fue justificada
+function getExcuseStatus(student, groupName, date) {
+  const ex = (D.excuses || []).find(x =>
+    x.student === student && x.group_name === groupName && x.date === date
+  );
+  return ex ? ex.status : null;
 }
 
 // Genera un código corto al azar (solo como comprobante interno, no se pide a nadie)

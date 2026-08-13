@@ -89,7 +89,8 @@ function rUsers(){
   <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:10px;flex-wrap:wrap">
     ${[
       {key:'students',label:`Estudiantes (${filteredStudents.length})`,color:'#2563eb'},
-      {key:'teachers',label:`Docentes (${filteredTeachers.length})`,color:'#7c3aed'}
+      {key:'teachers',label:`Docentes (${filteredTeachers.length})`,color:'#7c3aed'},
+      {key:'attendance',label:`Asistencias${pendingExcusesCount()>0?' ('+pendingExcusesCount()+')':''}`,color:'#059669'}
     ].map(tab=>`
     <button onclick="usersTab='${tab.key}';render()"
       style="padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;
@@ -97,6 +98,9 @@ function rUsers(){
       ${tab.label}
     </button>`).join('')}
   </div>
+
+  <!-- TAB ASISTENCIAS -->
+  ${usersTab==='attendance'?renderAttendanceTab():''}
 
   <!-- TABLA ESTUDIANTES -->
   ${usersTab==='students'?`
@@ -225,6 +229,22 @@ function renderAttendanceList(groupName, dateStr){
           <i data-lucide="check-circle" style="width:12px;height:12px"></i> ${name}
         </div>`;
       }
+
+      // Si la falta fue justificada y aprobada, se muestra como Excusado
+      const estadoExcusa = typeof getExcuseStatus === 'function'
+        ? getExcuseStatus(name, groupName, dateStr) : null;
+
+      if(estadoExcusa === 'Excusado'){
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#0891b2;padding:2px 0">
+          <i data-lucide="file-check" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(excusado)</span>
+        </div>`;
+      }
+      if(estadoExcusa === 'Pendiente'){
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#d97706;padding:2px 0">
+          <i data-lucide="clock" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(excusa en revisión)</span>
+        </div>`;
+      }
+
       return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#ef4444;padding:2px 0">
         <i data-lucide="x-circle" style="width:12px;height:12px"></i> ${name} <span style="color:var(--textm)">(no registró)</span>
       </div>`;
