@@ -367,11 +367,6 @@ async function performLogout(){
   D._user=null;
   D._profileImage=null;
   cur='dash';
-  // Volver al tema por defecto para que no lo herede el siguiente usuario
-  if(typeof applyTheme === 'function'){
-    userPrefs = { theme:'dark', font_size:'md', custom_text_color:'#f1f5f9', custom_accent_color:'#06b6d4', custom_bg_color:'#0f172a' };
-    applyTheme();
-  }
   document.getElementById('app').style.display='none';
   document.getElementById('authWrap').style.display='flex';
   const lbw=document.getElementById('langBtnWrap');if(lbw)lbw.style.display='block';
