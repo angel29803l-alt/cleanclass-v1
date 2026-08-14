@@ -90,7 +90,8 @@ function rUsers(){
     ${[
       {key:'students',label:`Estudiantes (${filteredStudents.length})`,color:'#2563eb'},
       {key:'teachers',label:`Docentes (${filteredTeachers.length})`,color:'#7c3aed'},
-      {key:'attendance',label:`Asistencias${pendingExcusesCount()>0?' ('+pendingExcusesCount()+')':''}`,color:'#059669'}
+      {key:'attendance',label:`Asistencias${pendingExcusesCount()>0?' ('+pendingExcusesCount()+')':''}`,color:'#059669'},
+      {key:'registry',label:'Registro',color:'#0891b2'}
     ].map(tab=>`
     <button onclick="usersTab='${tab.key}';render()"
       style="padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;
@@ -101,6 +102,9 @@ function rUsers(){
 
   <!-- TAB ASISTENCIAS -->
   ${usersTab==='attendance'?renderAttendanceTab():''}
+
+  <!-- TAB REGISTRO -->
+  ${usersTab==='registry'?renderRegistryTab():''}
 
   <!-- TABLA ESTUDIANTES -->
   ${usersTab==='students'?`
