@@ -186,8 +186,6 @@ async function doLogin(){
 async function doRegistro(){
   const btn=document.getElementById('btnRegistro');
   const nameVal=(document.getElementById('regName')?.value||'').trim();
-  const birthVal=(document.getElementById('regBirth')?.value||'').trim();
-  const idNumVal=(document.getElementById('regIdNum')?.value||'').trim();
   const emailVal=(document.getElementById('regEmail')?.value||'').trim();
   const passVal=(document.getElementById('passRegistro')?.value||'').trim();
   const confirmVal=(document.getElementById('passConfirm')?.value||'').trim();
@@ -206,14 +204,20 @@ async function doRegistro(){
   if(!nameVal||!emailVal||!passVal||!confirmVal){
     showRegError('Por favor completa todos los campos');return;
   }
+  if(nameVal.length<3){
+    showRegError('El nombre debe tener al menos 3 caracteres');return;
+  }
+  if(!/^[a-zA-ZÁÉÍÓÚáéíóúÑñÜü\s'-]+$/.test(nameVal)){
+    showRegError('El nombre solo puede contener letras');return;
+  }
+  if(!isValidEmail(emailVal)){
+    showRegError('Por favor ingresa un correo electrónico válido');return;
+  }
   if(passVal.length<6){
     showRegError('La contraseña debe tener mínimo 6 caracteres');return;
   }
   if(passVal!==confirmVal){
     showRegError('Las contraseñas no coinciden');return;
-  }
-  if(!isValidEmail(emailVal)){
-    showRegError('Por favor ingresa un correo electrónico válido');return;
   }
 
   if(btn){btn.textContent='Registrando...';btn.disabled=true;}
@@ -241,8 +245,6 @@ async function doRegistro(){
       id: data.user.id,
       name: nameVal,
       email: emailVal,
-      birth_date: birthVal||null,
-      id_number: idNumVal||null,
       role: 'student',
       avatar: '👤'
     });
