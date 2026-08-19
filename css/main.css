@@ -62,6 +62,12 @@
 [data-theme="light"] .chart-wrap{
   box-shadow:0 1px 4px rgba(0,0,0,.06);
 }
+/* Bloques que usan --border como fondo (tarjeta del perfil en "Mi Cuenta") */
+[data-theme="light"] [style*="background:var(--border)"],
+[data-theme="light"] [style*="background: var(--border)"]{
+  background:#f1f5f9!important;
+  border:1px solid #cbd5e1!important;
+}
 
 /* ---- ALTO CONTRASTE ---- */
 [data-theme="contrast"]{
@@ -180,6 +186,38 @@
   color:#ffff00!important;
   border:2px solid #ffff00!important;
   animation:none!important;
+}
+
+/* Bloques que usan --border como fondo (por ejemplo, la tarjeta del perfil
+   en "Mi Cuenta"): en alto contraste quedaban blancos con letra amarilla. */
+[data-theme="contrast"] [style*="background:var(--border)"],
+[data-theme="contrast"] [style*="background: var(--border)"]{
+  background:#000000!important;
+  border:2px solid #ffffff!important;
+}
+[data-theme="contrast"] .modal *{
+  color:#ffffff!important;
+}
+[data-theme="contrast"] .modal .pill-primary,
+[data-theme="contrast"] .modal .pill-primary *{
+  color:#000000!important;
+}
+/* El avatar circular del perfil */
+[data-theme="contrast"] [style*="border-radius:50%"][style*="linear-gradient"]{
+  background:#000000!important;
+  border:2px solid #ffff00!important;
+}
+/* Cualquier fondo degradado dentro de tarjetas y modales */
+[data-theme="contrast"] .card[style*="linear-gradient"],
+[data-theme="contrast"] .modal [style*="linear-gradient"]{
+  background:#000000!important;
+}
+/* Textos con color fijo escrito en el HTML */
+[data-theme="contrast"] [style*="color:var(--accent)"]{
+  color:#ffff00!important;
+}
+[data-theme="contrast"] [style*="color:var(--textm)"]{
+  color:#ffffff!important;
 }
 
 /* ---- DALTONISMO: protanopía / deuteranopía (rojo-verde) ----
