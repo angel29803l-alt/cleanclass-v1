@@ -40,23 +40,40 @@ async function loadHelpTopics() {
   if (!error && data) D.helpTopics = data;
 }
 
-async function loadAllData() {
-  await Promise.all([
+// Carga los datos indispensables para mostrar la aplicación.
+// Se usa allSettled para que si una consulta falla (por señal débil, por ejemplo)
+// las demás sigan y el usuario pueda entrar igual.
+async function loadEssentialData() {
+  await Promise.allSettled([
     loadStudents(),
     loadTeachers(),
     loadCleanGroups(),
+    loadSchedules(),
+    loadRooms()
+  ]);
+  console.log('✅ Datos esenciales cargados');
+}
+
+// Carga el resto en segundo plano, sin bloquear la entrada a la aplicación.
+async function loadSecondaryData() {
+  await Promise.allSettled([
     loadEvidence(),
     loadIncidents(),
-    loadRooms(),
     loadUsers(),
     loadNoClassDays(),
     loadHelpTopics(),
-    loadSchedules(),
     loadSchoolConfig(),
     loadTodayCheckins(),
     loadExcuses()
   ]);
-  console.log('✅ Datos cargados desde Supabase');
+  console.log('✅ Datos secundarios cargados');
+  if (typeof render === 'function') render();
+}
+
+async function loadAllData() {
+  await loadEssentialData();
+  // No se espera: la aplicación ya puede mostrarse mientras esto termina
+  loadSecondaryData();
 }
 
 // ---- FUNCIONES PARA GUARDAR DATOS EN SUPABASE ----
@@ -432,7 +449,15 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
 // Se cargan todos los registros (no solo los de hoy) porque el módulo de
 // justificaciones necesita ver los días anteriores para detectar las faltas.
 async function loadTodayCheckins() {
-  const { data, error } = await sb.from('attendance_checkins').select('*');
+  // Se cargan solo los últimos 3 meses: alcanza para el registro y las
+  // justificaciones, y evita descargar todo el histórico en conexiones lentas.
+  const desde = new Date();
+  desde.setMonth(desde.getMonth() - 3);
+  const desdeStr = desde.toISOString().split('T')[0];
+
+  const { data, error } = await sb.from('attendance_checkins')
+    .select('*')
+    .gte('date', desdeStr);
   if (!error && data) D.checkins = data;
 }
 

@@ -101,14 +101,56 @@ async function doLogin(){
     showError('Por favor ingresa tu correo y contraseña');return;
   }
 
+  if(!navigator.onLine){
+    showError('Sin conexión a internet. Revisa tu señal e intenta de nuevo.');
+    return;
+  }
+
+  // Corta la espera si el servidor no responde en un tiempo razonable
+  function conLimite(promesa, ms, mensaje){
+    return Promise.race([
+      promesa,
+      new Promise((_,rechazar)=>setTimeout(()=>rechazar(new Error(mensaje)), ms))
+    ]);
+  }
+
   // Login con Supabase Auth
-  const { data, error } = await sb.auth.signInWithPassword({ email:emailVal, password:passVal });
-  if(error){ showError('Correo o contraseña incorrectos'); return; }
+  let data, error;
+  try{
+    ({ data, error } = await conLimite(
+      sb.auth.signInWithPassword({ email:emailVal, password:passVal }),
+      20000,
+      'timeout'
+    ));
+  }catch(err){
+    showError('La conexión está muy lenta. Busca mejor señal e intenta de nuevo.');
+    return;
+  }
+
+  if(error){
+    const msg = (error.message||'').toLowerCase();
+    if(msg.includes('failed to fetch') || msg.includes('network')){
+      showError('No se pudo conectar. Revisa tu conexión a internet.');
+    } else {
+      showError('Correo o contraseña incorrectos');
+    }
+    return;
+  }
 
   const sbUser = data.user;
 
   // Leer rol desde tabla users
-  const { data: userData } = await sb.from('users').select('*').eq('id', sbUser.id).single();
+  let userData = null;
+  try{
+    const res = await conLimite(
+      sb.from('users').select('*').eq('id', sbUser.id).single(),
+      15000,
+      'timeout'
+    );
+    userData = res.data;
+  }catch(err){
+    console.warn('No se pudo leer el perfil, se continúa con los datos de la sesión.');
+  }
 
   // Si no está en tabla users es admin hardcodeado (admin@cleanclass.edu)
   let localUser = userData;
@@ -148,6 +190,8 @@ async function doLogin(){
   app.style.display='flex';
   isLoggedOut=false;
   checkResp();
+  render();   // Muestra la interfaz de inmediato, sin esperar los datos
+
   loadAllData().then(async ()=>{
     // Si el usuario no tiene grado (tabla users no tiene grade),
     // buscarlo en D.students o D.teachers por email
@@ -180,6 +224,14 @@ async function doLogin(){
         scheduleLocalNotification().then(() => {});
       }
     }, 800);
+  }).catch(err=>{
+    // Si falla la carga, el usuario ya está dentro: se avisa sin sacarlo
+    console.error('Error cargando datos:', err);
+    const aviso = document.createElement('div');
+    aviso.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fecaca;padding:12px 18px;border-radius:10px;z-index:9999;font-size:13px;font-weight:600;max-width:90%;text-align:center';
+    aviso.textContent='Algunos datos no se pudieron cargar. Revisa tu conexión.';
+    document.body.appendChild(aviso);
+    setTimeout(()=>aviso.remove(), 6000);
   });
 }
 
