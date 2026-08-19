@@ -8,8 +8,19 @@
    ============================================================ */
 @media (max-width: 640px) {
 
-  /* Contenido principal */
-  #main { padding: 12px !important; }
+  /* Header móvil fijo — se le da altura definida y se reserva ese espacio
+     en el contenido, si no queda tapando el título de cada pantalla. */
+  #mobileHeader {
+    padding: 10px 14px !important;
+    height: 56px !important;
+    z-index: 45 !important;
+  }
+
+  /* El contenido arranca debajo del header fijo */
+  #main {
+    padding: 12px !important;
+    padding-top: 68px !important;
+  }
 
   /* Tipografía */
   h1.text-2xl, .text-2xl { font-size: 18px !important; }
@@ -35,8 +46,8 @@
   /* Modal más ancho en móvil */
   .modal { width: 96% !important; max-width: 96% !important; padding: 16px !important; }
 
-  /* Sidebar overlay */
-  #sidebar { width: 240px !important; }
+  /* Sidebar overlay — por encima del header fijo */
+  #sidebar { width: 240px !important; z-index: 50 !important; }
 
   /* Charts */
   .chart-wrap { padding: 12px !important; }
@@ -50,9 +61,6 @@
 
   /* Formularios */
   .inp { font-size: 16px !important; } /* evita zoom en iOS */
-
-  /* Header mobile */
-  #mobileHeader { padding: 10px 14px !important; }
 
   /* Rank cards */
   .rank-card { padding: 10px 12px !important; gap: 10px !important; }
