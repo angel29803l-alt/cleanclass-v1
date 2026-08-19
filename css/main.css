@@ -202,15 +202,26 @@
 [data-theme="contrast"] .modal .pill-primary *{
   color:#000000!important;
 }
-/* El avatar circular del perfil */
+/* El avatar circular del perfil: se oscurece solo el degradado de fondo,
+   sin tapar las fotos de perfil que van dentro. */
 [data-theme="contrast"] [style*="border-radius:50%"][style*="linear-gradient"]{
   background:#000000!important;
   border:2px solid #ffff00!important;
 }
-/* Cualquier fondo degradado dentro de tarjetas y modales */
-[data-theme="contrast"] .card[style*="linear-gradient"],
-[data-theme="contrast"] .modal [style*="linear-gradient"]{
+[data-theme="contrast"] [style*="border-radius:50%"] img{
+  opacity:1!important;
+  filter:none!important;
+  position:relative;
+  z-index:1;
+}
+/* Fondos degradados en tarjetas y modales (no afecta a los que tienen imagen) */
+[data-theme="contrast"] .card[style*="linear-gradient"]{
   background:#000000!important;
+}
+/* Las fotos e imágenes se muestran siempre tal cual */
+[data-theme="contrast"] img{
+  opacity:1!important;
+  filter:none!important;
 }
 /* Textos con color fijo escrito en el HTML */
 [data-theme="contrast"] [style*="color:var(--accent)"]{
