@@ -1,3 +1,143 @@
+// ═══ ASIGNACION DE GRADO EN LOTE ═══════════════════════════════
+// Permite marcar varios estudiantes y asignarles el mismo grado
+// de una sola vez, en lugar de editarlos uno por uno.
+
+// Guarda los ids marcados. Se usa Set para que no haya repetidos.
+const selectedStudents = new Set();
+
+function toggleStudent(id, marcado){
+  if(marcado) selectedStudents.add(String(id));
+  else selectedStudents.delete(String(id));
+  actualizarBarraGrado();
+}
+
+function toggleAllStudents(marcado){
+  document.querySelectorAll('.chk-student').forEach(chk=>{
+    chk.checked = marcado;
+    const id = String(chk.dataset.id);
+    if(marcado) selectedStudents.add(id);
+    else selectedStudents.delete(id);
+  });
+  actualizarBarraGrado();
+}
+
+// Selecciona de una vez a todos los que no tienen grado
+function seleccionarSinGrado(){
+  selectedStudents.clear();
+  document.querySelectorAll('.chk-student').forEach(chk=>{
+    const est = D.students.find(s=>String(s.id)===String(chk.dataset.id));
+    const sinGrado = est && !est.grade;
+    chk.checked = sinGrado;
+    if(sinGrado) selectedStudents.add(String(chk.dataset.id));
+  });
+  actualizarBarraGrado();
+}
+
+function limpiarSeleccion(){
+  selectedStudents.clear();
+  document.querySelectorAll('.chk-student').forEach(c=>c.checked=false);
+  const todos = document.getElementById('selAllStudents');
+  if(todos) todos.checked = false;
+  actualizarBarraGrado();
+}
+
+// Actualiza el contador y habilita o deshabilita el boton, sin
+// redibujar la pantalla (asi no se pierden las casillas marcadas)
+function actualizarBarraGrado(){
+  const n = selectedStudents.size;
+  const contador = document.getElementById('gradeSelCount');
+  const boton    = document.getElementById('btnAsignarGrado');
+  const barra    = document.getElementById('barraAsignarGrado');
+
+  if(contador) contador.textContent = n === 1 ? '1 estudiante seleccionado' : `${n} estudiantes seleccionados`;
+  if(barra)    barra.style.display = n > 0 ? 'flex' : 'none';
+  if(boton)    boton.disabled = n === 0;
+}
+
+// Guarda el grado elegido en todos los estudiantes marcados
+async function asignarGradoSeleccionados(){
+  const select = document.getElementById('gradeParaAsignar');
+  const grado  = select?.value;
+  const boton  = document.getElementById('btnAsignarGrado');
+
+  if(!grado){ alert('Elige un grado primero.'); return; }
+  if(selectedStudents.size === 0){ alert('No hay estudiantes seleccionados.'); return; }
+
+  const cantidad = selectedStudents.size;
+  if(!confirm(`¿Asignar el grado ${grado} a ${cantidad} estudiante${cantidad===1?'':'s'}?`)) return;
+
+  if(boton){ boton.disabled = true; boton.textContent = 'Guardando...'; }
+
+  const ids = [...selectedStudents].map(Number);
+  const { error } = await sb.from('students').update({ grade: grado }).in('id', ids);
+
+  if(error){
+    console.error('❌ Error asignando grado:', error.message);
+    if(typeof showDbError === 'function') showDbError('grado', error.message);
+    if(boton){ boton.disabled = false; boton.textContent = 'Asignar grado'; }
+    return;
+  }
+
+  // Tambien se actualiza en la tabla users, para que el rol del
+  // estudiante quede con el grado correcto al iniciar sesion
+  const correos = D.students.filter(s=>ids.includes(Number(s.id))).map(s=>s.email).filter(Boolean);
+  if(correos.length){
+    await sb.from('users').update({ grade: grado }).in('email', correos);
+  }
+
+  await loadStudents();
+  selectedStudents.clear();
+  render();
+}
+
+// Barra superior: aviso de estudiantes sin grado y selector para asignar
+function renderGradeAssignBar(estudiantes){
+  const sinGrado = estudiantes.filter(s=>!s.grade).length;
+  const grados = [...new Set(D.rooms.map(r=>r.grade).filter(Boolean))].sort();
+
+  return `
+  <div class="card" style="background:var(--surface);padding:14px 18px;margin-bottom:14px">
+
+    ${sinGrado > 0 ? `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+                padding:10px 14px;margin-bottom:12px;border-radius:8px;
+                background:rgba(245,158,11,.08);border-left:3px solid #f59e0b">
+      <p style="font-size:13px;color:var(--text)">
+        <strong style="color:#d97706">${sinGrado}</strong>
+        ${sinGrado===1?'estudiante no tiene':'estudiantes no tienen'} grado asignado
+      </p>
+      <button class="pill pill-amber" style="font-size:12px;padding:6px 14px" onclick="seleccionarSinGrado()">
+        Seleccionarlos
+      </button>
+    </div>` : ''}
+
+    <div id="barraAsignarGrado" style="display:${selectedStudents.size>0?'flex':'none'};align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="gradeSelCount" style="font-size:13px;font-weight:600;color:var(--accent)">
+        ${selectedStudents.size===1?'1 estudiante seleccionado':`${selectedStudents.size} estudiantes seleccionados`}
+      </span>
+
+      <select id="gradeParaAsignar" class="inp" style="width:auto;padding:7px 30px 7px 12px;font-size:13px">
+        <option value="">Elegir grado...</option>
+        ${grados.map(g=>`<option value="${g}">${g}</option>`).join('')}
+      </select>
+
+      <button id="btnAsignarGrado" class="pill pill-primary" style="font-size:12px;padding:7px 16px"
+              onclick="asignarGradoSeleccionados()">
+        Asignar grado
+      </button>
+
+      <button class="pill pill-ghost" style="font-size:12px;padding:7px 14px" onclick="limpiarSeleccion()">
+        Cancelar
+      </button>
+    </div>
+
+    ${sinGrado === 0 ? `
+    <p style="font-size:12px;color:var(--textm)">
+      Marca las casillas de la tabla para asignar un grado a varios estudiantes a la vez.
+    </p>` : ''}
+  </div>`;
+}
+
 function rUsers(){
   const allGrades  = [...new Set(D.rooms.map(r=>r.grade))].sort();
   const myGrade    = getCurrentGrade();
@@ -108,6 +248,7 @@ function rUsers(){
 
   <!-- TABLA ESTUDIANTES -->
   ${usersTab==='students'?`
+  ${isAdmin()?renderGradeAssignBar(filteredStudents):''}
   <div class="card slide-up" style="background:var(--surface);padding:0;overflow:hidden">
     <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <h3 class="font-bold">Estudiantes</h3>
@@ -118,6 +259,7 @@ function rUsers(){
     </div>
     <div style="overflow-x:auto"><table class="tbl" style="margin:0">
       <thead><tr style="background:rgba(37,99,235,.04)">
+        ${isAdmin()?`<th style="width:34px;text-align:center"><input type="checkbox" id="selAllStudents" onchange="toggleAllStudents(this.checked)" title="Seleccionar todos" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"></th>`:''}
         <th style="width:36px">#</th><th>Nombre</th><th>Grado</th><th>Email</th><th>Grupo Aseo</th><th style="text-align:center">Cumplimiento</th>${isAdmin()?'<th>Acciones</th>':''}
       </tr></thead>
       <tbody>${filteredStudents.length>0?filteredStudents.map((s,i)=>{
@@ -154,7 +296,8 @@ function rUsers(){
         const _fg=_f?(_FGRAD[_ft]||'#FFD700,#fff,#FFD700').split(','):[];
         const _up=D.usersProfiles?.find(u=>u.email===s.email);
         const _av=_up?.avatar_url||null;
-        return `<tr>
+        return `<tr${!s.grade?' style="background:rgba(245,158,11,.05)"':''}>
+          ${isAdmin()?`<td style="text-align:center"><input type="checkbox" class="chk-student" data-id="${s.id}" ${selectedStudents.has(String(s.id))?'checked':''} onchange="toggleStudent('${s.id}',this.checked)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"></td>`:''}
           <td style="color:var(--textm);font-size:12px;text-align:center">${i+1}</td>
           <td><div style="display:flex;align-items:center;gap:9px">
             <div class="${_f?`founder-avatar founder-${_ft}`:''}" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;flex-shrink:0;overflow:${_f?'visible':'hidden'}">${_av?`<img src="${_av}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`:`${s.name.charAt(0)}`}</div>
@@ -163,7 +306,9 @@ function rUsers(){
               ${_f?`<span class="founder-badge founder-bd-${_ft}" style="font-size:9px;padding:1px 6px;width:fit-content">★</span>`:''}
             </div>
           </div></td>
-          <td><span class="badge" style="background:rgba(6,182,212,.15);color:#06b6d4;font-size:11px">${s.grade||'—'}</span></td>
+          <td>${s.grade
+            ? `<span class="badge" style="background:rgba(6,182,212,.15);color:#06b6d4;font-size:11px">${s.grade}</span>`
+            : `<span class="badge" style="background:rgba(245,158,11,.15);color:#d97706;font-size:11px">Sin grado</span>`}</td>
           <td class="col-hide-mobile" style="font-size:12px;color:var(--textm)">${s.email||'—'}</td>
           <td>${group?`<span class="badge" style="background:${group.color||'#06b6d4'}20;color:${group.color||'#06b6d4'};font-size:11px">${group.name}</span>`:`<span style="font-size:12px;color:var(--textm);font-style:italic">Sin grupo</span>`}</td>
           <td style="text-align:center">${comp!==null?`<div style="display:flex;align-items:center;gap:7px;justify-content:center">
@@ -175,7 +320,7 @@ function rUsers(){
             <button class="pill pill-danger" style="padding:4px 8px;font-size:11px" onclick="if(confirm('¿Eliminar a ${s.name}?'))deleteStudentDb(${s.id}).then(()=>render())"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
           </div></td>`:''}
         </tr>`;
-      }).join(''):`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--textm)">Sin estudiantes</td></tr>`}
+      }).join(''):`<tr><td colspan="${isAdmin()?8:6}" style="text-align:center;padding:36px;color:var(--textm)">Sin estudiantes</td></tr>`}
       </tbody>
     </table></div>
   </div>`:''}
