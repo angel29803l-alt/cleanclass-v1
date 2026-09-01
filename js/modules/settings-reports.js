@@ -1,3 +1,33 @@
+// ══════════════════════════════════════════════════════════════════════
+//  settings-reports.js — PERFIL Y EXPORTACION A EXCEL
+// ══════════════════════════════════════════════════════════════════════
+//
+//  COMO NAVEGAR ESTE ARCHIVO EN VS CODE:
+//    Ctrl+K  Ctrl+0   → pliega todas las secciones (vista de indice)
+//    Ctrl+K  Ctrl+J   → despliega todas
+//    Click en la ▼ del margen → abre o cierra una seccion
+//
+//  MARCAS:
+//    ⚠️ CRITICO  → si se borra, algo deja de funcionar
+//    💡          → detalle util para entender el codigo
+//    🔗 HTML     → conecta con un elemento del index.html
+//    🗄️ BD       → habla con la base de datos
+//
+//  SECCIONES:
+//    1. Pantalla de perfil
+//    2. Utilidades de fecha
+//    3. Vista previa de la semana
+//    4. Exportacion a Excel
+// ══════════════════════════════════════════════════════════════════════
+//
+//  💡 La exportacion usa SheetJS (libreria xlsx cargada en el index.html).
+//     Genera un archivo Excel con 4 hojas a partir de los datos en memoria.
+// ══════════════════════════════════════════════════════════════════════
+
+//#region ═══ 1. PANTALLA DE PERFIL — Datos, apariencia y acerca de ═══════════════════
+
+// 🔗 HTML — Se inserta en <main id="main">
+// 💡 Tiene 3 pestanas: Mi Perfil, Apariencia y Acerca de.
 function rSettings(){
   // D._user se llena en login (app.js). Si por algún motivo no existe aún,
   // usar los datos de currentSession como respaldo (sin valores ficticios).
@@ -175,12 +205,12 @@ function rSettings(){
         <div class="flex flex-col gap-3">
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
             <span style="color:var(--textm);font-size:12px">Versión</span>
-            <span class="font-medium">v1.0.0</span>
+            <span class="font-medium">v2.0</span>
           </div>
           
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
             <span style="color:var(--textm);font-size:12px">Última Actualización</span>
-            <span class="font-medium">15 de Enero, 2025</span>
+            <span class="font-medium">${new Date().toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'})}</span>
           </div>
           
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
@@ -188,9 +218,14 @@ function rSettings(){
             <span class="font-medium" style="color:#10b981">Operativo</span>
           </div>
           
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--textm);font-size:12px">Usuarios Registrados</span>
+            <span class="font-medium">${(D.students?.length||0) + (D.teachers?.length||0)}</span>
+          </div>
+
           <div style="display:flex;justify-content:space-between;padding:8px 0">
-            <span style="color:var(--textm);font-size:12px">Usuarios Activos</span>
-            <span class="font-medium">1</span>
+            <span style="color:var(--textm);font-size:12px">Evidencias Registradas</span>
+            <span class="font-medium">${D.evidence?.length||0}</span>
           </div>
         </div>
       </div>
@@ -254,23 +289,17 @@ function rSettings(){
       <div class="card" style="background:var(--surface);lg:col-span-2">
         <h3 class="font-bold text-lg mb-4">Soporte y Contacto</h3>
         
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2">
           <div style="text-align:center">
             <i data-lucide="mail" style="width:32px;height:32px;color:var(--accent);margin:0 auto 12px"></i>
-            <p class="font-medium text-sm">Email de Soporte</p>
-            <p style="font-size:12px;color:var(--textm);margin-top:4px">soporte@cleanclass.edu</p>
-          </div>
-          
-          <div style="text-align:center">
-            <i data-lucide="phone" style="width:32px;height:32px;color:var(--accent);margin:0 auto 12px"></i>
-            <p class="font-medium text-sm">Teléfono</p>
-            <p style="font-size:12px;color:var(--textm);margin-top:4px">+57 (1) 234 5678</p>
+            <p class="font-medium text-sm">Correo de Soporte</p>
+            <a href="mailto:cleanclass2026@gmail.com" style="font-size:12px;color:var(--textm);margin-top:4px;display:block;text-decoration:none">cleanclass2026@gmail.com</a>
           </div>
           
           <div style="text-align:center">
             <i data-lucide="globe" style="width:32px;height:32px;color:var(--accent);margin:0 auto 12px"></i>
             <p class="font-medium text-sm">Sitio Web</p>
-            <p style="font-size:12px;color:var(--textm);margin-top:4px">www.cleanclass.edu</p>
+            <a href="https://cleanclass-wed-v68l.vercel.app/" target="_blank" rel="noopener" style="font-size:12px;color:var(--textm);margin-top:4px;display:block;text-decoration:none">cleanclass-wed-v68l.vercel.app</a>
           </div>
         </div>
       </div>
@@ -280,6 +309,12 @@ function rSettings(){
 }
 
 
+//#endregion
+
+
+//#region ═══ 2. UTILIDADES DE FECHA — Calculo de semanas ═════════════════════════════
+
+
 // ---- VER IMAGEN EN PANTALLA COMPLETA ----
 
 // ============================================================
@@ -287,6 +322,7 @@ function rSettings(){
 // Usa SheetJS (xlsx) cargado desde CDN en index.html
 // ============================================================
 
+// 💡 A partir de un lunes, devuelve los 5 dias habiles de esa semana.
 function _getWeekDates(mondayStr){
   const mon = new Date(mondayStr + 'T00:00:00');
   const days = [];
@@ -297,6 +333,12 @@ function _getWeekDates(mondayStr){
   }
   return days; // [lun, mar, mie, jue, vie]
 }
+
+//#endregion
+
+
+//#region ═══ 3. VISTA PREVIA — Muestra que se va a exportar ══════════════════════════
+
 
 function updateExcelWeekPreview(){
   const input = document.getElementById('excelWeekStart');
@@ -341,6 +383,14 @@ function updateExcelWeekPreview(){
   if(typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+//#endregion
+
+
+//#region ═══ 4. EXPORTAR A EXCEL — Genera el archivo de 4 hojas ══════════════════════
+
+
+// ⚠️ CRITICO — Genera el archivo Excel con SheetJS.
+// 💡 No consulta al servidor: usa los datos que ya estan en memoria (objeto D).
 async function exportWeeklyExcel(){
   const input = document.getElementById('excelWeekStart');
   const msg   = document.getElementById('excelMsg');
@@ -779,3 +829,6 @@ ${xmlF}${xmlBg}${xmlBr}
   }
 }
 
+
+
+//#endregion
