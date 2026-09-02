@@ -257,6 +257,34 @@ function openModal(mode,col,id){
 
   document.getElementById('modalForm').onsubmit=e=>{
     e.preventDefault();
+
+    // ⚠️ Evita envíos duplicados: con internet lento el usuario pulsaba
+    //    varias veces y se creaban registros repetidos (llegaron a ser 17).
+    //    _modalEnviando se libera en closeModal() y en cada error.
+    if(window._modalEnviando) return;
+    window._modalEnviando = true;
+
+    const _btnEnviar = e.target.querySelector('button[type="submit"]');
+    const _txtOriginal = _btnEnviar ? _btnEnviar.textContent : '';
+    if(_btnEnviar){
+      _btnEnviar.disabled = true;
+      _btnEnviar.textContent = 'Guardando...';
+      _btnEnviar.style.opacity = '.65';
+      _btnEnviar.style.cursor = 'not-allowed';
+    }
+
+    // Devuelve el formulario a su estado normal si algo falla
+    function _liberarFormulario(mensaje){
+      window._modalEnviando = false;
+      if(_btnEnviar){
+        _btnEnviar.disabled = false;
+        _btnEnviar.textContent = _txtOriginal;
+        _btnEnviar.style.opacity = '';
+        _btnEnviar.style.cursor = '';
+      }
+      if(mensaje) alert(mensaje);
+    }
+
     const fd=new FormData(e.target);
     const obj={};
 
@@ -276,7 +304,13 @@ function openModal(mode,col,id){
         obj.id=nid();
         D[col].push(obj);
         closeModal();
-        saveEvidenceWithImage(obj, file).then(()=>render());
+        saveEvidenceWithImage(obj, file)
+          .then(()=>render())
+          .catch(err=>{
+            console.error('Error guardando la evidencia:', err);
+            window._modalEnviando = false;
+            alert('No se pudo guardar la evidencia. Revisa tu conexión.');
+          });
         return;
       }else if(mode==='edit'&&item.image){
         obj.image=item.image;
@@ -300,17 +334,29 @@ function openModal(mode,col,id){
         const imgFile = typeof _incidentPhotoFile !== 'undefined' ? _incidentPhotoFile : null;
         if(imgFile){
           (async()=>{
-            const ext = imgFile.name.split('.').pop();
-            const fileName = `incidente_${Date.now()}.${ext}`;
-            const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, imgFile, {upsert:true});
-            if(!upErr){
+            try{
+              const ext = imgFile.name.split('.').pop();
+              const fileName = `incidente_${Date.now()}.${ext}`;
+              const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, imgFile, {upsert:true});
+
+              if(upErr){
+                // ⚠️ Antes esto fallaba en silencio y el reporte se guardaba sin foto
+                console.error('Error subiendo la foto del incidente:', upErr.message);
+                _liberarFormulario('No se pudo subir la foto. Revisa tu conexión e intenta de nuevo.');
+                return;
+              }
+
               const { data } = sb.storage.from('evidencias').getPublicUrl(fileName);
               obj.image = data.publicUrl;
+
+              _incidentPhotoFile = null;
+              if(mode==='add'){obj.id=nid();D[col].push(obj);}
+              await saveIncident(obj);
+              closeModal(); render();
+            }catch(err){
+              console.error('Error guardando el incidente:', err);
+              _liberarFormulario('No se pudo guardar el reporte. Intenta de nuevo.');
             }
-            _incidentPhotoFile = null;
-            if(mode==='add'){obj.id=nid();D[col].push(obj);}
-            saveIncident(obj);
-            closeModal(); render();
           })();
           return;
         }
@@ -396,6 +442,9 @@ function onGradeSelectChange(sel){
 }
 
 function closeModal(){
+  // ⚠️ Libera el bloqueo de envío. Sin esto, el formulario quedaría
+  //    bloqueado para siempre después del primer guardado.
+  window._modalEnviando = false;
   const w=document.getElementById('modalWrap');
   if(w) w.remove();
 }
@@ -459,6 +508,21 @@ function openAdminModal(type, id){
 
   document.getElementById('adminModalForm').onsubmit=e=>{
     e.preventDefault();
+
+    // ⚠️ Mismo bloqueo que en el modal general: crear un usuario tarda
+    //    (Auth + tabla) y sin esto se creaban duplicados al pulsar varias veces.
+    if(window._modalEnviando) return;
+    window._modalEnviando = true;
+
+    const _btn = e.target.querySelector('button[type="submit"]');
+    const _txt = _btn ? _btn.textContent : '';
+    if(_btn){
+      _btn.disabled = true;
+      _btn.textContent = 'Guardando...';
+      _btn.style.opacity = '.65';
+      _btn.style.cursor = 'not-allowed';
+    }
+
     const fd=new FormData(e.target);
     const obj={};
     fields.forEach(f=>obj[f.k]=fd.get(f.k));
@@ -484,6 +548,8 @@ function openAdminModal(type, id){
           });
           if (signUpError && !signUpError.message.includes('already registered')) {
             showDbError('estudiante', signUpError.message);
+            window._modalEnviando = false;
+            if(_btn){ _btn.disabled=false; _btn.textContent=_txt; _btn.style.opacity=''; _btn.style.cursor=''; }
             return;
           }
           const userId = signUpData?.user?.id;
@@ -518,6 +584,8 @@ function openAdminModal(type, id){
 
           if (signUpError && !signUpError.message.includes('already registered')) {
             showDbError('docente', signUpError.message);
+            window._modalEnviando = false;
+            if(_btn){ _btn.disabled=false; _btn.textContent=_txt; _btn.style.opacity=''; _btn.style.cursor=''; }
             return;
           }
 
