@@ -54,22 +54,89 @@ function showGroupMembers(groupId){
 // ---- FOTO INCIDENTE ----
 let _incidentPhotoFile = null;
 
-function previewIncidentPhoto(input){
+// Reduce el tamaño de la foto antes de subirla.
+// Una foto de celular pesa entre 3 y 8 MB; comprimida queda en unos
+// 200 KB, con calidad más que suficiente para ver el daño reportado.
+// Esto es clave cuando muchos estudiantes suben fotos al mismo tiempo
+// por la misma red del colegio.
+function comprimirImagen(file, anchoMax = 1280, calidad = 0.72){
+  return new Promise((resolver, rechazar) => {
+    const lector = new FileReader();
+
+    lector.onload = e => {
+      const img = new Image();
+
+      img.onload = () => {
+        // Calcular el nuevo tamaño manteniendo la proporción
+        let { width, height } = img;
+        if(width > anchoMax){
+          height = Math.round(height * (anchoMax / width));
+          width  = anchoMax;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(blob => {
+          if(!blob){ rechazar(new Error('No se pudo comprimir')); return; }
+
+          // Si la compresión no ayudó, se usa el archivo original
+          if(blob.size >= file.size){ resolver(file); return; }
+
+          const comprimida = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+
+          console.log(`Foto comprimida: ${(file.size/1024/1024).toFixed(2)} MB → ${(comprimida.size/1024).toFixed(0)} KB`);
+          resolver(comprimida);
+        }, 'image/jpeg', calidad);
+      };
+
+      img.onerror = () => rechazar(new Error('No se pudo leer la imagen'));
+      img.src = e.target.result;
+    };
+
+    lector.onerror = () => rechazar(new Error('No se pudo abrir el archivo'));
+    lector.readAsDataURL(file);
+  });
+}
+
+async function previewIncidentPhoto(input){
   const file = input.files[0];
   if(!file) return;
-  _incidentPhotoFile = file;
+
+  const preview = document.getElementById('incidentPhotoPreview');
+
+  // Aviso mientras se procesa, para que el usuario no crea que se colgó
+  if(preview){
+    preview.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;
+      color:var(--textm);font-size:12px">Preparando la foto...</div>`;
+  }
+
+  try{
+    _incidentPhotoFile = await comprimirImagen(file);
+  }catch(err){
+    // Si algo falla al comprimir, se usa la foto original
+    console.warn('No se pudo comprimir, se usa la original:', err.message);
+    _incidentPhotoFile = file;
+  }
+
   const reader = new FileReader();
   reader.onload = (e) => {
-    const preview = document.getElementById('incidentPhotoPreview');
     if(preview){
+      const peso = (_incidentPhotoFile.size/1024).toFixed(0);
       preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">
+        <div style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.6);border-radius:6px;padding:4px 8px;font-size:10px;color:#9ae6d0">${peso} KB</div>
         <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.6);border-radius:6px;padding:4px 8px;font-size:11px;color:#fff;cursor:pointer" onclick="document.getElementById('incidentCamInput').click()">Cambiar</div>`;
       preview.style.position = 'relative';
       preview.style.border = 'none';
       preview.onclick = null;
     }
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(_incidentPhotoFile);
 }
 
 // ---- DÍAS SIN CLASE ----

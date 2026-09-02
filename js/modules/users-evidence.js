@@ -764,20 +764,35 @@ function capturePhoto(){
   _capturedStamp=`${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
 
   // Dibujar frame del video en el canvas con sello
-  canvas.width=video.videoWidth||640;
-  canvas.height=video.videoHeight||480;
+  // Se limita el ancho a 1280px: una foto de cámara de celular puede ser
+  // de 4000px y pesar varios MB. Con muchos estudiantes subiendo a la vez
+  // por la misma red, eso satura la conexión.
+  const ANCHO_MAX = 1280;
+  let anchoOrig  = video.videoWidth  || 640;
+  let altoOrig   = video.videoHeight || 480;
+  let ancho = anchoOrig, alto = altoOrig;
+
+  if(ancho > ANCHO_MAX){
+    alto  = Math.round(alto * (ANCHO_MAX / ancho));
+    ancho = ANCHO_MAX;
+  }
+
+  canvas.width  = ancho;
+  canvas.height = alto;
   const ctx=canvas.getContext('2d');
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  ctx.drawImage(video,0,0,ancho,alto);
 
   // Dibujar sello de fecha/hora/día
   const stamp=_capturedStamp;
+  // ⚠️ La fuente va ANTES de medir: measureText usa la fuente activa.
+  //    Si se mide primero, el rectángulo negro queda del ancho equivocado.
+  ctx.font='bold 14px DM Sans, sans-serif';
   ctx.fillStyle='rgba(0,0,0,.65)';
   ctx.fillRect(10,canvas.height-38,ctx.measureText(stamp).width+20,28);
   ctx.fillStyle='#ffffff';
-  ctx.font='bold 14px DM Sans, sans-serif';
   ctx.fillText(stamp,20,canvas.height-18);
 
-  _capturedDataUrl=canvas.toDataURL('image/jpeg',0.85);
+  _capturedDataUrl=canvas.toDataURL('image/jpeg',0.75);
 
   // Mostrar preview
   preview.src=_capturedDataUrl;
