@@ -94,14 +94,16 @@ async function sbSave(table, payload, loadFn) {
   if (error) {
     console.error('❌ ' + table + ' save error:', error.message, error.details, error.hint);
     showDbError(table, error.message);
-    return;
+    return false; // 🔧 FIX: antes no devolvía nada, así que el llamador nunca
+                   //         sabía si el guardado había fallado.
   }
   await loadFn();
+  return true;
 }
 
-async function saveStudent(student)   { await sbSave('students',    student,  loadStudents);    }
-async function saveTeacher(teacher)   { await sbSave('teachers',    teacher,  loadTeachers);    }
-async function saveHelpTopic(topic)   { await sbSave('help_topics', topic,    loadHelpTopics);  }
+async function saveStudent(student)   { return await sbSave('students',    student,  loadStudents);    }
+async function saveTeacher(teacher)   { return await sbSave('teachers',    teacher,  loadTeachers);    }
+async function saveHelpTopic(topic)   { return await sbSave('help_topics', topic,    loadHelpTopics);  }
 
 // Crea el tema y devuelve la fila real (con el id que generó Supabase),
 // para no depender del id local que arma nid() — evita que se pierda la referencia.
@@ -202,9 +204,9 @@ async function createTeacherWithAuth(teacher, password) {
     return false;
   }
 }
-async function saveCleanGroup(group)  { await sbSave('clean_groups',group,    loadCleanGroups); }
-async function saveEvidence(evidence) { await sbSave('evidence',    evidence, loadEvidence);    }
-async function saveIncident(incident) { await sbSave('incidents',   incident, loadIncidents);   }
+async function saveCleanGroup(group)  { return await sbSave('clean_groups',group,    loadCleanGroups); }
+async function saveEvidence(evidence) { return await sbSave('evidence',    evidence, loadEvidence);    }
+async function saveIncident(incident) { return await sbSave('incidents',   incident, loadIncidents);   }
 
 // Muestra un toast de error de base de datos al usuario
 function showDbError(entidad, msg) {
@@ -360,7 +362,7 @@ async function loadRooms() {
 }
 
 async function saveRoom(room) {
-  await sbSave('rooms', room, loadRooms);
+  return await sbSave('rooms', room, loadRooms);
 }
 
 async function deleteRoom(id) {

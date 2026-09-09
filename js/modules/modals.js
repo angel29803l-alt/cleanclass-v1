@@ -82,8 +82,14 @@ const formFields={
       {id:1,name:'Suciedad'},{id:2,name:'Daño a Mueble'},
       {id:3,name:'Material Faltante'},{id:4,name:'Otros'}
     ]},
-    {k:'description',l:'Descripción'},
-    {k:'location',l:'Salón',type:'select',options:()=>D.rooms.map(r=>({id:r.name,name:r.name}))},
+    {k:'description',l:'Descripción',type:'textarea',maxlength:2000},
+    {k:'location',l:'Salón',type:'select',options:()=>{
+      // 🔧 FIX: solo mostrar salones del grado del usuario actual (antes mostraba
+      //         TODOS los salones de todos los grados, incluyendo de otras secciones).
+      const grade=getCurrentGrade&&getCurrentGrade();
+      const list=grade?D.rooms.filter(r=>r.grade===grade):D.rooms;
+      return (list.length?list:D.rooms).map(r=>({id:r.name,name:r.name}));
+    }},
     {k:'priority',l:'Prioridad',type:'select',options:()=>[
       {id:1,name:'Baja'},{id:2,name:'Media'},{id:3,name:'Alta'}
     ]},
@@ -209,6 +215,14 @@ function openModal(mode,col,id){
                 <input type="file" accept="image/*" capture="environment" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="previewIncidentPhoto(this)">
               </label>
             </div>`;
+          }else if(f.type==='textarea'){
+            const maxLen=f.maxlength||2000;
+            const currentVal=(item[f.k]||'').toString();
+            return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
+              <textarea class="inp mt-1" name="${f.k}" maxlength="${maxLen}" required
+                oninput="const c=this.nextElementSibling;if(c)c.textContent=this.value.length+' / ${maxLen}';"
+                style="resize:vertical;min-height:90px;padding:10px">${currentVal.replace(/</g,'&lt;')}</textarea>
+              <p style="font-size:11px;color:var(--textm);margin-top:4px;text-align:right">${currentVal.length} / ${maxLen}</p></div>`;
           }else if(f.type==='number'){
             return `<div><label class="text-sm font-medium" style="color:var(--textm)">${f.l}</label>
               <input class="inp mt-1" name="${f.k}" type="number" value="${item[f.k]||''}" required></div>`;
@@ -325,7 +339,15 @@ function openModal(mode,col,id){
         obj.date=new Date().toISOString().split('T')[0];
         obj.reporter=fd.get('reporter');
         obj.status='Abierto';
-        obj.assigned_to='Por Asignar';
+        // 🔧 FIX: antes esto quedaba fijo en 'Por Asignar' y el reporte nunca
+        //         le llegaba a nadie. Ahora se busca el docente cuyo grado
+        //         coincide con el grado del salón seleccionado.
+        obj.assigned_to=(()=>{
+          const room=D.rooms.find(r=>r.name===obj.location);
+          const roomGrade=room?room.grade:null;
+          const teacher=roomGrade?D.teachers.find(t=>t.grade===roomGrade):null;
+          return teacher?teacher.name:'Por Asignar';
+        })();
         obj.resolution_date=null;
         obj.notes='';
         obj.grade=getCurrentGrade();
@@ -351,8 +373,15 @@ function openModal(mode,col,id){
 
               _incidentPhotoFile = null;
               if(mode==='add'){obj.id=nid();D[col].push(obj);}
-              await saveIncident(obj);
-              closeModal(); render();
+              // 🔧 FIX: antes se cerraba el modal sin importar si el guardado
+              //         funcionó o no. Ahora solo se cierra si de verdad se guardó.
+              const ok = await saveIncident(obj);
+              if(ok){
+                closeModal(); render();
+              }else{
+                D[col]=D[col].filter(x=>x.id!==obj.id); // quita el registro fantasma local
+                _liberarFormulario('No se pudo guardar el reporte en la base de datos. Intenta de nuevo.');
+              }
             }catch(err){
               console.error('Error guardando el incidente:', err);
               _liberarFormulario('No se pudo guardar el reporte. Intenta de nuevo.');
@@ -419,12 +448,24 @@ function openModal(mode,col,id){
     }
 
     // Guardar en Supabase
-    if(col==='cleanGroups') saveCleanGroup(obj);
-    else if(col==='evidence') saveEvidence(obj);
-    else if(col==='incidents') saveIncident(obj);
-    else if(col==='rooms') saveRoom(obj);
-    else if(col==='students') saveStudent(obj);
-    closeModal(); render();
+    // 🔧 FIX: antes se llamaba a save*(obj) sin await y se cerraba el modal
+    //         de inmediato, sin importar si el guardado realmente funcionó.
+    //         Ahora se espera la respuesta real de Supabase.
+    (async()=>{
+      let ok=true;
+      if(col==='cleanGroups') ok=await saveCleanGroup(obj);
+      else if(col==='evidence') ok=await saveEvidence(obj);
+      else if(col==='incidents') ok=await saveIncident(obj);
+      else if(col==='rooms') ok=await saveRoom(obj);
+      else if(col==='students') ok=await saveStudent(obj);
+
+      if(ok){
+        closeModal(); render();
+      }else{
+        if(mode==='add') D[col]=D[col].filter(x=>x.id!==obj.id); // quita el registro fantasma local
+        _liberarFormulario('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
+      }
+    })();
   };
 }
 
