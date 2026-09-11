@@ -101,6 +101,14 @@ async function doLogin(){
     showError('Por favor ingresa tu correo y contraseña');return;
   }
 
+  // 🔧 Límite mínimo de caracteres (cuenta espacios), igual que en el registro
+  if(emailVal.length<12){
+    showError('El correo debe tener al menos 12 caracteres');return;
+  }
+  if(passVal.length<12){
+    showError('La contraseña debe tener al menos 12 caracteres');return;
+  }
+
   if(!navigator.onLine){
     showError('Sin conexión a internet. Revisa tu señal e intenta de nuevo.');
     return;
@@ -256,8 +264,12 @@ async function doRegistro(){
   if(!nameVal||!emailVal||!passVal||!confirmVal){
     showRegError('Por favor completa todos los campos');return;
   }
-  if(nameVal.length<3){
-    showRegError('El nombre debe tener al menos 3 caracteres');return;
+  // 🔧 Límites de caracteres (cuentan espacios): nombre y correo 12–100, contraseña 12–128
+  if(nameVal.length<12){
+    showRegError('El nombre debe tener al menos 12 caracteres');return;
+  }
+  if(nameVal.length>100){
+    showRegError('El nombre no puede tener más de 100 caracteres');return;
   }
   if(!/^[a-zA-ZÁÉÍÓÚáéíóúÑñÜü\s'-]+$/.test(nameVal)){
     showRegError('El nombre solo puede contener letras');return;
@@ -265,8 +277,17 @@ async function doRegistro(){
   if(!isValidEmail(emailVal)){
     showRegError('Por favor ingresa un correo electrónico válido');return;
   }
-  if(passVal.length<6){
-    showRegError('La contraseña debe tener mínimo 6 caracteres');return;
+  if(emailVal.length<12){
+    showRegError('El correo debe tener al menos 12 caracteres');return;
+  }
+  if(emailVal.length>100){
+    showRegError('El correo no puede tener más de 100 caracteres');return;
+  }
+  if(passVal.length<12){
+    showRegError('La contraseña debe tener mínimo 12 caracteres');return;
+  }
+  if(passVal.length>128){
+    showRegError('La contraseña no puede tener más de 128 caracteres');return;
   }
   if(passVal!==confirmVal){
     showRegError('Las contraseñas no coinciden');return;

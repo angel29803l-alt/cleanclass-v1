@@ -38,11 +38,11 @@
       <p class="auth-sub">Ingresa a tu cuenta</p>
 
       <label class="auth-label">Correo electrónico</label>
-      <input type="email" id="loginEmail" class="auth-input" placeholder="Ingresa tu correo" autocomplete="off">
+      <input type="email" id="loginEmail" class="auth-input" placeholder="Ingresa tu correo" autocomplete="off" maxlength="100">
 
       <label class="auth-label">Contraseña</label>
       <div class="auth-pw-box">
-        <input type="password" id="passLogin" class="auth-input" placeholder="Contraseña" autocomplete="new-password">
+        <input type="password" id="passLogin" class="auth-input" placeholder="Contraseña" autocomplete="new-password" maxlength="128">
         <span class="auth-eye" onclick="togglePassword('passLogin',this)"></span>
       </div>
 
@@ -66,17 +66,17 @@
       <h1 class="auth-title">CleanClass</h1>
       <p class="auth-sub">Crea una cuenta</p>
       <label class="auth-label">Nombre completo</label>
-      <input type="text" id="regName" class="auth-input" placeholder="Nombre completo">
+      <input type="text" id="regName" class="auth-input" placeholder="Nombre completo" maxlength="100">
       <label class="auth-label">Correo electrónico</label>
-      <input type="email" id="regEmail" class="auth-input" placeholder="Correo">
+      <input type="email" id="regEmail" class="auth-input" placeholder="Correo" maxlength="100">
       <label class="auth-label">Contraseña</label>
       <div class="auth-pw-box">
-        <input type="password" id="passRegistro" class="auth-input" placeholder="Contraseña">
+        <input type="password" id="passRegistro" class="auth-input" placeholder="Contraseña" maxlength="128">
         <span class="auth-eye" onclick="togglePassword('passRegistro',this)"></span>
       </div>
       <label class="auth-label">Confirmar contraseña</label>
       <div class="auth-pw-box">
-        <input type="password" id="passConfirm" class="auth-input" placeholder="Confirmar contraseña">
+        <input type="password" id="passConfirm" class="auth-input" placeholder="Confirmar contraseña" maxlength="128">
         <span class="auth-eye" onclick="togglePassword('passConfirm',this)"></span>
       </div>
       <div id="regError" style="color:#ef4444;font-size:13px;text-align:center;display:none;margin-top:4px"></div>
