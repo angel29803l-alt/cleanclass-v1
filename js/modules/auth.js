@@ -101,13 +101,9 @@ async function doLogin(){
     showError('Por favor ingresa tu correo y contraseña');return;
   }
 
-  // 🔧 Límite mínimo de caracteres (cuenta espacios), igual que en el registro
-  if(emailVal.length<12){
-    showError('El correo debe tener al menos 12 caracteres');return;
-  }
-  if(passVal.length<12){
-    showError('La contraseña debe tener al menos 12 caracteres');return;
-  }
+  // 🔧 FIX: el mínimo de 12 caracteres solo aplica al REGISTRAR una cuenta nueva.
+  //         Aquí en login no se valida longitud mínima, para no bloquear cuentas
+  //         viejas creadas cuando el mínimo era 6 caracteres.
 
   if(!navigator.onLine){
     showError('Sin conexión a internet. Revisa tu señal e intenta de nuevo.');
@@ -283,12 +279,7 @@ async function doRegistro(){
   if(emailVal.length>100){
     showRegError('El correo no puede tener más de 100 caracteres');return;
   }
-  if(passVal.length<12){
-    showRegError('La contraseña debe tener mínimo 12 caracteres');return;
-  }
-  if(passVal.length>128){
-    showRegError('La contraseña no puede tener más de 128 caracteres');return;
-  }
+  // 🔧 Sin límite de caracteres en la contraseña por ahora (ni mínimo ni máximo)
   if(passVal!==confirmVal){
     showRegError('Las contraseñas no coinciden');return;
   }
