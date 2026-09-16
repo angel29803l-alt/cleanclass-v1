@@ -2,6 +2,7 @@
 <html lang="es" class="h-full">
 <head>
   <meta name="google" content="notranslate">
+  <meta name="description" content="CleanClass: gestiona el aseo, reportes e incidentes de tu colegio de forma fácil y organizada.">
   <title>CleanClass</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,10 +44,9 @@
 
       <label class="auth-label">Contraseña</label>
       <div class="auth-pw-box">
-        <input type="password" id="passLogin" class="auth-input" placeholder="Contraseña" autocomplete="new-password" maxlength="128" oninput="document.getElementById('passLoginCount').textContent=(128-this.value.length)+' disponibles';">
+        <input type="password" id="passLogin" class="auth-input" placeholder="Contraseña" autocomplete="new-password">
         <span class="auth-eye" onclick="togglePassword('passLogin',this)"></span>
       </div>
-      <p id="passLoginCount" style="font-size:11px;color:var(--textm);text-align:right;margin-top:2px">128 disponibles</p>
 
       <div class="auth-row auth-olvido">
         <span class="auth-link">¿Olvidaste tu contraseña?</span>
@@ -75,16 +75,15 @@
       <p id="regEmailCount" style="font-size:11px;color:var(--textm);text-align:right;margin-top:2px">100 disponibles</p>
       <label class="auth-label">Contraseña</label>
       <div class="auth-pw-box">
-        <input type="password" id="passRegistro" class="auth-input" placeholder="Contraseña" maxlength="128" oninput="document.getElementById('passRegistroCount').textContent=(128-this.value.length)+' disponibles';">
+        <input type="password" id="passRegistro" class="auth-input" placeholder="Contraseña">
         <span class="auth-eye" onclick="togglePassword('passRegistro',this)"></span>
       </div>
-      <p id="passRegistroCount" style="font-size:11px;color:var(--textm);text-align:right;margin-top:2px">128 disponibles</p>
       <label class="auth-label">Confirmar contraseña</label>
       <div class="auth-pw-box">
-        <input type="password" id="passConfirm" class="auth-input" placeholder="Confirmar contraseña" maxlength="128" oninput="document.getElementById('passConfirmCount').textContent=(128-this.value.length)+' disponibles';">
+        <input type="password" id="passConfirm" class="auth-input" placeholder="Confirmar contraseña">
         <span class="auth-eye" onclick="togglePassword('passConfirm',this)"></span>
       </div>
-      <p id="passConfirmCount" style="font-size:11px;color:var(--textm);text-align:right;margin-top:2px">128 disponibles</p>
+
       <div id="regError" style="color:#ef4444;font-size:13px;text-align:center;display:none;margin-top:4px"></div>
       <button class="auth-btn-primary" id="btnRegistro" onclick="doRegistro()">Registrarse</button>
       <div class="auth-bottom">
