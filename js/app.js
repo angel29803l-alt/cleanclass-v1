@@ -247,6 +247,20 @@ function toggleNotifPanel(){
 function updateProfileImage(input){
   const file=input.files[0];
   if(!file)return;
+
+  // 🔒 Si el admin bloqueó la foto de este usuario, no se puede cambiar
+  const me = D.users?.find(u=>u.id===currentSession?.id);
+  if(me?.avatar_locked){
+    alert('Tu foto de perfil fue fijada por un administrador y no puedes cambiarla.');
+    input.value='';
+    return;
+  }
+
+  const n=document.createElement('div');
+  n.style.cssText='position:fixed;top:20px;right:20px;background:#0891b2;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
+  n.textContent='⏳ Subiendo foto...';
+  document.body.appendChild(n);
+
   const reader=new FileReader();
   reader.onload=async ()=>{
     D._profileImage=reader.result;
@@ -261,12 +275,6 @@ function updateProfileImage(input){
     }
     const emailBtn=document.getElementById('emailBtn');
     if(emailBtn)emailBtn.innerHTML=`<img src="${D._profileImage}" style="width:100%;height:100%;object-fit:cover">`;
-
-    // Subir a Supabase Storage y guardar URL en users.avatar_url
-    const n=document.createElement('div');
-    n.style.cssText='position:fixed;top:20px;right:20px;background:#0891b2;color:#fff;padding:14px 18px;border-radius:8px;z-index:999;font-weight:600;font-size:14px';
-    n.textContent='⏳ Subiendo foto...';
-    document.body.appendChild(n);
 
     try{
       const ext = (file.name.split('.').pop()||'jpg').toLowerCase();

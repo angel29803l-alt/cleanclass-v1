@@ -78,13 +78,20 @@ function rSettings(){
           <div style="width:96px;height:96px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;border:3px solid var(--accent)">
             ${(currentSession?.avatar_url||D._profileImage)?`<img id="profileAvatarImg" src="${currentSession?.avatar_url||D._profileImage}" style="width:100%;height:100%;object-fit:cover">`:`<span id="profileAvatarEmoji" style="font-size:48px">${currentUser.avatar}</span>`}
           </div>
-          <!-- Botón cambiar foto -->
+          <!-- Botón cambiar foto (oculto si el admin la fijó/bloqueó) -->
+          ${(D.users?.find(u=>u.id===currentSession?.id))?.avatar_locked ? `
+            <p style="font-size:11px;color:var(--textm);margin-bottom:12px">
+              <i data-lucide="lock" style="width:12px;height:12px;display:inline;margin-right:3px"></i>
+              Foto fijada por un administrador
+            </p>
+          ` : `
           <label style="display:inline-block;margin-bottom:12px;cursor:pointer">
             <span class="pill pill-ghost" style="font-size:12px;padding:5px 12px">
               <i data-lucide="camera" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Cambiar foto
             </span>
             <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileImage(this)">
           </label>
+          `}
           <h2 class="font-bold text-xl">${currentUser.name}</h2>
           <p style="color:var(--accent);font-size:13px;font-weight:600;margin:4px 0">${currentUser.role}</p>
           <p style="color:var(--textm);font-size:12px;margin-bottom:12px">${currentUser.department}</p>

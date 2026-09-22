@@ -18,6 +18,7 @@ function rConfig(){
     ${tabBtn('schedules','Horarios','clock')}
     ${tabBtn('rooms','Salones','door-open')}
     ${tabBtn('help','Ayuda','help-circle')}
+    ${tabBtn('avatars','Fotos de perfil','image')}
   </div>`;
 
   // ── TAB: HORARIOS (extraído de rAdminPanel) ──
@@ -36,7 +37,114 @@ function rConfig(){
     html+=renderHelpConfig();
   }
 
+  // ── TAB: FOTOS DE PERFIL (moderación manual) ──
+  if(ct==='avatars'){
+    html+=renderAvatarsConfig();
+  }
+
   return html;
+}
+
+// Helper: panel de administración de fotos de perfil (eliminar, bloquear, fijar)
+function renderAvatarsConfig(){
+  const allUsers = (D.users||[]).slice().sort((a,b)=>(a.name||a.email||'').localeCompare(b.name||b.email||''));
+
+  if(!allUsers.length){
+    return `<div style="text-align:center;padding:40px;color:var(--textm)">
+      <i data-lucide="users" style="width:40px;height:40px;margin:0 auto 10px;display:block;opacity:.5"></i>
+      No hay usuarios todavía.
+    </div>`;
+  }
+
+  return `
+  <div style="margin-bottom:14px">
+    <p style="font-size:13px;color:var(--textm)">Administra las fotos de perfil: elimina una foto inapropiada, bloquea a un usuario para que no pueda cambiar su foto, o fija tú mismo una foto específica (queda bloqueada automáticamente).</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px">
+    ${allUsers.map(u=>`
+      <div style="background:var(--surface);border-radius:12px;padding:10px;text-align:center">
+        ${u.avatar_url
+          ? `<img src="${u.avatar_url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;margin-bottom:8px">`
+          : `<div style="width:100%;aspect-ratio:1;border-radius:10px;margin-bottom:8px;background:var(--bg);display:flex;align-items:center;justify-content:center">
+               <i data-lucide="user" style="width:28px;height:28px;opacity:.4"></i>
+             </div>`
+        }
+        <p style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.name||u.email}">${u.name||u.email}</p>
+        <p style="font-size:10px;color:var(--textm);margin-bottom:6px">${u.email||''}</p>
+        <p style="font-size:10px;margin-bottom:8px;color:${u.avatar_locked?'#f59e0b':'var(--textm)'}">
+          ${u.avatar_locked?'🔒 Bloqueada':'🔓 Libre'}
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${u.avatar_url?`
+          <button onclick="deleteUserAvatar('${u.id}')" style="width:100%;background:#7f1d1d;color:#fff;border:none;border-radius:8px;padding:6px;font-size:11px;font-weight:600;cursor:pointer">
+            🗑️ Eliminar foto
+          </button>`:''}
+
+          <button onclick="toggleAvatarLock('${u.id}', ${!u.avatar_locked})" style="width:100%;background:${u.avatar_locked?'#334155':'#78350f'};color:#fff;border:none;border-radius:8px;padding:6px;font-size:11px;font-weight:600;cursor:pointer">
+            ${u.avatar_locked?'🔓 Desbloquear':'🔒 Bloquear'}
+          </button>
+
+          <label style="width:100%;display:block;cursor:pointer">
+            <span style="display:block;width:100%;background:#0891b2;color:#fff;border-radius:8px;padding:6px;font-size:11px;font-weight:600">
+              📌 Fijar foto
+            </span>
+            <input type="file" accept="image/*" style="display:none" onchange="adminSetUserAvatar('${u.id}', this)">
+          </label>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+// Elimina la foto de perfil de un usuario (no cambia el bloqueo)
+async function deleteUserAvatar(userId){
+  if(!confirm('¿Eliminar esta foto de perfil? El usuario volverá al avatar por defecto.')) return;
+  try{
+    const { error } = await sb.from('users').update({ avatar_url: null }).eq('id', userId);
+    if(error) throw error;
+    await loadUsers();
+    render();
+  }catch(err){
+    console.error('Error eliminando avatar:', err.message);
+    alert('No se pudo eliminar la foto. Intenta de nuevo.');
+  }
+}
+
+// Bloquea o desbloquea que un usuario pueda cambiar su propia foto
+async function toggleAvatarLock(userId, lock){
+  try{
+    const { error } = await sb.from('users').update({ avatar_locked: lock }).eq('id', userId);
+    if(error) throw error;
+    await loadUsers();
+    render();
+  }catch(err){
+    console.error('Error actualizando bloqueo de avatar:', err.message);
+    alert('No se pudo actualizar. Intenta de nuevo.');
+  }
+}
+
+// El admin sube y fija una foto específica para un usuario (queda bloqueada automáticamente)
+async function adminSetUserAvatar(userId, input){
+  const file = input.files[0];
+  if(!file) return;
+  try{
+    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+    const fileName = `avatar_${userId}_${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, file, { upsert:true });
+    if(upErr) throw upErr;
+    const { data: pub } = sb.storage.from('evidencias').getPublicUrl(fileName);
+    const url = pub.publicUrl + '?t=' + Date.now();
+
+    const { error: dbErr } = await sb.from('users').update({ avatar_url: url, avatar_locked: true }).eq('id', userId);
+    if(dbErr) throw dbErr;
+
+    await loadUsers();
+    render();
+  }catch(err){
+    console.error('Error fijando avatar:', err.message);
+    alert('No se pudo fijar la foto. Intenta de nuevo.');
+  }
 }
 
 // Helper: renderiza config de horarios (extraído de adminPanel)
