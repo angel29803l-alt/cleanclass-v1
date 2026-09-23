@@ -26,7 +26,7 @@ async function loadIncidents() {
 }
 
 async function loadUsers() {
-  const { data, error } = await sb.from('users').select('id, name, email, avatar_url');
+  const { data, error } = await sb.from('users').select('id, name, email, avatar_url, avatar_locked');
   if (!error && data) D.usersProfiles = data;
 }
 

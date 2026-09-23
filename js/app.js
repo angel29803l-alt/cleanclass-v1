@@ -249,7 +249,7 @@ function updateProfileImage(input){
   if(!file)return;
 
   // 🔒 Si el admin bloqueó la foto de este usuario, no se puede cambiar
-  const me = D.users?.find(u=>u.id===currentSession?.id);
+  const me = D.usersProfiles?.find(u=>u.id===currentSession?.id);
   if(me?.avatar_locked){
     alert('Tu foto de perfil fue fijada por un administrador y no puedes cambiarla.');
     input.value='';

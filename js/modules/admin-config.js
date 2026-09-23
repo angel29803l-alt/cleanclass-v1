@@ -47,7 +47,7 @@ function rConfig(){
 
 // Helper: panel de administración de fotos de perfil (eliminar, bloquear, fijar)
 function renderAvatarsConfig(){
-  const allUsers = (D.users||[]).slice().sort((a,b)=>(a.name||a.email||'').localeCompare(b.name||b.email||''));
+  const allUsers = (D.usersProfiles||[]).slice().sort((a,b)=>(a.name||a.email||'').localeCompare(b.name||b.email||''));
 
   if(!allUsers.length){
     return `<div style="text-align:center;padding:40px;color:var(--textm)">

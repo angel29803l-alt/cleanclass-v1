@@ -79,7 +79,7 @@ function rSettings(){
             ${(currentSession?.avatar_url||D._profileImage)?`<img id="profileAvatarImg" src="${currentSession?.avatar_url||D._profileImage}" style="width:100%;height:100%;object-fit:cover">`:`<span id="profileAvatarEmoji" style="font-size:48px">${currentUser.avatar}</span>`}
           </div>
           <!-- Botón cambiar foto (oculto si el admin la fijó/bloqueó) -->
-          ${(D.users?.find(u=>u.id===currentSession?.id))?.avatar_locked ? `
+          ${(D.usersProfiles?.find(u=>u.id===currentSession?.id))?.avatar_locked ? `
             <p style="font-size:11px;color:var(--textm);margin-bottom:12px">
               <i data-lucide="lock" style="width:12px;height:12px;display:inline;margin-right:3px"></i>
               Foto fijada por un administrador
