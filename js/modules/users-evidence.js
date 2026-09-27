@@ -263,7 +263,7 @@ function rUsers(){
         <th style="width:36px">#</th><th>Nombre</th><th>Grado</th><th>Email</th><th>Grupo Aseo</th><th style="text-align:center">Cumplimiento</th>${isAdmin()?'<th>Acciones</th>':''}
       </tr></thead>
       <tbody>${filteredStudents.length>0?filteredStudents.map((s,i)=>{
-        const group=D.cleanGroups.find(g=>g.members&&g.members.includes(s.name));
+        const group=D.cleanGroups.find(g=>g.members&&g.members.some(m=>_sameName(m, s.name)));
         // Cumplimiento real del GRUPO (no individual):
         // = evidencias aprobadas del grupo / total evidencias del grupo (incluyendo rechazadas y pendientes)
         // Así si el grupo no subió un día, ese día cuenta como incumplimiento
@@ -524,7 +524,7 @@ function rEvidence(){
       const isTodayNoClass = (D.noClassDays||[]).some(x=>x.date===todayStr2 && (!x.grade||x.grade===myGrade));
       if(isTodayNoClass) return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="calendar-x" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Hoy no hay clase</span>`;
       if(!isStudent()) return myGroups.length>0?`<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`:`<span style="font-size:13px;color:var(--textm);font-style:italic">Sin grupos creados</span>`;
-      const myGroup=D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
+      const myGroup=D.cleanGroups.find(g=>g.members&&g.members.some(m=>_sameName(m, currentSession?.name)));
       if(!myGroup) return `<span style="font-size:13px;color:var(--textm);font-style:italic">No estás en ningún grupo</span>`;
 
       // ---- VENTANA DE ASEO (check-in GPS + evidencia) ----
@@ -626,7 +626,7 @@ function openCameraModal(){
   const stamp   = `${dayNames[now.getDay()]} ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
 
   // Obtener el grupo del estudiante automáticamente
-  const myGroup = D.cleanGroups.find(g=>g.members&&g.members.includes(currentSession?.name));
+  const myGroup = D.cleanGroups.find(g=>g.members&&g.members.some(m=>_sameName(m, currentSession?.name)));
   const today = now.toISOString().split('T')[0];
 
   if(!myGroup){ alert('No estás en ningún grupo de aseo.'); return; }

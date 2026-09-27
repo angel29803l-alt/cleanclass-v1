@@ -3,6 +3,18 @@
 // Login con roles, tabs, modales, logout
 // ============================================================
 
+// 🔧 FIX: comparar nombres exactos con === fallaba cuando había espacios
+//         extra, mayúsculas/minúsculas distintas, o tildes diferentes entre
+//         el nombre del estudiante y el nombre guardado como miembro del
+//         grupo (ej. "Angel Diaz " vs "angel díaz"). Esta función normaliza
+//         ambos lados antes de comparar.
+function _normName(s){
+  return (s||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function _sameName(a,b){
+  return _normName(a) === _normName(b) && _normName(a) !== '';
+}
+
 let assignmentMode='daily';
 let isLoggedOut=false;
 
