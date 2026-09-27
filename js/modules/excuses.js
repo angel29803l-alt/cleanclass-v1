@@ -49,6 +49,27 @@ function getAbsences(scope){
     });
   });
 
+  // 🔧 FIX: además de las faltas detectadas por cruce de asistencia, incluir
+  //         cualquier excusa que exista en D.excuses pero que no haya calzado
+  //         arriba (por ejemplo, el día que faltó nadie del grupo hizo aseo,
+  //         así que nunca quedó registrado como "día con aseo"). Sin esto, esa
+  //         excusa quedaba invisible para siempre aunque existiera en la BD.
+  const yaIncluidas = new Set(faltas.map(f=>`${f.student}|${f.group_name}|${f.date}`));
+  (D.excuses||[]).forEach(x=>{
+    if(scope==='mine' && x.student !== myName) return;
+    if(scope==='grade' && !isAdmin() && x.grade !== myGrade) return;
+    const key = `${x.student}|${x.group_name}|${x.date}`;
+    if(yaIncluidas.has(key)) return;
+    faltas.push({
+      student: x.student,
+      group_name: x.group_name,
+      grade: x.grade,
+      date: x.date,
+      excuse: x,
+      status: x.status
+    });
+  });
+
   return faltas.sort((a,b)=> b.date.localeCompare(a.date));
 }
 
