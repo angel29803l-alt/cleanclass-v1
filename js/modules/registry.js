@@ -23,7 +23,46 @@ function monthLabel(ym){
   return `${MESES_NOMBRE[parseInt(m)-1]} ${a}`;
 }
 
-// Días en los que un grupo tuvo aseo (hay evidencia registrada)
+const _DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+// 🔧 FIX: antes esta función solo devolvía los días donde YA HABÍA evidencia
+//         subida — si nadie subía nada un día que sí le tocaba al grupo, ese
+//         día quedaba completamente invisible (nadie salía marcado "Faltó").
+//         Ahora se calculan los días que REALMENTE le tocaban al grupo según
+//         su horario (frequency/day), sin importar si hay evidencia o no.
+function getGroupExpectedDays(grupo, month){
+  const dias = [];
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+  let inicio = grupo?.created_at ? new Date(grupo.created_at) : null;
+  if(!inicio || isNaN(inicio.getTime())){
+    // Si no hay fecha de creación del grupo, retrocede 90 días como respaldo
+    inicio = new Date(hoy);
+    inicio.setDate(inicio.getDate() - 90);
+  }
+  inicio.setHours(0,0,0,0);
+
+  const cursor = new Date(inicio);
+  while(cursor <= hoy){
+    const dow = cursor.getDay();
+    if(dow!==0 && dow!==6){ // se saltan sábados y domingos
+      const dateStr = cursor.toISOString().split('T')[0];
+      const esNoClass = (D.noClassDays||[]).some(nc=>nc.date===dateStr && (!nc.grade || nc.grade===grupo.grade));
+      if(!esNoClass){
+        const nombreDia = _DIAS_SEMANA[dow];
+        const leTocaba = grupo.frequency==='weekly' || (grupo.frequency==='daily' && grupo.day===nombreDia);
+        if(leTocaba && (!month || dateStr.startsWith(month))){
+          dias.push(dateStr);
+        }
+      }
+    }
+    cursor.setDate(cursor.getDate()+1);
+  }
+  return dias.sort().reverse();
+}
+
+// Días en los que un grupo tuvo aseo (hay evidencia registrada) — se conserva
+// por si algún otro módulo la necesita, pero el Registro ya no depende de ella.
 function getGroupCleaningDays(groupName, month){
   const dias = new Set();
   (D.evidence||[]).forEach(e=>{
@@ -35,8 +74,9 @@ function getGroupCleaningDays(groupName, month){
 }
 
 // Resumen de un integrante: cumplidos, faltas, excusados y el detalle de cada día
-function getMemberRecord(student, groupName, month){
-  const dias = getGroupCleaningDays(groupName, month);
+function getMemberRecord(student, grupo, month){
+  const dias = getGroupExpectedDays(grupo, month);
+  const groupName = grupo.name;
   const detalle = [];
   let cumplidos = 0, faltas = 0, excusados = 0, pendientes = 0;
 
@@ -83,7 +123,7 @@ function renderRegistryTab(){
   (D.cleanGroups||[]).forEach(g=>{
     if(!isAdmin() && myGrade && g.grade !== myGrade) return;
     (g.members||[]).forEach(alumno=>{
-      const r = getMemberRecord(alumno, g.name, registryMonth);
+      const r = getMemberRecord(alumno, g, registryMonth);
       filas.push({ ...r, group: g.name, grade: g.grade || '—' });
     });
   });
