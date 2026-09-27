@@ -198,6 +198,7 @@ function rValidation(){
                   </button>
                 </div>
               </div>
+              ${isTeacher()||isAdmin()?`<button class="pill pill-danger w-full" style="font-size:12px;padding:8px" onclick="deleteEvidenceFromApp(${e.id},'${e.image||''}')"><i data-lucide="trash-2" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Eliminar evidencia</button>`:''}
               <div>
                 <label class="text-sm font-medium" style="color:var(--textm);display:block;margin-bottom:6px">Observaciones</label>
                 <textarea id="obs-${e.id}" class="inp" style="resize:vertical;min-height:100px;padding:10px" placeholder="Anota observaciones de la limpieza..."></textarea>
@@ -220,13 +221,14 @@ function rValidation(){
   </div>
   <div id="validationReviewed" class="validation-tab" style="display:none">
     ${reviewed.length>0?`<table class="tbl">
-      <thead><tr><th>Fecha</th><th>Grupo</th><th>Estado</th><th>Revisado por</th><th>Observaciones</th><th>Ver</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Grupo</th><th>Estado</th><th>Revisado por</th><th>Observaciones</th><th>Ver</th>${isTeacher()||isAdmin()?'<th>Eliminar</th>':''}</tr></thead>
       <tbody>${reviewed.map(e=>`<tr>
         <td><strong>${e.date}</strong></td><td>${e.group}</td>
         <td><span class="badge" style="background:${e.status==='Completado'?'#d1fae5;color:#059669':'#fee2e2;color:#dc2626'}">${e.status}</span></td>
         <td style="font-size:12px;color:var(--textm)">${e.reviewed_by||'—'}</td>
         <td style="font-size:12px;color:var(--textm)">${e.observation?e.observation.substring(0,40)+'...':'—'}</td>
         <td><button class="pill pill-ghost" style="padding:5px" onclick="viewReviewDetail(${e.id})"><i data-lucide="eye" style="width:14px;height:14px"></i></button></td>
+        ${isTeacher()||isAdmin()?`<td><button class="pill pill-danger" style="padding:5px" onclick="deleteEvidenceFromApp(${e.id},'${e.image||''}')"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button></td>`:''}
       </tr>`).join('')}</tbody>
     </table>`:`<p style="text-align:center;padding:40px;color:var(--textm)">Sin evidencias revisadas aún</p>`}
   </div>`;
