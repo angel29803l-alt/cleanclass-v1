@@ -230,6 +230,11 @@ function viewReviewDetail(id){
         <button onclick="closeModal()" class="pill pill-ghost" style="padding:4px"><i data-lucide="x" style="width:18px;height:18px"></i></button>
       </div>
       <div class="flex flex-col gap-4">
+        ${evidence.image?`<div style="width:100%;height:220px;border-radius:10px;overflow:hidden;cursor:pointer" onclick="openImageFullscreen('${evidence.image}')">
+          <img src="${evidence.image}" style="width:100%;height:100%;object-fit:cover">
+        </div>`:`<div style="width:100%;height:120px;border-radius:10px;background:rgba(6,182,212,.08);display:flex;align-items:center;justify-content:center">
+          <p style="font-size:12px;color:var(--textm)">Sin imagen</p>
+        </div>`}
         <div><p style="font-size:12px;color:var(--textm);margin-bottom:4px">Grupo</p><p class="font-medium">${evidence.group}</p></div>
         <div><p style="font-size:12px;color:var(--textm);margin-bottom:4px">Estado Final</p>
           <span class="badge" style="background:${evidence.status==='Completado'?'#d1fae5;color:#059669':'#fee2e2;color:#dc2626'}">${evidence.status}</span>
