@@ -117,11 +117,19 @@ function getMemberRecord(student, grupo, month){
 function renderRegistryTab(){
   const myGrade = getCurrentGrade();
   const meses = getRegistryMonths();
+  const soyEstudiante = isStudent();
 
   // Un registro por cada estudiante que pertenezca a algún grupo
   const filas = [];
   (D.cleanGroups||[]).forEach(g=>{
-    if(!isAdmin() && myGrade && g.grade !== myGrade) return;
+    if(soyEstudiante){
+      // El estudiante solo ve su propio grupo (con todos sus integrantes)
+      if(!(g.members||[]).some(m=>_sameName(m, currentSession?.name))) return;
+    } else if(!isAdmin() && myGrade && g.grade !== myGrade){
+      // El docente ve todos los grupos de su grado
+      return;
+    }
+    // El admin ve todos los grupos, sin filtrar
     (g.members||[]).forEach(alumno=>{
       const r = getMemberRecord(alumno, g, registryMonth);
       filas.push({ ...r, group: g.name, grade: g.grade || '—' });
@@ -232,6 +240,8 @@ function renderMemberDays(f){
     return `<p style="color:var(--textm);font-size:12px;text-align:center">Sin días registrados en este período.</p>`;
   }
 
+  const esMiPropioRegistro = isStudent() && _sameName(f.student, currentSession?.name);
+
   return `
     <p style="font-size:11px;color:var(--textm);font-weight:600;margin-bottom:8px">
       DÍAS REGISTRADOS — ${f.student} · ${monthLabel(registryMonth)}
@@ -245,15 +255,23 @@ function renderMemberDays(f){
           'Excusa en revisión': {bg:'rgba(245,158,11,.12)', color:'#d97706', icon:'◷'}
         }[d.estado];
 
-        const clickable = d.excusa?.image_url
-          ? `onclick="viewExcuseImage('${d.excusa.image_url}')" style="cursor:pointer;`
-          : `style="`;
+        // 🆕 Si es MI falta sin justificar, tocarla abre el formulario de justificación
+        const puedoJustificar = esMiPropioRegistro && d.estado==='Faltó';
 
-        return `<span ${clickable}display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
+        let clickAttr;
+        if(puedoJustificar){
+          clickAttr = `onclick="openExcuseModal('${f.group}','${d.date}','${f.grade||''}')" style="cursor:pointer;`;
+        } else if(d.excusa?.image_url){
+          clickAttr = `onclick="viewExcuseImage('${d.excusa.image_url}')" style="cursor:pointer;`;
+        } else {
+          clickAttr = `style="`;
+        }
+
+        return `<span ${clickAttr}display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
           border-radius:8px;font-size:11px;font-weight:600;
-          background:${estilos.bg};color:${estilos.color}"
-          title="${d.estado}${d.excusa?.reason?' — '+d.excusa.reason:''}${d.excusa?.image_url?' (toca para ver la excusa)':''}">
-          ${estilos.icon} ${formatDateShort(d.date)}
+          background:${estilos.bg};color:${estilos.color}${puedoJustificar?';border:1.5px dashed '+estilos.color:''}"
+          title="${d.estado}${d.excusa?.reason?' — '+d.excusa.reason:''}${d.excusa?.image_url?' (toca para ver la excusa)':''}${puedoJustificar?' — toca para justificar':''}">
+          ${estilos.icon} ${formatDateShort(d.date)}${puedoJustificar?' · Justificar':''}
         </span>`;
       }).join('')}
     </div>`;
