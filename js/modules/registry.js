@@ -246,6 +246,14 @@ function renderMemberDays(f){
     <p style="font-size:11px;color:var(--textm);font-weight:600;margin-bottom:8px">
       DÍAS REGISTRADOS — ${f.student} · ${monthLabel(registryMonth)}
     </p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+      ${[
+        {icon:'✔', label:'Cumplió',  color:'#16a34a'},
+        {icon:'✕', label:'Faltó',    color:'#ef4444'},
+        {icon:'◷', label:'En revisión', color:'#d97706'},
+        {icon:'📄', label:'Excusado', color:'#0891b2'}
+      ].map(l=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:${l.color};font-weight:600">${l.icon} ${l.label}</span>`).join('')}
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
       ${f.detalle.map(d=>{
         const estilos = {
