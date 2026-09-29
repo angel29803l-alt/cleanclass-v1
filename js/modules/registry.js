@@ -257,10 +257,13 @@ function renderMemberDays(f){
 
         // 🆕 Si es MI falta sin justificar, tocarla abre el formulario de justificación
         const puedoJustificar = esMiPropioRegistro && d.estado==='Faltó';
+        const puedoRevisar = (isTeacher()||isAdmin()) && d.excusa && (d.estado==='Excusa en revisión' || d.estado==='Excusado');
 
         let clickAttr;
         if(puedoJustificar){
           clickAttr = `onclick="openExcuseModal('${f.group}','${d.date}','${f.grade||''}')" style="cursor:pointer;`;
+        } else if(puedoRevisar){
+          clickAttr = `onclick="reviewExcuseFromRegistry(${d.excusa.id})" style="cursor:pointer;`;
         } else if(d.excusa?.image_url){
           clickAttr = `onclick="viewExcuseImage('${d.excusa.image_url}')" style="cursor:pointer;`;
         } else {
@@ -269,9 +272,9 @@ function renderMemberDays(f){
 
         return `<span ${clickAttr}display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
           border-radius:8px;font-size:11px;font-weight:600;
-          background:${estilos.bg};color:${estilos.color}${puedoJustificar?';border:1.5px dashed '+estilos.color:''}"
-          title="${d.estado}${d.excusa?.reason?' — '+d.excusa.reason:''}${d.excusa?.image_url?' (toca para ver la excusa)':''}${puedoJustificar?' — toca para justificar':''}">
-          ${estilos.icon} ${formatDateShort(d.date)}${puedoJustificar?' · Justificar':''}
+          background:${estilos.bg};color:${estilos.color}${(puedoJustificar||puedoRevisar)?';border:1.5px dashed '+estilos.color:''}"
+          title="${d.estado}${d.excusa?.reason?' — '+d.excusa.reason:''}${puedoRevisar?' — toca para revisar':(d.excusa?.image_url?' (toca para ver la excusa)':'')}${puedoJustificar?' — toca para justificar':''}">
+          ${estilos.icon} ${formatDateShort(d.date)}${puedoJustificar?' · Justificar':''}${puedoRevisar?' · Revisar':''}
         </span>`;
       }).join('')}
     </div>`;

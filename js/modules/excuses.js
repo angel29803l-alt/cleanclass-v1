@@ -433,6 +433,40 @@ function closeExcuseImage(){
   if(wrap) wrap.innerHTML = '';
 }
 
+// 🆕 Modal para que el docente/admin revise una excusa: foto + Aprobar/Rechazar
+function reviewExcuseFromRegistry(excuseId){
+  const excusa = (D.excuses||[]).find(x=>x.id===excuseId);
+  if(!excusa) return;
+  const puedeRevisar = (isTeacher()||isAdmin()) && excusa.status==='Pendiente';
+
+  const html = `<div class="modal-bg" onclick="if(event.target===this)closeExcuseImage()">
+    <div class="modal fade-in" style="max-width:560px;padding:14px">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-base">Excusa de ${excusa.student}</h2>
+        <button onclick="closeExcuseImage()" class="pill pill-ghost" style="padding:5px">
+          <i data-lucide="x" style="width:17px;height:17px"></i>
+        </button>
+      </div>
+      ${excusa.image_url?`<img src="${excusa.image_url}" style="width:100%;border-radius:10px;margin-bottom:12px">`:''}
+      ${excusa.reason?`<p style="font-size:13px;color:var(--textm);margin-bottom:12px"><strong>Motivo:</strong> ${excusa.reason}</p>`:''}
+      ${puedeRevisar?`
+        <div class="flex gap-2">
+          <button class="pill pill-success flex-1" style="padding:10px" onclick="reviewExcuse(${excusa.id},'Excusado');closeExcuseImage()">
+            <i data-lucide="check" style="width:14px;height:14px;margin-right:4px;display:inline"></i>Excusar
+          </button>
+          <button class="pill pill-danger flex-1" style="padding:10px" onclick="reviewExcuse(${excusa.id},'Rechazado');closeExcuseImage()">
+            <i data-lucide="x" style="width:14px;height:14px;margin-right:4px;display:inline"></i>Rechazar
+          </button>
+        </div>
+      `:`<p style="font-size:12px;color:var(--textm);text-align:center">Estado actual: <strong>${excusa.status}</strong></p>`}
+    </div>
+  </div>`;
+  let wrap = document.getElementById('excuseImgWrap');
+  if(!wrap){ wrap = document.createElement('div'); wrap.id='excuseImgWrap'; document.body.appendChild(wrap); }
+  wrap.innerHTML = html;
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 // ---- El docente aprueba o rechaza ----
 async function reviewExcuse(id, nuevoEstado){
   const ok = await updateExcuseStatus(id, nuevoEstado, currentSession?.name);
