@@ -405,7 +405,11 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' },
       async () => { await loadIncidents(); render(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },
-      async () => { await loadAllData(); render(); })
+      // 🔧 FIX: antes esto disparaba loadAllData() — una recarga de TODAS las
+      //         tablas para TODOS los usuarios conectados, cada vez que
+      //         cualquiera cambiaba su foto de perfil o se registraba. Ahora
+      //         solo recarga la tabla users, que es lo que realmente cambió.
+      async () => { await loadUsers(); render(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'no_class_days' },
       async () => { await loadNoClassDays(); render(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' },

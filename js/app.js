@@ -99,7 +99,10 @@ function openEditProfileModal(){
       currentSession.email=newEmail;
     }
 
-    await loadAllData();
+    // 🔧 FIX: antes esto llamaba loadAllData() (TODAS las tablas). Este cambio
+    //         solo afecta users, students y clean_groups (por syncNameChange),
+    //         así que solo recargamos esas 3.
+    await Promise.all([loadUsers(), loadStudents(), loadCleanGroups()]);
     closeModal();render();
     const n=document.createElement('div');
     n.style.cssText='position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:16px 20px;border-radius:8px;z-index:100;font-weight:600';
@@ -306,7 +309,9 @@ function updateProfileImage(input){
 
       if(currentSession) currentSession.avatar_url = url;
       D._profileImage = url;
-      await loadAllData();
+      // 🔧 FIX: antes llamaba loadAllData() (TODAS las tablas) solo para
+      //         actualizar una foto — ahora solo recarga users.
+      await loadUsers();
       n.style.background='#10b981';
       n.textContent='✓ Foto de perfil actualizada';
       render();
