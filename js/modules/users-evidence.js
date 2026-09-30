@@ -552,13 +552,20 @@ function rEvidence(){
       const todayCode = new Date().toISOString().split('T')[0];
       const iAlreadyMarked = (D.checkins||[]).some(c=>c.student===currentSession?.name && c.group_name===myGroup.name && c.date===todayCode);
 
-      if(currentHM <= closeHM){
-        if(iAlreadyMarked) return `<span style="font-size:13px;color:#16a34a;font-style:italic"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Ya registraste tu asistencia hoy</span>`;
-        const label = hasEvidenceToday ? 'Marcar mi asistencia' : 'Tomar Foto';
-        const icon = hasEvidenceToday ? 'key' : 'camera';
-        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="${icon}" style="width:16px;height:16px"></i>${label}</button>`;
+      // 🔧 FIX: antes, si la ventana de evidencia ya había cerrado, este bloque
+      //         no mostraba NADA (ni botón ni mensaje) — ni siquiera a quien
+      //         solo quería marcar su asistencia con el código, que no
+      //         debería depender de esa ventana tan corta. Ahora, mientras
+      //         haya evidencia hoy y no hayas marcado, siempre puedes hacerlo.
+      if(iAlreadyMarked) return `<span style="font-size:13px;color:#16a34a;font-style:italic"><i data-lucide="check-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>Ya registraste tu asistencia hoy</span>`;
+
+      if(hasEvidenceToday){
+        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="key" style="width:16px;height:16px"></i>Marcar mi asistencia</button>`;
       }
-      if(hasEvidenceToday) return '';
+
+      if(currentHM <= closeHM){
+        return `<button class="pill pill-primary flex items-center gap-2" onclick="openCameraModal()"><i data-lucide="camera" style="width:16px;height:16px"></i>Tomar Foto</button>`;
+      }
       return `<span style="font-size:13px;color:#ef4444;font-style:italic"><i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i>⏰ Ventana cerrada — no se subió evidencia</span>`;
     })()}
   </div>
@@ -627,19 +634,6 @@ function openCameraModal(){
 
   if(!myGroup){ alert('No estás en ningún grupo de aseo.'); return; }
 
-  // Verificar que sigamos dentro del horario de aseo (misma ventana que la evidencia)
-  const sch = (D.schedules||[]).find(s=>s.grade===(myGroup.grade||myGrade));
-  const cleanTime = sch?.clean_time?.substring(0,5);
-  if(cleanTime){
-    const currentHM = now.getHours()*60+now.getMinutes();
-    const [nh,nm] = cleanTime.split(':').map(Number);
-    const closeHM = (nh*60+nm) + (sch?.evidence_window_min||30);
-    if(currentHM > closeHM){
-      alert('⏰ La ventana de aseo ya cerró. No se puede registrar evidencia ni asistencia.');
-      return;
-    }
-  }
-
   const alreadyUploadedByMe = D.evidence.some(e=>
     e.group===myGroup.name && e.student===currentSession?.name && e.date===today
   );
@@ -658,10 +652,26 @@ function openCameraModal(){
 
   const groupHasEvidenceToday = D.evidence.some(e=>e.group===myGroup.name && e.date===today);
 
-  // Si un compañero ya subió la evidencia hoy, en vez de cámara pedimos el código
+  // 🔧 FIX: este chequeo debe ir ANTES del límite de horario — marcar
+  //         asistencia con el código no debería depender de la misma
+  //         ventana corta que subir una foto nueva.
   if(groupHasEvidenceToday){
     openAttendanceCodeModal(myGroup);
     return;
+  }
+
+  // Verificar que sigamos dentro del horario de aseo (solo aplica para
+  // SUBIR UNA FOTO NUEVA, no para marcar asistencia con código)
+  const sch = (D.schedules||[]).find(s=>s.grade===(myGroup.grade||myGrade));
+  const cleanTime = sch?.clean_time?.substring(0,5);
+  if(cleanTime){
+    const currentHM = now.getHours()*60+now.getMinutes();
+    const [nh,nm] = cleanTime.split(':').map(Number);
+    const closeHM = (nh*60+nm) + (sch?.evidence_window_min||30);
+    if(currentHM > closeHM){
+      alert('⏰ La ventana de aseo ya cerró. No se puede subir una evidencia nueva.');
+      return;
+    }
   }
 
   const html=`<div class="modal-bg" onclick="if(event.target===this)closeCameraModal()">
