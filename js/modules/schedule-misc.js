@@ -155,9 +155,10 @@ async function toggleNoClassDay(dateStr, isNoClass) {
 // 🆕 Modal para elegir si el día sin clase aplica a TODOS los grados,
 //    a UNO solo, o a VARIOS grados específicos.
 function openNoClassDayModal(dateStr){
-  const defaultGrades = ['6°1','6°2','7°1','7°2','8°1','8°2','9°1','9°2','10°1','10°2','11°1','11°2'];
-  const roomGrades = (D.rooms||[]).map(r=>r.grade).filter(Boolean);
-  const allGrades = [...new Set([...defaultGrades, ...roomGrades])].sort();
+  // 🔧 FIX: antes se mezclaba con una lista fija de ejemplo (defaultGrades),
+  //         lo que mostraba grados que en realidad no existen en el colegio.
+  //         Ahora solo se usan los grados reales que ya existen en Salones.
+  const allGrades = [...new Set((D.rooms||[]).map(r=>r.grade).filter(Boolean))].sort();
 
   const existentes = (D.noClassDays||[]).filter(x=>x.date===dateStr);
   const esGeneral = existentes.some(x=>!x.grade);
