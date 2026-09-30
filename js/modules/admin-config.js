@@ -170,7 +170,7 @@ function renderSchedulesConfig(grades){
         background:${isNoClass?'rgba(239,68,68,.15)':isToday?'rgba(6,182,212,.15)':'transparent'};
         color:${isNoClass?'#ef4444':isWknd?'var(--textm)':'var(--text)'};
         cursor:pointer;border:${isToday?'1.5px solid var(--accent)':'1px solid transparent'}"
-        onclick="toggleNoClassDay('${dateStr}',${isNoClass})" title="${isNoClass?'Quitar día sin clase':'Marcar día sin clase'}">
+        onclick="openNoClassDayModal('${dateStr}')" title="${isNoClass?'Editar/quitar día sin clase':'Marcar día sin clase'}">
         ${d}${isNoClass?'<div style=\\"width:4px;height:4px;background:#ef4444;border-radius:50%;margin:2px auto 0\\"></div>':''}
       </div>`;
   }
@@ -977,7 +977,7 @@ function rDash(){
     const bg=isNoClass?'rgba(239,68,68,.1)':isPast?'transparent':group?(group.color||'#06b6d4')+'28':'transparent';
     const brd=isNoClass?'1px solid rgba(239,68,68,.3)':group&&!isPast?'2px solid '+(group.color||'#06b6d4'):isToday?'2px solid var(--accent)':'1px solid transparent';
     const col=isNoClass?'#ef4444':isPast?'rgba(100,100,100,.4)':group&&!isPast?(group.color||'#06b6d4'):isToday?'var(--accent)':'inherit';
-    const clickFn=isAdmin()&&isWD?`onclick="toggleNoClassDay('${dateStr}',${isNoClass})"`:""
+    const clickFn=isAdmin()&&isWD?`onclick="openNoClassDayModal('${dateStr}')"`:""
     calDays+=`<div ${clickFn} ${group&&!isPast?`title="${group.name}"`:''}style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;border-radius:6px;background:${bg};border:${brd};min-height:36px;${isAdmin()&&isWD?'cursor:pointer;':''}"
       ${isAdmin()&&isWD?`onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'"`:''}>
       <span style="font-size:12px;font-weight:${(group&&!isPast)||isToday?'700':'400'};color:${col};${isPast?'opacity:.5':''}${isNoClass?'text-decoration:line-through':''}">${d}</span>

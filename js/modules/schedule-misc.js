@@ -140,12 +140,92 @@ async function previewIncidentPhoto(input){
 }
 
 // ---- DÍAS SIN CLASE ----
+// Se mantiene por compatibilidad, pero ya no se usa desde el calendario
+// (ver openNoClassDayModal, que reemplaza el toggle simple).
 async function toggleNoClassDay(dateStr, isNoClass) {
   if(isNoClass) {
     await sb.from('no_class_days').delete().eq('date', dateStr);
   } else {
     await sb.from('no_class_days').insert({date: dateStr, created_by: currentSession?.name});
   }
+  await loadNoClassDays();
+  render();
+}
+
+// 🆕 Modal para elegir si el día sin clase aplica a TODOS los grados,
+//    a UNO solo, o a VARIOS grados específicos.
+function openNoClassDayModal(dateStr){
+  const defaultGrades = ['6°1','6°2','7°1','7°2','8°1','8°2','9°1','9°2','10°1','10°2','11°1','11°2'];
+  const roomGrades = (D.rooms||[]).map(r=>r.grade).filter(Boolean);
+  const allGrades = [...new Set([...defaultGrades, ...roomGrades])].sort();
+
+  const existentes = (D.noClassDays||[]).filter(x=>x.date===dateStr);
+  const esGeneral = existentes.some(x=>!x.grade);
+  const gradosActuales = new Set(existentes.filter(x=>x.grade).map(x=>x.grade));
+
+  const d = document.createElement('div');
+  d.id = 'noClassModalWrap';
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.onclick = e => { if(e.target===d) d.remove(); };
+  d.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:22px;width:100%;max-width:380px;max-height:85vh;overflow-y:auto">
+      <h3 class="font-bold text-base mb-1">Día sin clase</h3>
+      <p style="font-size:12px;color:var(--textm);margin-bottom:14px">${dateStr} — ¿para quién aplica?</p>
+
+      <label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;background:rgba(6,182,212,.08);margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="ncdTodos" ${esGeneral?'checked':''} onchange="
+          document.querySelectorAll('.ncdGradeCk').forEach(c=>{c.disabled=this.checked; if(this.checked)c.checked=false;});
+        ">
+        <span style="font-weight:600;font-size:13px">Todos los grados (general)</span>
+      </label>
+
+      <p style="font-size:11px;color:var(--textm);font-weight:600;margin-bottom:6px">O elige uno o varios grados específicos:</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:16px">
+        ${allGrades.map(g=>`
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+            <input type="checkbox" class="ncdGradeCk" value="${g}" ${gradosActuales.has(g)?'checked':''} ${esGeneral?'disabled':''}>
+            ${g}
+          </label>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;gap:8px">
+        ${existentes.length?`<button onclick="removeNoClassDay('${dateStr}')" class="pill pill-danger" style="padding:10px;font-size:12px">Quitar día sin clase</button>`:''}
+        <button onclick="document.getElementById('noClassModalWrap').remove()" class="pill pill-ghost flex-1" style="padding:10px">Cancelar</button>
+        <button onclick="saveNoClassDay('${dateStr}')" class="pill" style="padding:10px;flex:1;background:#0891b2;color:#fff;font-weight:600">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+async function saveNoClassDay(dateStr){
+  const esTodos = document.getElementById('ncdTodos')?.checked;
+  const gradosElegidos = esTodos ? [] : [...document.querySelectorAll('.ncdGradeCk:checked')].map(c=>c.value);
+
+  if(!esTodos && gradosElegidos.length===0){
+    alert('Elige "Todos los grados" o al menos un grado específico.');
+    return;
+  }
+
+  // Reemplaza lo que hubiera antes para esta fecha
+  await sb.from('no_class_days').delete().eq('date', dateStr);
+
+  if(esTodos){
+    await sb.from('no_class_days').insert({date: dateStr, grade: null, created_by: currentSession?.name});
+  } else {
+    await sb.from('no_class_days').insert(
+      gradosElegidos.map(g=>({date: dateStr, grade: g, created_by: currentSession?.name}))
+    );
+  }
+
+  document.getElementById('noClassModalWrap')?.remove();
+  await loadNoClassDays();
+  render();
+}
+
+async function removeNoClassDay(dateStr){
+  await sb.from('no_class_days').delete().eq('date', dateStr);
+  document.getElementById('noClassModalWrap')?.remove();
   await loadNoClassDays();
   render();
 }
