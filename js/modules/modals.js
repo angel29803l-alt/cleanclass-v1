@@ -100,7 +100,9 @@ const formFields={
 // ---- RENDER DE CAMPO MULTISELECT (PUNTO 4) ----
 function renderMultiSelect(fieldKey, label, selectedMembers, gradeValue){
   const grade = gradeValue || getCurrentGrade();
-  const studentNames = getStudentNamesByGrade(grade);
+  // 🆕 Se excluyen estudiantes que ya están en OTRO grupo (window._editingGroupId
+  //    guarda el grupo que se está editando, para no quitarle sus propios miembros)
+  const studentNames = getAvailableStudentNames(grade, window._editingGroupId);
   const sel = selectedMembers || [];
   return `
   <div id="field-${fieldKey}">
@@ -166,6 +168,10 @@ function openModal(mode,col,id){
     if(!found) return;
     item={...found};
   }
+
+  // 🆕 Para cleanGroups: recordar qué grupo se edita, para no excluir sus
+  //    propios miembros del selector de "estudiantes disponibles".
+  if(col==='cleanGroups') window._editingGroupId = (mode==='edit') ? item.id : undefined;
 
   const modalTitle = col==='incidents'
     ? (mode==='add'?t('reportIncident'):t('edit'))
