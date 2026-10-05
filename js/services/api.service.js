@@ -296,6 +296,18 @@ function getStudentNamesByGrade(grade){
     .map(s => s.name);
 }
 
+// 🆕 Igual que getStudentNamesByGrade, pero quita a los estudiantes que ya
+//    pertenecen a OTRO grupo de aseo (excludeGroupId = el grupo que se está
+//    editando ahora mismo, para no quitarle sus propios miembros actuales).
+function getAvailableStudentNames(grade, excludeGroupId){
+  const ocupados = new Set();
+  (D.cleanGroups||[]).forEach(g=>{
+    if(g.id===excludeGroupId) return; // el grupo que se está editando no cuenta
+    (g.members||[]).forEach(m=>ocupados.add(_normName(m)));
+  });
+  return getStudentNamesByGrade(grade).filter(name => !ocupados.has(_normName(name)));
+}
+
 // Computa cumplimiento booleano de una evidencia
 function isCompliant(ev){
   return ev.status === 'Completado';
