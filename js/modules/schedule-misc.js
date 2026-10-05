@@ -11,10 +11,21 @@ function openImageFullscreen(url){
 // ---- BORRAR EVIDENCIA DESDE LA APP ----
 async function deleteEvidenceFromApp(id, imageUrl){
   if(!confirm('¿Seguro que quieres eliminar esta evidencia?')) return;
+
+  // 🔧 FIX: antes, al borrar la evidencia, quedaban "fantasma" los checkins
+  //         de asistencia que se crearon con ella (el del que subió la foto
+  //         y los de quienes marcaron con el código) — eso bloqueaba volver
+  //         a subir evidencia ese día, aunque ya no existiera la foto.
+  const ev = (D.evidence||[]).find(e=>e.id===Number(id));
+  if(ev){
+    await sb.from('attendance_checkins').delete().eq('group_name', ev.group).eq('date', ev.date);
+  }
+
   if(imageUrl) await deleteEvidenceImage(imageUrl);
   const { error } = await sb.from('evidence').delete().eq('id', Number(id));
   if(error){ console.error('Error borrando evidencia:', error.message); return; }
   await loadEvidence();
+  await loadTodayCheckins?.();
   render();
 }
 
