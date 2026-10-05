@@ -607,7 +607,7 @@ function rEvidence(){
         <p style="font-size:11px;color:var(--accent);font-weight:600">${e.reviewed_by}:</p>
         <p style="font-size:11px;color:var(--textm);margin-top:2px">${e.observation}</p>
       </div>`:''}
-      ${(isStudent()&&e.student===currentSession?.name&&e.status==='Pendiente')||isAdmin()||isTeacher()?`
+      ${(isStudent()&&e.student===currentSession?.name&&e.status==='Pendiente'&&e.date===new Date().toISOString().split('T')[0])||isAdmin()||isTeacher()?`
       <button class="pill pill-danger w-full mt-2" style="font-size:12px;padding:6px" onclick="deleteEvidenceFromApp(${e.id},'${e.image||''}')"><i data-lucide="trash-2" style="width:13px;height:13px;display:inline;margin-right:4px"></i>Eliminar</button>`:''}
     </div>`).join(''):`
     <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--textm);border:2px dashed var(--border);border-radius:12px">
