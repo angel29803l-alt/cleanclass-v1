@@ -1,6 +1,7 @@
 
 // ---- AUTH ----
 function showScreen(name){
+  if(name==='registro') loadRegistroGrades();
   // Si se sale de la pantalla de recuperación, cortar el contador y desbloquear
   if(name !== 'verificacion' && typeof authTimer !== 'undefined' && authTimer){
     clearInterval(authTimer);
@@ -199,13 +200,14 @@ async function doLogin(){
   loadAllData().then(async ()=>{
     // Si el usuario no tiene grado (tabla users no tiene grade),
     // buscarlo en D.students o D.teachers por email
-    if(currentSession && !currentSession.grade && currentSession.role!=='admin'){
-      const st = D.students.find(s=>s.email===currentSession.email);
-      if(st) currentSession.grade = st.grade;
-      if(!currentSession.grade){
-        const tc = D.teachers.find(t=>t.email===currentSession.email);
-        if(tc) currentSession.grade = tc.grade;
-      }
+    if(currentSession && currentSession.role!=='admin'){
+      // 🔧 La lista students/teachers manda: si el admin cambia el grado ahí, debe
+      //    prevalecer sobre el grado guardado en users al registrarse.
+      const _mail = (currentSession.email||'').toLowerCase();
+      const _st = D.students.find(s=>(s.email||'').toLowerCase()===_mail);
+      const _tc = _st ? null : D.teachers.find(t=>(t.email||'').toLowerCase()===_mail);
+      const _fuente = _st || _tc;
+      if(_fuente && _fuente.grade) currentSession.grade = _fuente.grade;
     }
     // Si se abrió desde la notificación de aseo, ir directo a Evidencias
     try{
@@ -239,6 +241,31 @@ async function doLogin(){
   });
 }
 
+// 🆕 Llena el selector de grado del registro con los grados que existen en Salones.
+//    Se consulta solo la columna grade y se guarda en memoria para no repetir la consulta.
+let _regGrades = null;
+async function loadRegistroGrades(){
+  const sel = document.getElementById('regGrade');
+  if(!sel) return;
+  if(_regGrades === null){
+    try{
+      const { data, error } = await sb.from('rooms').select('grade');
+      if(error) throw error;
+      _regGrades = [...new Set((data||[]).map(r=>(r.grade||'').trim()).filter(Boolean))]
+        .sort((a,b)=>a.localeCompare(b, 'es', {numeric:true}));
+    }catch(err){
+      console.warn('No se pudieron cargar los grados para el registro:', err.message);
+      _regGrades = [];
+    }
+  }
+  if(_regGrades.length === 0){
+    sel.innerHTML = '<option value="">No hay grados disponibles</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Elige tu grado</option>' +
+    _regGrades.map(g=>`<option value="${g}">${g}</option>`).join('');
+}
+
 async function doRegistro(){
   const btn=document.getElementById('btnRegistro');
   const nameVal=(document.getElementById('regName')?.value||'').trim();
@@ -246,6 +273,7 @@ async function doRegistro(){
   const passVal=(document.getElementById('passRegistro')?.value||'').trim();
   const confirmVal=(document.getElementById('passConfirm')?.value||'').trim();
   const errEl=document.getElementById('regError');
+  const gradeVal=(document.getElementById('regGrade')?.value||'').trim();
 
   function showRegError(msg){
     if(errEl){
@@ -283,6 +311,10 @@ async function doRegistro(){
   if(passVal!==confirmVal){
     showRegError('Las contraseñas no coinciden');return;
   }
+  // El grado es obligatorio cuando ya hay grados creados para elegir
+  if(_regGrades && _regGrades.length>0 && !gradeVal){
+    showRegError('Elige tu grado');return;
+  }
 
   if(btn){btn.textContent='Registrando...';btn.disabled=true;}
   if(errEl) errEl.style.display='none';
@@ -305,13 +337,34 @@ async function doRegistro(){
 
   // Guardar datos extras en tabla users
   if(data.user){
-    await sb.from('users').insert({
+    const fila = {
       id: data.user.id,
       name: nameVal,
       email: emailVal,
       role: 'student',
       avatar: '👤'
-    });
+    };
+    if(gradeVal) fila.grade = gradeVal;
+    let { error: insErr } = await sb.from('users').insert(fila);
+    // Si la columna grade todavía no existe en la tabla, se guarda igual sin ella
+    // para que el registro nunca quede a medias.
+    if(insErr && gradeVal){
+      console.warn('No se pudo guardar el grado en users:', insErr.message);
+      delete fila.grade;
+      await sb.from('users').insert(fila);
+    }
+
+    // 🆕 También se crea en la lista de estudiantes del grado (tabla students),
+    //    que es de donde salen los integrantes de los grupos de aseo y la lista
+    //    de estudiantes del docente. Sin esta fila quedaba sin grado asignado.
+    if(gradeVal){
+      const { error: stErr } = await sb.from('students').insert({
+        name: nameVal,
+        email: emailVal,
+        grade: gradeVal
+      });
+      if(stErr) console.warn('No se pudo agregar a la lista de estudiantes:', stErr.message);
+    }
   }
 
   if(btn){btn.textContent='¡Registrado! ✓';btn.classList.add('auth-success');}

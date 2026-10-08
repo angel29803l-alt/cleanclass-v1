@@ -440,13 +440,14 @@ document.addEventListener('DOMContentLoaded', async function initApp() {
       isLoggedOut = false;
       checkResp();
       await loadAllData();
-      if(currentSession && !currentSession.grade && currentSession.role!=='admin'){
-        const st = D.students.find(s=>s.email===currentSession.email);
-        if(st) currentSession.grade = st.grade;
-        if(!currentSession.grade){
-          const tc = D.teachers.find(t=>t.email===currentSession.email);
-          if(tc) currentSession.grade = tc.grade;
-        }
+      if(currentSession && currentSession.role!=='admin'){
+        // 🔧 La lista students/teachers manda: si el admin cambia el grado ahí, debe
+        //    prevalecer sobre el grado guardado en users al registrarse.
+        const _mail = (currentSession.email||'').toLowerCase();
+        const _st = D.students.find(s=>(s.email||'').toLowerCase()===_mail);
+        const _tc = _st ? null : D.teachers.find(t=>(t.email||'').toLowerCase()===_mail);
+        const _fuente = _st || _tc;
+        if(_fuente && _fuente.grade) currentSession.grade = _fuente.grade;
       }
       render();
       if (typeof initRealtime === 'function') initRealtime();
