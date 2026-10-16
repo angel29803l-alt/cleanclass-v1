@@ -147,33 +147,6 @@ function rSettings(){
                 <p class="font-medium" style="color:var(--accent)">${(()=>{const d=currentSession?.created_at||currentUser.joinDate;if(!d)return '—';const days=Math.floor((new Date()-new Date(d))/(1000*60*60*24));return days===0?'¡Hoy te uniste!':days+' días';})()}</p>
               </div>
             </div>
-            
-            <!-- Edad -->
-            <div>
-              <p style="font-size:12px;color:var(--textm);margin-bottom:6px">EDAD</p>
-              <div style="background:rgba(6,182,212,.08);padding:12px;border-radius:8px;border-left:3px solid var(--accent)">
-                <p class="font-medium">${(()=>{const bd=currentSession?.birth_date;if(!bd)return '—';const p=bd.split('/');if(p.length!==3)return '—';const birth=new Date(p[2],p[1]-1,p[0]);const now=new Date();let age=now.getFullYear()-birth.getFullYear();const m=now.getMonth()-birth.getMonth();if(m<0||(m===0&&now.getDate()<birth.getDate()))age--;return age+' años';})()}</p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Sección de Estado -->
-          <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border)">
-            <h4 class="font-bold text-sm mb-4" style="color:var(--textm)">ESTADO DE LA CUENTA</h4>
-            <div class="flex flex-wrap gap-3">
-              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(16,185,129,.1);border-radius:6px;border:1px solid rgba(16,185,129,.2)">
-                <i data-lucide="check-circle" style="width:18px;height:18px;color:#10b981"></i>
-                <span style="font-size:12px;font-weight:600;color:#10b981">Cuenta Activa</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(59,130,246,.1);border-radius:6px;border:1px solid rgba(59,130,246,.2)">
-                <i data-lucide="shield-check" style="width:18px;height:18px;color:#3b82f6"></i>
-                <span style="font-size:12px;font-weight:600;color:#3b82f6">Verificado</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,.1);border-radius:6px;border:1px solid rgba(34,197,94,.2)">
-                <i data-lucide="lock" style="width:18px;height:18px;color:#22c55e"></i>
-                <span style="font-size:12px;font-weight:600;color:#22c55e">Protegida</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
