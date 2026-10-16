@@ -58,7 +58,7 @@ function renderAvatarsConfig(){
 
   return `
   <div style="margin-bottom:14px">
-    <p style="font-size:13px;color:var(--textm)">Administra las fotos de perfil: elimina una foto inapropiada, bloquea a un usuario para que no pueda cambiar su foto, o fija tú mismo una foto específica (queda bloqueada automáticamente).</p>
+    <p style="font-size:13px;color:var(--textm)">Administra las fotos de perfil: elimina una foto inapropiada, bloquea a un usuario para que no pueda cambiar su foto, cámbiale la foto por una que tú elijas (sin bloquear), o fija una foto específica (queda bloqueada automáticamente).</p>
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px">
     ${allUsers.map(u=>`
@@ -84,6 +84,13 @@ function renderAvatarsConfig(){
           <button onclick="toggleAvatarLock('${u.id}', ${!u.avatar_locked})" style="width:100%;background:${u.avatar_locked?'#334155':'#78350f'};color:#fff;border:none;border-radius:8px;padding:6px;font-size:11px;font-weight:600;cursor:pointer">
             ${u.avatar_locked?'🔓 Desbloquear':'🔒 Bloquear'}
           </button>
+
+          <label style="width:100%;display:block;cursor:pointer">
+            <span style="display:block;width:100%;background:#4f46e5;color:#fff;border-radius:8px;padding:6px;font-size:11px;font-weight:600">
+              🖼️ Cambiar foto
+            </span>
+            <input type="file" accept="image/*" style="display:none" onchange="adminChangeUserAvatar('${u.id}', this)">
+          </label>
 
           <label style="width:100%;display:block;cursor:pointer">
             <span style="display:block;width:100%;background:#0891b2;color:#fff;border-radius:8px;padding:6px;font-size:11px;font-weight:600">
@@ -121,6 +128,30 @@ async function toggleAvatarLock(userId, lock){
   }catch(err){
     console.error('Error actualizando bloqueo de avatar:', err.message);
     alert('No se pudo actualizar. Intenta de nuevo.');
+  }
+}
+
+// El admin reemplaza la foto de un usuario por la que elija (NO cambia el bloqueo: si estaba libre sigue libre)
+async function adminChangeUserAvatar(userId, input){
+  const file = input.files[0];
+  if(!file) return;
+  try{
+    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+    const fileName = `avatar_${userId}_${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('evidencias').upload(fileName, file, { upsert:true });
+    if(upErr) throw upErr;
+    const { data: pub } = sb.storage.from('evidencias').getPublicUrl(fileName);
+    const url = pub.publicUrl + '?t=' + Date.now();
+
+    const { error: dbErr } = await sb.from('users').update({ avatar_url: url }).eq('id', userId);
+    if(dbErr) throw dbErr;
+
+    input.value='';
+    await loadUsers();
+    render();
+  }catch(err){
+    console.error('Error cambiando avatar:', err.message);
+    alert('No se pudo cambiar la foto. Intenta de nuevo.');
   }
 }
 
